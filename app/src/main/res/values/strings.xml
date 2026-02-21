@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Tadiwa Print Buddy</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">THIS IS MY First Fragment</string>
+    <string name="second_fragment_label">THIS IS MY Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="lorem_ipsum">
+        THIS IS MY FIRST ANDROID APP
+    </string>
+
+    <string name="cart_total_format">Total: ₹ %.2f</string>
+    <string name="complete_order">Complete Order</string>
+    <string name="go_to_cart">Go To Cart</string>
+    <string name="no_orders_yet">No Orders Yet</string>
+</resources>

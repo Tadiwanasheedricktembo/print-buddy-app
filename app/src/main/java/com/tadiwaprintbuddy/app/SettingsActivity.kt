@@ -18,6 +18,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var prefs: ReminderPreferencesManager
     private lateinit var scheduler: ReminderScheduler
+    private lateinit var themeManager: ThemeManager
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -40,12 +41,25 @@ class SettingsActivity : AppCompatActivity() {
 
         prefs = ReminderPreferencesManager(this)
         scheduler = ReminderScheduler(this)
+        themeManager = ThemeManager(this)
 
         setupUI()
         loadSettings()
     }
 
     private fun setupUI() {
+        // Theme Selection
+        binding.toggleGroupTheme.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                val theme = when (checkedId) {
+                    R.id.btnThemeLight -> ThemeManager.THEME_LIGHT
+                    R.id.btnThemeDark -> ThemeManager.THEME_DARK
+                    else -> ThemeManager.THEME_SYSTEM
+                }
+                themeManager.selectedTheme = theme
+            }
+        }
+
         binding.switchEnableReminders.setOnCheckedChangeListener { _, isChecked ->
             binding.layoutReminderSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
@@ -80,6 +94,15 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
+        // Load Theme
+        val currentTheme = themeManager.selectedTheme
+        val buttonId = when (currentTheme) {
+            ThemeManager.THEME_LIGHT -> R.id.btnThemeLight
+            ThemeManager.THEME_DARK -> R.id.btnThemeDark
+            else -> R.id.btnThemeSystem
+        }
+        binding.toggleGroupTheme.check(buttonId)
+
         binding.switchEnableReminders.isChecked = prefs.isEnabled
         binding.layoutReminderSettings.visibility = if (prefs.isEnabled) View.VISIBLE else View.GONE
         binding.btnSelectTime.text = String.format("%02d:%02d", prefs.hour, prefs.minute)

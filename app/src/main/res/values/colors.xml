@@ -1,52 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- PREMIUM BRAND COLORS - Slate & Electric Blue -->
-
-    <!-- Light Mode -->
-    <color name="primary_light">#0F172A</color> <!-- Deep Slate -->
-    <color name="on_primary_light">#FFFFFF</color>
-    <color name="primary_container_light">#E2E8F0</color>
-    <color name="on_primary_container_light">#0F172A</color>
-
-    <color name="secondary_light">#2563EB</color> <!-- Electric Blue Accent -->
-    <color name="on_secondary_light">#FFFFFF</color>
-    <color name="secondary_container_light">#DBEAFE</color>
-    <color name="on_secondary_container_light">#1E40AF</color>
-
-    <color name="background_light">#F8FAFC</color>
-    <color name="on_background_light">#0F172A</color>
+    <!-- LIGHT THEME PALETTE (Premium Business/Productivity) -->
+    <color name="bg_light">#F7F9FC</color>
     <color name="surface_light">#FFFFFF</color>
-    <color name="on_surface_light">#0F172A</color>
-    <color name="surface_variant_light">#F1F5F9</color>
-    <color name="on_surface_variant_light">#475569</color>
-    <color name="outline_light">#CBD5E1</color>
-    <color name="outline_variant_light">#E2E8F0</color>
+    <color name="primary_light">#2563EB</color>
+    <color name="on_primary_light">#FFFFFF</color>
+    <color name="primary_container_light">#DBEAFE</color>
+    <color name="on_primary_container_light">#1E40AF</color>
+    <color name="secondary_light">#10B981</color>
+    <color name="on_secondary_light">#FFFFFF</color>
+    <color name="secondary_container_light">#D1FAE5</color>
+    <color name="on_secondary_container_light">#065F46</color>
+    <color name="text_primary_light">#111827</color>
+    <color name="text_secondary_light">#6B7280</color>
+    <color name="outline_light">#E5E7EB</color>
+    <color name="surface_variant_light">#F3F4F6</color>
+    <color name="on_surface_variant_light">#4B5563</color>
 
-    <!-- Dark Mode - Premium Navy Layering -->
-    <color name="primary_dark">#F8FAFC</color>
-    <color name="on_primary_dark">#0F172A</color>
+    <!-- DARK THEME PALETTE (Refined & Balanced) -->
+    <color name="bg_dark">#0B1220</color>
+    <color name="surface_dark">#111827</color>
+    <color name="primary_dark">#3B82F6</color>
+    <color name="on_primary_dark">#FFFFFF</color>
     <color name="primary_container_dark">#1E293B</color>
-    <color name="on_primary_container_dark">#F1F5F9</color>
+    <color name="on_primary_container_dark">#D1E9FF</color>
+    <color name="secondary_dark">#22C55E</color>
+    <color name="on_secondary_dark">#FFFFFF</color>
+    <color name="secondary_container_dark">#064E3B</color>
+    <color name="on_secondary_container_dark">#D1FAE5</color>
+    <color name="text_primary_dark">#F9FAFB</color>
+    <color name="text_secondary_dark">#9CA3AF</color>
+    <color name="outline_dark">#1F2937</color>
+    <color name="surface_variant_dark">#1E2638</color>
+    <color name="on_surface_variant_dark">#9CA3AF</color>
 
-    <color name="secondary_dark">#60A5FA</color>
-    <color name="on_secondary_dark">#0F172A</color>
-    <color name="secondary_container_dark">#1D4ED8</color>
-    <color name="on_secondary_container_dark">#DBEAFE</color>
-
-    <color name="background_dark">#020617</color> <!-- Ultra Deep Navy -->
-    <color name="on_background_dark">#F1F5F9</color>
-    <color name="surface_dark">#0F172A</color> <!-- Slate Surface -->
-    <color name="surface_bright_dark">#1E293B</color> <!-- Layered Surface -->
-    <color name="on_surface_dark">#F1F5F9</color>
-    <color name="surface_variant_dark">#1E293B</color>
-    <color name="on_surface_variant_dark">#94A3B8</color>
-    <color name="outline_dark">#334155</color>
-    <color name="outline_variant_dark">#1E293B</color>
-
-    <!-- Semantic / Feedback -->
-    <color name="success">#10B981</color>
-    <color name="on_success">#FFFFFF</color>
+    <!-- Semantic / Common -->
     <color name="error">#EF4444</color>
     <color name="on_error">#FFFFFF</color>
+    <color name="success">#22C55E</color>
     <color name="warning">#F59E0B</color>
 </resources>

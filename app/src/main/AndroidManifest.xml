@@ -2,6 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,16 +20,26 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TadiwaPrintBuddy">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.TadiwaPrintBuddy">
+            android:theme="@style/Theme.App.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <activity
             android:name=".CartActivity"
@@ -40,7 +59,41 @@
         <activity
             android:name=".DashboardActivity"
             android:exported="false"
+            android:hardwareAccelerated="true"
             android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".DebtorCreditActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".PrinterReferenceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".ViewPhotoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.tadiwaprintbuddy.app.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

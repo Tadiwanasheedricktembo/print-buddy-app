@@ -9,27 +9,31 @@ import com.tadiwaprintbuddy.app.databinding.ItemServiceBinding
 
 class ServiceAdapter(
     private val services: List<Service>,
-    private val onAddClick: (Service) -> Unit = { service ->
-        Log.d("ServiceAdapter", "Add clicked: ${service.name}")
-    }
+    private val onAddClick: (Service, Double) -> Unit
 ) : RecyclerView.Adapter<ServiceAdapter.ViewHolder>() {
 
     class ViewHolder(private val binding: ItemServiceBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(service: Service, onAddClick: (Service) -> Unit) {
-
+        fun bind(service: Service, onAddClick: (Service, Double) -> Unit) {
             binding.textViewServiceName.text = service.name
-            binding.textViewServicePrice.text = "₹ %.2f".format(service.price)
+            // Pre-fill the EditText with the default price
+            binding.editServicePrice.setText(service.price.toString())
 
             binding.buttonAdd.setOnClickListener {
+                val price = binding.editServicePrice.text.toString().toDoubleOrNull()
+                if (price == null || price < 0) {
+                    Toast.makeText(binding.root.context, "Please enter a valid price", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
                 Toast.makeText(
                     binding.root.context,
                     "Added: ${service.name}",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                onAddClick(service)
+                onAddClick(service, price)
             }
         }
     }

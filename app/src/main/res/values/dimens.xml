@@ -1,3 +1,18 @@
 <resources>
-    <dimen name="fab_margin">16dp</dimen>
+    <!-- Premium Spacing Rhythm -->
+    <dimen name="screen_padding">24dp</dimen>
+    <dimen name="element_spacing">20dp</dimen>
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="input_vertical_margin">16dp</dimen>
+
+    <!-- Consistent Corner Radii - Modern Rounded Style -->
+    <dimen name="card_corner_radius">24dp</dimen>
+    <dimen name="button_corner_radius">32dp</dimen>
+    <dimen name="input_corner_radius">28dp</dimen>
+
+    <!-- Typography Sizes -->
+    <dimen name="text_size_h1">32sp</dimen>
+    <dimen name="text_size_h2">24sp</dimen>
+    <dimen name="text_size_body">16sp</dimen>
+    <dimen name="text_size_label">12sp</dimen>
 </resources>

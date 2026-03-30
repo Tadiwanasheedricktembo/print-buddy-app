@@ -8,5 +8,7 @@ data class Order(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val totalAmount: Double,
-    val date: Long
+    val date: Long,
+    val customerName: String,
+    val paidAmount: Double = 0.0
 )

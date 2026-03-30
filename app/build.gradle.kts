@@ -3,15 +3,12 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     kotlin("kapt")
+    id("kotlin-parcelize")
 }
 
 android {
     namespace = "com.tadiwaprintbuddy.app"
     compileSdk = 36
-
-    //compileSdk {
-   //     version = release(36)
-    //}
 
     defaultConfig {
         applicationId = "com.tadiwaprintbuddy.app"
@@ -61,9 +58,16 @@ dependencies {
     implementation(libs.androidx.navigation.ui)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.core.splashscreen)
+    
     implementation("androidx.room:room-runtime:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -38,7 +38,7 @@ class OrdersAdapter(private var orders: List<Order>) : RecyclerView.Adapter<Orde
 
             itemView.setOnClickListener {
                 val context = itemView.context
-                val intent = Intent(context, OrderDetailsActivity::class.java).apply {
+                val intent = Intent(context, com.tadiwaprintbuddy.app.OrderDetailsActivity::class.java).apply {
                     putExtra("ORDER_ID", order.id)
                 }
                 context.startActivity(intent)

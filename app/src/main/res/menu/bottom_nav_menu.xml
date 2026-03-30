@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/button_view_dashboard"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="Dash" />
+    <item
+        android:id="@+id/btnViewOrders"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Orders" />
+    <item
+        android:id="@+id/button_view_debtor_credit"
+        android:icon="@android:drawable/btn_star"
+        android:title="Debtors" />
+    <item
+        android:id="@+id/button_printer_references"
+        android:icon="@android:drawable/ic_menu_more"
+        android:title="Refs" />
+</menu>

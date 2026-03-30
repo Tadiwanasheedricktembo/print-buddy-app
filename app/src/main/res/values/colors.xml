@@ -1,10 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- PREMIUM BRAND COLORS - Slate & Electric Blue -->
+
+    <!-- Light Mode -->
+    <color name="primary_light">#0F172A</color> <!-- Deep Slate -->
+    <color name="on_primary_light">#FFFFFF</color>
+    <color name="primary_container_light">#E2E8F0</color>
+    <color name="on_primary_container_light">#0F172A</color>
+
+    <color name="secondary_light">#2563EB</color> <!-- Electric Blue Accent -->
+    <color name="on_secondary_light">#FFFFFF</color>
+    <color name="secondary_container_light">#DBEAFE</color>
+    <color name="on_secondary_container_light">#1E40AF</color>
+
+    <color name="background_light">#F8FAFC</color>
+    <color name="on_background_light">#0F172A</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="on_surface_light">#0F172A</color>
+    <color name="surface_variant_light">#F1F5F9</color>
+    <color name="on_surface_variant_light">#475569</color>
+    <color name="outline_light">#CBD5E1</color>
+    <color name="outline_variant_light">#E2E8F0</color>
+
+    <!-- Dark Mode - Premium Navy Layering -->
+    <color name="primary_dark">#F8FAFC</color>
+    <color name="on_primary_dark">#0F172A</color>
+    <color name="primary_container_dark">#1E293B</color>
+    <color name="on_primary_container_dark">#F1F5F9</color>
+
+    <color name="secondary_dark">#60A5FA</color>
+    <color name="on_secondary_dark">#0F172A</color>
+    <color name="secondary_container_dark">#1D4ED8</color>
+    <color name="on_secondary_container_dark">#DBEAFE</color>
+
+    <color name="background_dark">#020617</color> <!-- Ultra Deep Navy -->
+    <color name="on_background_dark">#F1F5F9</color>
+    <color name="surface_dark">#0F172A</color> <!-- Slate Surface -->
+    <color name="surface_bright_dark">#1E293B</color> <!-- Layered Surface -->
+    <color name="on_surface_dark">#F1F5F9</color>
+    <color name="surface_variant_dark">#1E293B</color>
+    <color name="on_surface_variant_dark">#94A3B8</color>
+    <color name="outline_dark">#334155</color>
+    <color name="outline_variant_dark">#1E293B</color>
+
+    <!-- Semantic / Feedback -->
+    <color name="success">#10B981</color>
+    <color name="on_success">#FFFFFF</color>
+    <color name="error">#EF4444</color>
+    <color name="on_error">#FFFFFF</color>
+    <color name="warning">#F59E0B</color>
 </resources>

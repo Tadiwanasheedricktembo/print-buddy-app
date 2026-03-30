@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Premium Circular Base -->
+    <path
+        android:fillColor="?attr/colorPrimary"
+        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
+
+    <!-- Stylized Printer/Document Icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,38h44v10h-44zM32,52h44v24h-44z" />
+
+    <!-- Document Lines -->
+    <path
+        android:fillColor="#E3E2E6"
+        android:pathData="M38,58h32v4h-32zM38,66h32v4h-32z" />
+</vector>

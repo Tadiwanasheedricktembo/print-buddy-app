@@ -35,7 +35,10 @@ class ServicesAdapter(
 
         fun bind(service: Service) {
             binding.textViewServiceName.text = service.name
-            binding.textViewServicePrice.text = "₹%.2f".format(service.price)
+            binding.editServicePrice.setText("₹%.2f".format(service.price))
+            // Disable the EditText to make it behave like a TextView in this context
+            binding.editServicePrice.isFocusable = false
+            binding.editServicePrice.isClickable = false
         }
     }
 }

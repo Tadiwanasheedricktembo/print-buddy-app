@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.Order
-import com.tadiwaprintbuddy.app.data.OrderItem
 import com.tadiwaprintbuddy.app.databinding.ActivityOrderDetailsBinding
 import java.text.SimpleDateFormat
 import java.util.Locale

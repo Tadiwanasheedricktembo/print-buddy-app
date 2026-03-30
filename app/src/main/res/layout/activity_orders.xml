@@ -4,13 +4,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:background="?android:attr/colorBackground"
     tools:context=".OrdersActivity">
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_orders"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:padding="16dp"
         tools:listitem="@layout/item_order" />
 
     <TextView
@@ -19,7 +21,8 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:text="@string/no_orders_yet"
-        android:textSize="18sp"
+        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:visibility="gone"
         tools:visibility="visible" />
 

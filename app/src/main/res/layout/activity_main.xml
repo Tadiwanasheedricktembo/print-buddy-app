@@ -69,14 +69,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/screen_padding">
+            android:padding="16dp">
 
             <!-- Order Entry Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="@dimen/card_corner_radius"
+                app:cardCornerRadius="16dp"
                 app:cardElevation="2dp"
                 app:strokeWidth="0dp">
 
@@ -84,7 +84,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
+                    android:padding="16dp">
 
                     <TextView
                         android:id="@+id/tvOrderLabel"
@@ -118,7 +118,7 @@
                         style="@style/Widget.App.TextInputLayout.Filled.Dropdown"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/grid_16"
+                        android:layout_marginTop="16dp"
                         android:hint="Select Service"
                         app:startIconDrawable="@android:drawable/ic_menu_sort_by_size"
                         app:startIconTint="?attr/colorSecondary">
@@ -134,7 +134,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/grid_16"
+                        android:layout_marginTop="16dp"
                         android:baselineAligned="false"
                         android:orientation="horizontal">
 
@@ -187,10 +187,10 @@
                 android:id="@+id/cardSummary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/element_spacing"
-                app:cardBackgroundColor="?attr/colorSurfaceBright"
-                app:cardCornerRadius="@dimen/card_corner_radius"
-                app:cardElevation="6dp"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
                 app:strokeWidth="0dp">
 
                 <RelativeLayout
@@ -223,7 +223,7 @@
                         android:layout_height="64dp"
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
-                        android:alpha="0.05"
+                        android:alpha="0.1"
                         android:src="@android:drawable/ic_menu_save"
                         app:tint="?attr/colorOnSurface" />
 
@@ -235,7 +235,7 @@
                 style="@style/Widget.App.TextInputLayout.Filled.Dropdown"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/element_spacing"
+                android:layout_marginTop="16dp"
                 android:hint="Payment Status"
                 app:startIconDrawable="@android:drawable/ic_menu_agenda"
                 app:startIconTint="?attr/colorSecondary">

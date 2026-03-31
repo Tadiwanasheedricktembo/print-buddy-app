@@ -56,4 +56,5 @@ Tadiwa Print Buddy is a robust Android application designed to help small to med
 - `DebtorsActivity.kt`: Management of unpaid orders and credits.
 
 ---
-*Developed by Tadiwa*
+*Developed by Tadiwanashe E Tembo*
+*@Querycubix*

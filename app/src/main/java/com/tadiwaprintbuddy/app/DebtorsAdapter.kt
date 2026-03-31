@@ -34,7 +34,7 @@ class DebtorsAdapter(
             val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
 
             binding.textCustomerName.text = debtor.customerName
-            binding.textAmountOwed.text = "Owed: ${format.format(debtor.totalOwed)}"
+            binding.textAmountOwed.text = format.format(debtor.totalOwed)
 
             binding.buttonReceivePayment.setOnClickListener {
                 onReceivePaymentClicked(debtor)

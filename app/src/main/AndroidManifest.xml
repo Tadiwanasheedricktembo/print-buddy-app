@@ -69,6 +69,11 @@
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <activity
+            android:name=".SettlementHistoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
             android:name=".PrinterReferenceActivity"
             android:exported="false"
             android:theme="@style/Theme.TadiwaPrintBuddy" />

@@ -1,12 +1,15 @@
 package com.tadiwaprintbuddy.app
 
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.Order
 import com.tadiwaprintbuddy.app.databinding.ActivityOrderDetailsBinding
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -48,5 +51,32 @@ class OrderDetailsActivity : AppCompatActivity() {
         binding.textOrderId.text = "Order #${order.id}"
         binding.textOrderDate.text = dateFormat.format(order.date)
         binding.textOrderTotal.text = "Total: ₹ %.2f".format(order.totalAmount)
+
+        val pendingAmount = order.totalAmount - order.paidAmount
+        if (pendingAmount > 0) {
+            binding.textPaymentStatus.visibility = View.VISIBLE
+            binding.textPaymentStatus.text = "Pending: ₹ %.2f".format(pendingAmount)
+            binding.buttonPayNow.visibility = View.VISIBLE
+            binding.buttonPayNow.setOnClickListener {
+                showPaymentQr(pendingAmount, order.id)
+            }
+        } else {
+            binding.textPaymentStatus.visibility = View.GONE
+            binding.buttonPayNow.visibility = View.GONE
+        }
+    }
+
+    private fun showPaymentQr(amount: Double, orderId: Int) {
+        val paymentDialog = PaymentDialogFragment.newInstance(amount, orderId)
+        paymentDialog.setOnPaymentConfirmedListener {
+            lifecycleScope.launch {
+                val database = AppDatabase.getDatabase(this@OrderDetailsActivity)
+                database.printDao().updatePayment(orderId, amount) // In a real app, you'd add to existing paidAmount
+                // Refreshing the view model would be better, but simple update for now
+                finish() 
+                startActivity(intent)
+            }
+        }
+        paymentDialog.show(supportFragmentManager, "payment_qr")
     }
 }

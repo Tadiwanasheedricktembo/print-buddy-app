@@ -16,10 +16,10 @@
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="120dp"
+            android:layout_height="140dp"
             android:gravity="bottom"
             app:contentInsetStartWithNavigation="0dp"
-            app:title="New Order"
+            app:title="@string/new_order"
             app:titleCentered="false"
             app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineLarge"
             app:titleTextColor="?attr/colorOnSurface">
@@ -32,16 +32,29 @@
                 android:orientation="horizontal">
 
                 <ImageButton
+                    android:id="@+id/btnShowQr"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_icon_button"
+                    android:contentDescription="Show QR Code"
+                    android:src="@drawable/ic_qr_code"
+                    app:tint="?attr/colorOnSurface" />
+
+                <Space
+                    android:layout_width="8dp"
+                    android:layout_height="wrap_content" />
+
+                <ImageButton
                     android:id="@+id/btnAbout"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:background="@drawable/bg_icon_button"
-                    android:contentDescription="About"
+                    android:contentDescription="@string/about_title"
                     android:src="@android:drawable/ic_menu_info_details"
                     app:tint="?attr/colorOnSurface" />
 
                 <Space
-                    android:layout_width="12dp"
+                    android:layout_width="8dp"
                     android:layout_height="wrap_content" />
 
                 <ImageButton
@@ -49,7 +62,7 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:background="@drawable/bg_icon_button"
-                    android:contentDescription="Settings"
+                    android:contentDescription="@string/settings"
                     android:src="@android:drawable/ic_menu_manage"
                     app:tint="?attr/colorOnSurface" />
             </LinearLayout>
@@ -69,66 +82,59 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="@dimen/screen_padding">
 
             <!-- Order Entry Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
-                app:strokeWidth="0dp">
+                app:cardElevation="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="@dimen/card_padding">
 
                     <TextView
                         android:id="@+id/tvOrderLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:text="ORDER DETAILS"
+                        android:layout_marginBottom="20dp"
+                        android:text="@string/order_details_caps"
                         android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:letterSpacing="0.1" />
+                        android:textColor="?attr/colorSecondary"
+                        android:letterSpacing="0.1"
+                        android:textStyle="bold" />
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/layoutCustomerName"
-                        style="@style/Widget.App.TextInputLayout.Filled"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Customer Name"
-                        app:startIconDrawable="@android:drawable/ic_menu_myplaces"
-                        app:startIconTint="?attr/colorSecondary">
+                        app:startIconDrawable="@android:drawable/ic_menu_myplaces">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editCustomerName"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="textPersonName"
-                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                            android:inputType="textPersonName" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/layoutService"
-                        style="@style/Widget.App.TextInputLayout.Filled.Dropdown"
+                        style="@style/Widget.App.TextInputLayout.Dropdown"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:hint="Select Service"
-                        app:startIconDrawable="@android:drawable/ic_menu_sort_by_size"
-                        app:startIconTint="?attr/colorSecondary">
+                        app:startIconDrawable="@android:drawable/ic_menu_sort_by_size">
 
                         <AutoCompleteTextView
                             android:id="@+id/autoCompleteService"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                            android:inputType="none" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <LinearLayout
@@ -140,41 +146,35 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/layoutQuantity"
-                            style="@style/Widget.App.TextInputLayout.Filled"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="8dp"
                             android:hint="Qty"
-                            app:startIconDrawable="@android:drawable/ic_input_add"
-                            app:startIconTint="?attr/colorSecondary">
+                            app:startIconDrawable="@android:drawable/ic_input_add">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editQuantity"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
-                                android:text="1"
-                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                                android:text="1" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/layoutPrice"
-                            style="@style/Widget.App.TextInputLayout.Filled"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1.5"
                             android:layout_marginStart="8dp"
                             android:hint="Price (₹)"
-                            app:startIconDrawable="@android:drawable/ic_menu_send"
-                            app:startIconTint="?attr/colorSecondary">
+                            app:startIconDrawable="@android:drawable/ic_menu_send">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:inputType="numberDecimal"
-                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                                android:inputType="numberDecimal" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                     </LinearLayout>
@@ -187,9 +187,8 @@
                 android:id="@+id/cardSummary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardBackgroundColor="?attr/colorSurfaceVariant"
-                app:cardCornerRadius="16dp"
+                android:layout_marginTop="20dp"
+                app:cardBackgroundColor="?attr/colorPrimaryContainer"
                 app:cardElevation="0dp"
                 app:strokeWidth="0dp">
 
@@ -202,10 +201,11 @@
                         android:id="@+id/lblLineTotal"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="TOTAL ESTIMATE"
+                        android:text="@string/estimated_total_caps"
                         android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:letterSpacing="0.1" />
+                        android:textColor="?attr/colorOnPrimaryContainer"
+                        android:letterSpacing="0.15"
+                        android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/textLineTotal"
@@ -214,50 +214,47 @@
                         android:layout_below="@id/lblLineTotal"
                         android:layout_marginTop="8dp"
                         android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
-                        android:textColor="?attr/colorPrimary"
+                        android:textColor="?attr/colorOnPrimaryContainer"
                         android:textStyle="bold"
                         tools:text="₹250.00" />
 
                     <ImageView
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
-                        android:alpha="0.1"
+                        android:alpha="0.2"
                         android:src="@android:drawable/ic_menu_save"
-                        app:tint="?attr/colorOnSurface" />
+                        app:tint="?attr/colorOnPrimaryContainer" />
 
                 </RelativeLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/layoutPaymentStatus"
-                style="@style/Widget.App.TextInputLayout.Filled.Dropdown"
+                style="@style/Widget.App.TextInputLayout.Dropdown"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 android:hint="Payment Status"
-                app:startIconDrawable="@android:drawable/ic_menu_agenda"
-                app:startIconTint="?attr/colorSecondary">
+                app:startIconDrawable="@android:drawable/ic_menu_agenda">
 
                 <AutoCompleteTextView
                     android:id="@+id/autoCompletePaymentStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="none"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                    android:inputType="none" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCompleteOrder"
-                style="@style/Widget.App.Button.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:layout_marginTop="32dp"
-                android:text="CONFIRM &amp; SAVE ORDER"
-                app:backgroundTint="?attr/colorPrimary"
+                android:text="@string/confirm_save_order"
                 app:icon="@android:drawable/ic_menu_save"
-                app:iconGravity="textStart" />
+                app:iconGravity="textStart"
+                app:iconPadding="12dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -275,8 +272,8 @@
             android:layout_width="match_parent"
             android:layout_height="80dp"
             android:background="?attr/colorSurface"
-            app:itemIconSize="24dp"
-            app:itemRippleColor="?attr/colorSecondaryContainer"
+            app:itemIconSize="26dp"
+            app:itemRippleColor="?attr/colorPrimaryContainer"
             app:labelVisibilityMode="labeled"
             app:menu="@menu/bottom_nav_menu" />
     </com.google.android.material.card.MaterialCardView>

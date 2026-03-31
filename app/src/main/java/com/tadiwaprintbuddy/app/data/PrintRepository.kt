@@ -31,8 +31,8 @@ class PrintRepository(private val printDao: PrintDao) {
         printDao.insertOrderItems(itemsWithOrderId)
     }
 
-    suspend fun confirmOrder(customerName: String, cartItems: List<CartItem>) {
-        if (cartItems.isEmpty()) return
+    suspend fun confirmOrder(customerName: String, cartItems: List<CartItem>): Int {
+        if (cartItems.isEmpty()) return -1
 
         val total = cartItems.sumOf { it.price * it.quantity }
         val order = Order(
@@ -41,17 +41,18 @@ class PrintRepository(private val printDao: PrintDao) {
             customerName = customerName
         )
 
-        val orderId = printDao.insertOrder(order)
+        val orderId = printDao.insertOrder(order).toInt()
 
         val orderItems = cartItems.map { cartItem ->
             OrderItem(
-                orderId = orderId.toInt(),
+                orderId = orderId,
                 serviceName = cartItem.serviceName,
                 price = cartItem.price,
                 quantity = cartItem.quantity
             )
         }
         printDao.insertOrderItems(orderItems)
+        return orderId
     }
 
     suspend fun getAllOrders(): List<Order> = printDao.getAllOrders()
@@ -63,6 +64,9 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getDebtors(): List<DebtorSummary> = printDao.getDebtors()
 
     suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double) {
+        val debtors = printDao.getDebtors()
+        val previousBalance = debtors.find { it.customerName == customerName }?.totalOwed ?: 0.0
+        
         val unpaidOrders = printDao.getUnpaidOrdersForCustomer(customerName)
         var remainingPayment = paymentAmount
 
@@ -76,6 +80,21 @@ class PrintRepository(private val printDao: PrintDao) {
             printDao.updatePayment(order.id, newPaidAmount)
 
             remainingPayment -= paymentForThisOrder
+        }
+
+        // Log settlement
+        val actualSettled = paymentAmount - remainingPayment
+        if (actualSettled > 0) {
+            printDao.insertSettlement(
+                SettlementHistory(
+                    customerName = customerName,
+                    previousBalance = previousBalance,
+                    settledAmount = actualSettled,
+                    remainingBalance = previousBalance - actualSettled,
+                    timestamp = System.currentTimeMillis(),
+                    note = "Order Payment"
+                )
+            )
         }
     }
 
@@ -91,6 +110,8 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double) {
         val existingEntry = printDao.getDebtorCreditByName(customerName)
+        val previousBalance = existingEntry?.amount ?: 0.0
+        
         if (existingEntry != null) {
             val newAmount = existingEntry.amount + amountDelta
             if (newAmount == 0.0) {
@@ -103,6 +124,19 @@ class PrintRepository(private val printDao: PrintDao) {
                 printDao.insertOrUpdateDebtorCredit(DebtorCredit(customerName, amountDelta))
             }
         }
+
+        // Log settlement if it's a payment/settlement (amountDelta reduces the absolute balance)
+        // Actually, let's log any update to this as it's an "audit trail"
+        printDao.insertSettlement(
+            SettlementHistory(
+                customerName = customerName,
+                previousBalance = previousBalance,
+                settledAmount = -amountDelta, // Positive if paying off debt, negative if increasing debt
+                remainingBalance = previousBalance + amountDelta,
+                timestamp = System.currentTimeMillis(),
+                note = if (amountDelta < 0) "Settlement/Payment" else "Balance Adjustment"
+            )
+        )
     }
 
     suspend fun addPrinterReference(reference: PrinterReference) = printDao.addPrinterReference(reference)
@@ -110,4 +144,15 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getAllPrinterReferences(): List<PrinterReference> = printDao.getAllPrinterReferences()
 
     suspend fun deletePrinterReference(reference: PrinterReference) = printDao.deletePrinterReference(reference)
+
+    // Feature 1
+    suspend fun deleteOrder(orderId: Int) {
+        val order = printDao.getOrderById(orderId)
+        if (order != null) {
+            printDao.deleteOrderAndItems(order)
+        }
+    }
+
+    // Feature 2
+    suspend fun getAllSettlements(): List<SettlementHistory> = printDao.getAllSettlements()
 }

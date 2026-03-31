@@ -1,6 +1,8 @@
 package com.tadiwaprintbuddy.app
 
+import android.content.Intent
 import android.os.Bundle
+import android.view.MenuItem
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
@@ -29,6 +31,10 @@ class DebtorCreditActivity : AppCompatActivity() {
         binding = ActivityDebtorCreditBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener { finish() }
+
         val database = AppDatabase.getDatabase(this)
         repository = PrintRepository(database.printDao())
 
@@ -44,6 +50,21 @@ class DebtorCreditActivity : AppCompatActivity() {
         }
 
         loadDebtorCredits()
+    }
+
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_debtors, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settlement_history -> {
+                startActivity(Intent(this, SettlementHistoryActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun loadDebtorCredits() {

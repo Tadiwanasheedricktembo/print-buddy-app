@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.TadiwaPrintBuddy" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
+        <!-- Brand Colors Overrides for Dark -->
         <item name="colorPrimary">@color/primary_dark</item>
         <item name="colorOnPrimary">@color/on_primary_dark</item>
         <item name="colorPrimaryContainer">@color/primary_container_dark</item>
@@ -18,16 +18,22 @@
         <item name="colorSurfaceVariant">@color/surface_variant_dark</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_variant_dark</item>
         <item name="colorOutline">@color/outline_dark</item>
-        <item name="colorSurfaceBright">@color/surface_dark</item>
 
-        <!-- Premium UI Properties -->
-        <item name="android:navigationBarColor">@color/bg_dark</item>
+        <item name="colorError">@color/error_soft</item>
+        <item name="colorOnError">@color/on_error</item>
+
+        <!-- Status & Navigation Bar -->
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/bg_dark</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+
+        <!-- Component Styles (Inherited or same as light, using theme attributes) -->
+        <item name="materialCardViewStyle">@style/Widget.App.Card</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
     </style>
 
-    <!-- Splash Screen Theme -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="windowSplashScreenBackground">@color/bg_dark</item>

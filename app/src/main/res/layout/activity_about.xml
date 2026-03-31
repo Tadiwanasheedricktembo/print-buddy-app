@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="About"
+            app:title="@string/about"
             app:titleCentered="true" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -39,149 +39,99 @@
                 android:layout_width="140dp"
                 android:layout_height="140dp"
                 android:layout_marginTop="24dp"
-                app:cardBackgroundColor="?attr/colorSurfaceBright"
-                app:cardCornerRadius="28dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                app:cardCornerRadius="40dp"
                 app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeColor="?attr/colorOutline"
                 app:strokeWidth="1dp">
 
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:padding="28dp"
+                    android:padding="32dp"
                     android:src="@drawable/ic_splash_logo"
-                    app:tint="?attr/colorSecondary" />
+                    app:tint="?attr/colorPrimary" />
             </com.google.android.material.card.MaterialCardView>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                android:text="Tadiwa Print Buddy"
+                android:text="@string/app_name"
                 android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-                android:textStyle="bold"
-                android:textColor="?attr/colorOnSurface" />
+                android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/textVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Professional Business Tracking"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorSecondary"
-                android:letterSpacing="0.05" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="24dp"
-                    android:text="A high-performance business companion designed to help print shops manage orders, transactions, and customer relationships with absolute precision."
-                    android:textAlignment="center"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                    android:lineSpacingExtra="6dp"
-                    android:alpha="0.8" />
-            </com.google.android.material.card.MaterialCardView>
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                tools:text="Version 1.0.0" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
-                android:layout_marginStart="8dp"
-                android:text="DEVELOPER &amp; SUPPORT"
-                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-                android:textColor="?attr/colorOutline"
-                android:letterSpacing="0.15" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:divider="?android:attr/dividerVertical"
-                    android:showDividers="middle">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnWebsite"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="64dp"
-                        android:text="Visit Blog"
-                        android:textAlignment="viewStart"
-                        android:textColor="?attr/colorOnSurface"
-                        app:icon="@android:drawable/ic_menu_send"
-                        app:iconGravity="textStart"
-                        app:iconPadding="16dp"
-                        app:iconTint="?attr/colorSecondary" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?attr/colorOutlineVariant" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnEmail"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="64dp"
-                        android:text="Support Email"
-                        android:textAlignment="viewStart"
-                        android:textColor="?attr/colorOnSurface"
-                        app:icon="@android:drawable/ic_dialog_email"
-                        app:iconGravity="textStart"
-                        app:iconPadding="16dp"
-                        app:iconTint="?attr/colorSecondary" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?attr/colorOutlineVariant" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnGithub"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="64dp"
-                        android:text="GitHub Repository"
-                        android:textAlignment="viewStart"
-                        android:textColor="?attr/colorOnSurface"
-                        app:icon="@android:drawable/ic_menu_info_details"
-                        app:iconGravity="textStart"
-                        app:iconPadding="16dp"
-                        app:iconTint="?attr/colorSecondary" />
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                android:layout_marginTop="32dp"
+                android:gravity="center"
+                android:text="@string/about_description"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="48dp"
-                android:layout_marginBottom="32dp"
-                android:text="Developed by Tadiwa | Version 1.0.0"
-                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-                android:textColor="?attr/colorOutline"
-                android:alpha="0.6" />
+                android:text="@string/developed_by"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Querycubix"
+                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="48dp"
+                android:text="@string/developer_support"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorPrimary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWebsite"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/website_label"
+                android:textAllCaps="false" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEmail"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/email_label"
+                android:textAllCaps="false" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnGithub"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/github_label"
+                android:textAllCaps="false" />
 
         </LinearLayout>
+
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

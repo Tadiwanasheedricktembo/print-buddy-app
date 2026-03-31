@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface PrintDao {
@@ -94,4 +95,24 @@ WHERE date BETWEEN :start AND :end
 
     @Delete
     suspend fun deletePrinterReference(reference: PrinterReference)
+
+    // Feature 1: Delete Order History
+    @Query("SELECT * FROM orders WHERE id = :orderId")
+    suspend fun getOrderById(orderId: Int): Order?
+
+    @Delete
+    suspend fun deleteOrder(order: Order)
+
+    @Transaction
+    suspend fun deleteOrderAndItems(order: Order) {
+        deleteOrder(order)
+        // Items are deleted via ForeignKey CASCADE
+    }
+
+    // Feature 2: Settlement History
+    @Insert
+    suspend fun insertSettlement(settlement: SettlementHistory)
+
+    @Query("SELECT * FROM settlement_history ORDER BY timestamp DESC")
+    suspend fun getAllSettlements(): List<SettlementHistory>
 }

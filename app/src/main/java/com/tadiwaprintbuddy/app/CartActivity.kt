@@ -61,17 +61,41 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
             .setPositiveButton("Save") { _, _ ->
                 val customerName = editCustomerName.text.toString()
                 if (customerName.isNotBlank()) {
-                    lifecycleScope.launch {
-                        repository.confirmOrder(customerName, cartItems)
-                        Toast.makeText(this@CartActivity, "Order Saved", Toast.LENGTH_SHORT).show()
-                        finish()
-                    }
+                    saveOrderAndShowPayment(customerName)
                 } else {
                     Toast.makeText(this, "Customer name cannot be empty", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun saveOrderAndShowPayment(customerName: String) {
+        lifecycleScope.launch {
+            val total = adapter.getTotal()
+            val orderId = repository.confirmOrder(customerName, cartItems)
+            
+            if (orderId != -1) {
+                Toast.makeText(this@CartActivity, R.string.order_saved_successfully, Toast.LENGTH_SHORT).show()
+                
+                val paymentDialog = PaymentDialogFragment.newInstance(total, orderId)
+                paymentDialog.setOnPaymentConfirmedListener {
+                    lifecycleScope.launch {
+                        repository.updatePayment(orderId, total)
+                        Toast.makeText(this@CartActivity, "Payment marked as complete", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                }
+                
+                // If user just closes the dialog, we still want to finish CartActivity 
+                // because the order is already saved in database as pending.
+                // But we wait for them to interact with the dialog first.
+                paymentDialog.show(supportFragmentManager, "payment_qr")
+                
+                // We don't finish() immediately here because the dialog is showing.
+                // We'll handle finish in dialog callbacks or when dismissed.
+            }
+        }
     }
 
     override fun onCartUpdated(total: Double) {

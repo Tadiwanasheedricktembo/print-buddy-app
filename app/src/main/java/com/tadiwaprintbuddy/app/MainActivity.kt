@@ -91,6 +91,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         binding.btnCompleteOrder.setOnClickListener { completeOrder() }
 
+        binding.btnShowQr.setOnClickListener {
+            showPaymentQr()
+        }
+
         binding.btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -121,6 +125,18 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
+    }
+
+    private fun showPaymentQr() {
+        val quantity = binding.editQuantity.text.toString().toIntOrNull() ?: 0
+        val price = binding.editPrice.text.toString().toDoubleOrNull() ?: 0.0
+        val currentAmount = if (quantity > 0 && price > 0) quantity * price else null
+        
+        val dialog = PaymentDialogFragment.newInstance(
+            amount = currentAmount,
+            isGeneral = true
+        )
+        dialog.show(supportFragmentManager, "PaymentQR")
     }
 
     private fun setupTextWatchers() {

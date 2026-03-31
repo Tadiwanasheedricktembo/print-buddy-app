@@ -5,18 +5,18 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Premium Circular Base -->
+    <!-- Premium Rounded Rectangle Base -->
     <path
         android:fillColor="?attr/colorPrimary"
-        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
+        android:pathData="M24,14h60c5.54,0 10,4.46 10,10v60c0,5.54 -4.46,10 -10,10h-60c-5.54,0 -10,-4.46 -10,-10v-60c0,-5.54 4.46,-10 10,-10z" />
 
-    <!-- Stylized Printer/Document Icon -->
+    <!-- Stylized Printer Icon -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M32,38h44v10h-44zM32,52h44v24h-44z" />
+        android:pathData="M32,44h44v12h-44zM36,32h36v8h-36zM38,60h32v16h-32z" />
 
-    <!-- Document Lines -->
+    <!-- Action Indicator -->
     <path
-        android:fillColor="#E3E2E6"
-        android:pathData="M38,58h32v4h-32zM38,66h32v4h-32z" />
+        android:fillColor="?attr/colorSecondary"
+        android:pathData="M70,48h4v4h-4z" />
 </vector>

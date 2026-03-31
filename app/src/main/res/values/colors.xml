@@ -1,42 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- LIGHT THEME PALETTE (Premium Business/Productivity) -->
-    <color name="bg_light">#F7F9FC</color>
-    <color name="surface_light">#FFFFFF</color>
-    <color name="primary_light">#2563EB</color>
-    <color name="on_primary_light">#FFFFFF</color>
-    <color name="primary_container_light">#DBEAFE</color>
-    <color name="on_primary_container_light">#1E40AF</color>
-    <color name="secondary_light">#10B981</color>
-    <color name="on_secondary_light">#FFFFFF</color>
-    <color name="secondary_container_light">#D1FAE5</color>
-    <color name="on_secondary_container_light">#065F46</color>
-    <color name="text_primary_light">#111827</color>
-    <color name="text_secondary_light">#6B7280</color>
-    <color name="outline_light">#E5E7EB</color>
-    <color name="surface_variant_light">#F3F4F6</color>
-    <color name="on_surface_variant_light">#4B5563</color>
-
-    <!-- DARK THEME PALETTE (Refined & Balanced) -->
-    <color name="bg_dark">#0B1220</color>
-    <color name="surface_dark">#111827</color>
-    <color name="primary_dark">#3B82F6</color>
+    <!-- BRAND DESIGN SYSTEM - DARK (Primary Focus) -->
+    <color name="bg_dark">#080C15</color> <!-- Very dark navy -->
+    <color name="surface_dark">#121B2B</color> <!-- Slightly lighter navy -->
+    <color name="primary_dark">#10B981</color> <!-- Professional Green -->
     <color name="on_primary_dark">#FFFFFF</color>
-    <color name="primary_container_dark">#1E293B</color>
-    <color name="on_primary_container_dark">#D1E9FF</color>
-    <color name="secondary_dark">#22C55E</color>
+    <color name="secondary_dark">#3B82F6</color> <!-- Refined Blue -->
     <color name="on_secondary_dark">#FFFFFF</color>
-    <color name="secondary_container_dark">#064E3B</color>
-    <color name="on_secondary_container_dark">#D1FAE5</color>
-    <color name="text_primary_dark">#F9FAFB</color>
-    <color name="text_secondary_dark">#9CA3AF</color>
-    <color name="outline_dark">#1F2937</color>
-    <color name="surface_variant_dark">#1E2638</color>
-    <color name="on_surface_variant_dark">#9CA3AF</color>
+    <color name="text_primary_dark">#F9FAFB</color> <!-- Near white -->
+    <color name="text_secondary_dark">#94A3B8</color> <!-- Muted gray-blue -->
+    <color name="outline_dark">#1E293B</color>
+    <color name="surface_variant_dark">#1E293B</color>
+    <color name="on_surface_variant_dark">#94A3B8</color>
 
-    <!-- Semantic / Common -->
-    <color name="error">#EF4444</color>
+    <!-- BRAND DESIGN SYSTEM - LIGHT -->
+    <color name="bg_light">#F8FAFC</color> <!-- Clean off-white -->
+    <color name="surface_light">#FFFFFF</color>
+    <color name="primary_light">#059669</color> <!-- Professional Green (slightly darker for light bg) -->
+    <color name="on_primary_light">#FFFFFF</color>
+    <color name="secondary_light">#2563EB</color> <!-- Adapted blue -->
+    <color name="on_secondary_light">#FFFFFF</color>
+    <color name="text_primary_light">#0F172A</color>
+    <color name="text_secondary_light">#64748B</color>
+    <color name="outline_light">#E2E8F0</color>
+    <color name="surface_variant_light">#F1F5F9</color>
+    <color name="on_surface_variant_light">#64748B</color>
+
+    <!-- SEMANTIC & TINTS -->
+    <color name="error_soft">#F87171</color> <!-- Softer controlled red -->
     <color name="on_error">#FFFFFF</color>
-    <color name="success">#22C55E</color>
-    <color name="warning">#F59E0B</color>
+
+    <!-- TINTED SURFACES FOR CHIPS/BADGES -->
+    <color name="primary_container_dark">#064E3B</color>
+    <color name="on_primary_container_dark">#D1FAE5</color>
+    <color name="secondary_container_dark">#1E3A8A</color>
+    <color name="on_secondary_container_dark">#DBEAFE</color>
+    <color name="error_container_dark">#450A0A</color>
+    <color name="on_error_container_dark">#FEE2E2</color>
+
+    <color name="primary_container_light">#D1FAE5</color>
+    <color name="on_primary_container_light">#064E3B</color>
+    <color name="secondary_container_light">#DBEAFE</color>
+    <color name="on_secondary_container_light">#1E3A8A</color>
+    <color name="error_container_light">#FEE2E2</color>
+    <color name="on_error_container_light">#991B1B</color>
+
+    <color name="outline_variant_light">#E5E7EB</color>
+    <color name="outline_variant_dark">#1F2937</color>
 </resources>

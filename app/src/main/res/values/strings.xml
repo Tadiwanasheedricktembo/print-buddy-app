@@ -1,39 +1,72 @@
 <resources>
     <string name="app_name">Tadiwa Print Buddy</string>
-    <string name="developed_by">Developed by Tadiwa</string>
-    <string name="app_description">Tadiwa Print Buddy is a business tracking app built to help manage print orders, transactions, debts, and daily print-shop workflow efficiently.</string>
+    <string name="about">About</string>
+    <string name="about_description">A high-performance business companion designed to help print shops manage orders, transactions, and customer relationships with absolute precision.</string>
+    <string name="developed_by">Crafted by Tadiwa</string>
+    <string name="app_description">A high-performance business companion designed to help print shops manage orders, transactions, and customer relationships with absolute precision.</string>
 
     <!-- Contact Info -->
     <string name="website_url">https://tadiwaedricktembo.blogspot.com</string>
     <string name="email_address">tadiwanasheedricktembo@gmail.com</string>
     <string name="github_url">https://github.com/Tadiwanasheedricktembo/</string>
 
-    <string name="website_label">Website</string>
-    <string name="email_label">Email</string>
-    <string name="github_label">GitHub</string>
+    <string name="website_label">Visit Blog</string>
+    <string name="email_label">Support Email</string>
+    <string name="github_label">GitHub Repository</string>
     <string name="about_title">About</string>
 
     <string name="line_total_format">Line Total: %1$s</string>
     <string name="cart_total_format">Total: ₹ %.2f</string>
-    <string name="complete_order">Complete Order</string>
-    <string name="go_to_cart">Go To Cart</string>
-    <string name="no_orders_yet">No Orders Yet</string>
+    <string name="complete_order">COMPLETE ORDER</string>
+    <string name="go_to_cart">GO TO CART</string>
+    <string name="no_orders_yet">No orders found</string>
 
     <string name="settings">Settings</string>
     <string name="reminders">Reminders</string>
-    <string name="enable_reminders">Enable Reminders</string>
+    <string name="enable_reminders">Enable Daily Reminders</string>
     <string name="reminder_time">Reminder Time</string>
     <string name="frequency">Frequency</string>
     <string name="interval_hours">Interval (Hours)</string>
     <string name="reminder_message">Reminder Message</string>
-    <string name="test_notification">Test Notification</string>
-    <string name="save_settings">Save Settings</string>
+    <string name="test_notification">TEST NOTIFICATION</string>
+    <string name="save_settings">SAVE SETTINGS</string>
     <string name="settings_saved">Settings saved successfully</string>
     <string name="permission_denied">Notification permission denied</string>
 
-    <string name="first_fragment_label">THIS IS MY First Fragment</string>
-    <string name="second_fragment_label">THIS IS MY Second Fragment</string>
-    <string name="next">Next</string>
-    <string name="previous">Previous</string>
-    <string name="lorem_ipsum">THIS IS MY FIRST ANDROID APP</string>
+    <!-- UI Labels -->
+    <string name="appearance">Appearance</string>
+    <string name="app_theme">App Theme</string>
+    <string name="theme_description">Choose how Tadiwa Print Buddy looks</string>
+    <string name="light_mode">Light</string>
+    <string name="dark_mode">Dark</string>
+    <string name="system_default">System</string>
+    <string name="notifications">Notifications</string>
+
+    <string name="order_details_caps">ORDER DETAILS</string>
+    <string name="estimated_total_caps">ESTIMATED TOTAL</string>
+    <string name="confirm_save_order">CONFIRM &amp; SAVE ORDER</string>
+    <string name="new_order">New Order</string>
+
+    <string name="total_revenue">Total Revenue</string>
+    <string name="total_orders">Total Orders</string>
+    <string name="todays_revenue">Today\'s Revenue</string>
+
+    <string name="owed_to_me">Owed to Me</string>
+    <string name="total_i_owe">Total I Owe</string>
+    <string name="settle_update">Settle / Update</string>
+    <string name="add_new_entry">Add New Entry</string>
+    <string name="developer_support">DEVELOPER &amp; SUPPORT</string>
+
+    <string name="total_outstanding">TOTAL OUTSTANDING</string>
+    <string name="customer_balances">CUSTOMER BALANCES</string>
+
+    <!-- Payment QR -->
+    <string name="scan_to_pay">Scan to Pay</string>
+    <string name="open_in_upi_app">Open in UPI App</string>
+    <string name="mark_as_paid">Mark as Paid</string>
+    <string name="close">Close</string>
+    <string name="payment_qr_code">Payment QR Code</string>
+    <string name="no_upi_app_found">No UPI app found on this device</string>
+    <string name="order_saved_successfully">Order saved successfully</string>
+    <string name="show_qr_code">Show QR Code</string>
 </resources>

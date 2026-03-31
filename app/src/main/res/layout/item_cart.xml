@@ -6,8 +6,8 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
     app:cardBackgroundColor="?attr/colorSurface"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="2dp"
+    app:cardCornerRadius="@dimen/radius_medium"
+    app:cardElevation="1dp"
     app:strokeWidth="0dp">
 
     <LinearLayout
@@ -39,7 +39,7 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:layout_marginTop="2dp"
-                tools:text="₹ 2.00 x 2" />
+                tools:text="₹ 2.00 unit price" />
 
             <TextView
                 android:id="@+id/text_cart_subtotal"
@@ -48,45 +48,55 @@
                 android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                 android:textColor="?attr/colorPrimary"
                 android:textStyle="bold"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="6dp"
                 tools:text="Subtotal: ₹ 4.00" />
         </LinearLayout>
 
-        <LinearLayout
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="?attr/colorSurfaceVariant"
-            android:padding="4dp">
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:cardCornerRadius="@dimen/radius_small"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_minus"
-                style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:text="-"
-                app:cornerRadius="8dp" />
-
-            <TextView
-                android:id="@+id/text_cart_quantity"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minWidth="32dp"
-                android:gravity="center"
-                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textStyle="bold"
-                tools:text="2" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="2dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_plus"
-                style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:text="+"
-                app:cornerRadius="8dp" />
-        </LinearLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_minus"
+                    style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:text="-"
+                    android:padding="0dp"
+                    app:cornerRadius="8dp" />
+
+                <TextView
+                    android:id="@+id/text_cart_quantity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="36dp"
+                    android:gravity="center"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textStyle="bold"
+                    tools:text="2" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_plus"
+                    style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:text="+"
+                    android:padding="0dp"
+                    app:cornerRadius="8dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

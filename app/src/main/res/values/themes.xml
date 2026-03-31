@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.TadiwaPrintBuddy" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
+        <!-- Brand Colors -->
         <item name="colorPrimary">@color/primary_light</item>
         <item name="colorOnPrimary">@color/on_primary_light</item>
         <item name="colorPrimaryContainer">@color/primary_container_light</item>
@@ -18,52 +18,122 @@
         <item name="colorSurfaceVariant">@color/surface_variant_light</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_variant_light</item>
         <item name="colorOutline">@color/outline_light</item>
-        <item name="colorSurfaceBright">@color/surface_light</item>
+        <item name="colorOutlineVariant">@color/outline_variant_light</item>
 
-        <item name="android:navigationBarColor">@color/surface_light</item>
+        <item name="colorError">@color/error_soft</item>
+        <item name="colorOnError">@color/on_error</item>
+        <item name="colorErrorContainer">@color/error_container_light</item>
+        <item name="colorOnErrorContainer">@color/on_error_container_light</item>
+
+        <!-- Status & Navigation Bar -->
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/surface_light</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+
+        <!-- Component Styles -->
+        <item name="materialCardViewStyle">@style/Widget.App.Card</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
+
+        <item name="bottomNavigationStyle">@style/Widget.App.BottomNavigationView</item>
     </style>
 
     <style name="Theme.TadiwaPrintBuddy" parent="Base.Theme.TadiwaPrintBuddy" />
 
-    <!-- Premium Filled Input Style (Material 3) -->
-    <style name="Widget.App.TextInputLayout.Filled" parent="Widget.Material3.TextInputLayout.FilledBox">
-        <item name="boxCornerRadiusTopStart">@dimen/input_corner_radius</item>
-        <item name="boxCornerRadiusTopEnd">@dimen/input_corner_radius</item>
-        <item name="boxCornerRadiusBottomStart">@dimen/input_corner_radius</item>
-        <item name="boxCornerRadiusBottomEnd">@dimen/input_corner_radius</item>
-        <item name="boxStrokeWidth">0dp</item>
-        <item name="boxStrokeWidthFocused">2dp</item>
-        <item name="boxStrokeColor">?attr/colorPrimary</item>
-        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
-        <item name="hintTextColor">?attr/colorOnSurfaceVariant</item>
-        <item name="android:textColorHint">?attr/colorOnSurfaceVariant</item>
+    <!-- REUSABLE COMPONENT STYLES -->
+
+    <style name="Widget.App.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">@dimen/radius_medium</item>
+        <item name="cardElevation">2dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
     </style>
 
-    <style name="Widget.App.TextInputLayout.Filled.Dropdown" parent="Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu">
-        <item name="boxCornerRadiusTopStart">@dimen/input_corner_radius</item>
-        <item name="boxCornerRadiusTopEnd">@dimen/input_corner_radius</item>
-        <item name="boxCornerRadiusBottomStart">@dimen/input_corner_radius</item>
-        <item name="boxCornerRadiusBottomEnd">@dimen/input_corner_radius</item>
-        <item name="boxStrokeWidth">0dp</item>
-        <item name="boxStrokeWidthFocused">2dp</item>
-        <item name="boxStrokeColor">?attr/colorPrimary</item>
-        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
-    </style>
-
-    <!-- Premium Button Styles -->
-    <style name="Widget.App.Button.Primary" parent="Widget.Material3.Button">
-        <item name="cornerRadius">@dimen/button_corner_radius</item>
+    <style name="Widget.App.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">@dimen/button_radius</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
-        <item name="android:textAllCaps">true</item>
-        <item name="android:letterSpacing">0.05</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:letterSpacing">0.02</item>
         <item name="android:textStyle">bold</item>
     </style>
 
-    <!-- Splash Screen Theme -->
+    <style name="Widget.App.Button.Primary" parent="Widget.App.Button">
+        <item name="backgroundTint">?attr/colorPrimary</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
+        <item name="iconTint">?attr/colorOnPrimary</item>
+    </style>
+
+    <style name="Widget.App.TextInputLayout" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <item name="boxCornerRadiusTopStart">@dimen/input_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/input_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/input_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/input_radius</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxStrokeWidthFocused">1dp</item>
+        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
+        <item name="hintTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="startIconTint">?attr/colorSecondary</item>
+        <item name="endIconTint">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="Widget.App.TextInputLayout.Dropdown" parent="Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu">
+        <item name="boxCornerRadiusTopStart">@dimen/input_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/input_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/input_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/input_radius</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxBackgroundColor">?attr/colorSurfaceVariant</item>
+        <item name="startIconTint">?attr/colorSecondary</item>
+    </style>
+
+    <style name="Widget.App.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">?attr/colorSurface</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.App.BottomNav.Indicator</item>
+        <item name="itemIconTint">@color/selector_nav_colors</item>
+        <item name="itemTextColor">@color/selector_nav_colors</item>
+    </style>
+
+    <style name="Widget.App.BottomNav.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">?attr/colorPrimaryContainer</item>
+        <item name="marginHorizontal">12dp</item>
+    </style>
+
+    <!-- TOGGLE GROUP SHAPES -->
+    <style name="ShapeAppearance.App.Toggle.Start" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSizeTopLeft">@dimen/input_radius</item>
+        <item name="cornerSizeBottomLeft">@dimen/input_radius</item>
+        <item name="cornerSizeTopRight">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Toggle.Middle" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSize">0dp</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Toggle.End" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSizeTopRight">@dimen/input_radius</item>
+        <item name="cornerSizeBottomRight">@dimen/input_radius</item>
+        <item name="cornerSizeTopLeft">0dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Image.Top" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSizeTopLeft">@dimen/radius_medium</item>
+        <item name="cornerSizeTopRight">@dimen/radius_medium</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Card.TopOnly" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerSizeTopLeft">@dimen/radius_extra_large</item>
+        <item name="cornerSizeTopRight">@dimen/radius_extra_large</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="windowSplashScreenBackground">@color/bg_light</item>

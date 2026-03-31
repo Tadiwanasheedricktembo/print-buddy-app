@@ -9,7 +9,10 @@ import com.tadiwaprintbuddy.app.databinding.ItemOrderBinding
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class OrdersAdapter(private var orders: List<Order>) : RecyclerView.Adapter<OrdersAdapter.ViewHolder>() {
+class OrdersAdapter(
+    private var orders: List<Order>,
+    private val onDeleteClick: (Order) -> Unit
+) : RecyclerView.Adapter<OrdersAdapter.ViewHolder>() {
 
     private val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
 
@@ -42,6 +45,11 @@ class OrdersAdapter(private var orders: List<Order>) : RecyclerView.Adapter<Orde
                     putExtra("ORDER_ID", order.id)
                 }
                 context.startActivity(intent)
+            }
+
+            itemView.setOnLongClickListener {
+                onDeleteClick(order)
+                true
             }
         }
     }

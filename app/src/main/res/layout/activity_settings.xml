@@ -4,18 +4,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
     tools:context=".SettingsActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Settings"
-            app:navigationIcon="?attr/homeAsUpIndicator" />
+            app:navigationIcon="?attr/homeAsUpIndicator"
+            app:title="@string/settings"
+            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -28,42 +32,44 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="@dimen/screen_padding">
 
             <!-- Appearance Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="12dp"
                 android:layout_marginStart="4dp"
-                android:text="Appearance"
+                android:text="@string/appearance"
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorPrimary" />
+                android:textColor="?attr/colorPrimary"
+                android:letterSpacing="0.1"
+                android:textStyle="bold" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                app:cardCornerRadius="12dp"
+                android:layout_marginBottom="32dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="App Theme"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+                        android:text="@string/app_theme"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                        android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:text="Choose how Tadiwa Print Buddy looks"
+                        android:layout_marginBottom="20dp"
+                        android:text="@string/theme_description"
                         android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -72,7 +78,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         app:singleSelection="true"
-                        app:selectionRequired="true">
+                        app:selectionRequired="true"
+                        app:checkedButton="@+id/btnThemeSystem">
 
                         <Button
                             android:id="@+id/btnThemeLight"
@@ -80,7 +87,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Light" />
+                            android:text="@string/light_mode"
+                            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Toggle.Start" />
 
                         <Button
                             android:id="@+id/btnThemeDark"
@@ -88,7 +96,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Dark" />
+                            android:text="@string/dark_mode"
+                            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Toggle.Middle" />
 
                         <Button
                             android:id="@+id/btnThemeSystem"
@@ -96,7 +105,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="System" />
+                            android:text="@string/system_default"
+                            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Toggle.End" />
 
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
@@ -107,65 +117,71 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="12dp"
                 android:layout_marginStart="4dp"
-                android:text="Notifications"
+                android:text="@string/notifications"
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorPrimary" />
+                android:textColor="?attr/colorPrimary"
+                android:letterSpacing="0.1"
+                android:textStyle="bold" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
-                app:contentPadding="16dp">
+                app:cardElevation="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchEnableReminders"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Enable Daily Reminders"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+                        android:text="@string/enable_reminders"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                        android:textStyle="bold" />
 
                     <LinearLayout
                         android:id="@+id/layoutReminderSettings"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="20dp"
                         android:visibility="gone"
                         tools:visibility="visible">
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Reminder Time"
-                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+                            android:text="@string/reminder_time"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                            android:textColor="?attr/colorSecondary" />
 
                         <Button
                             android:id="@+id/btnSelectTime"
-                            style="@style/Widget.Material3.Button.TextButton"
+                            style="@style/Widget.Material3.Button.TonalButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="20:00" />
+                            android:layout_marginTop="8dp"
+                            android:text="20:00"
+                            app:icon="@android:drawable/ic_menu_recent_history" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:text="Frequency"
-                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+                            android:layout_marginTop="20dp"
+                            android:text="@string/frequency"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                            android:textColor="?attr/colorSecondary" />
 
                         <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.Material3.TextInputLayout.FilledBox.ExposedDropdownMenu"
+                            style="@style/Widget.App.TextInputLayout.Dropdown"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp">
+                            android:layout_marginTop="8dp">
 
                             <AutoCompleteTextView
                                 android:id="@+id/spinnerFrequency"
@@ -176,11 +192,10 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/layoutInterval"
-                            style="@style/Widget.Material3.TextInputLayout.FilledBox"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:hint="Interval (Hours)"
+                            android:layout_marginTop="16dp"
+                            android:hint="@string/interval_hours"
                             android:visibility="gone">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -191,11 +206,10 @@
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.Material3.TextInputLayout.FilledBox"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:hint="Reminder Message">
+                            android:hint="@string/reminder_message">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editMessage"
@@ -208,20 +222,22 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnTestNotification"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="Test Notification" />
+                android:layout_height="56dp"
+                android:layout_marginTop="40dp"
+                android:text="@string/test_notification"
+                app:icon="@android:drawable/ic_dialog_info" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSaveSettings"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Save Settings" />
+                android:layout_height="64dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/save_settings"
+                app:icon="@android:drawable/ic_menu_save" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

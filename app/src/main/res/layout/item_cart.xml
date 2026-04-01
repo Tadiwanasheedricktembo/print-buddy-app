@@ -4,17 +4,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
-    app:cardBackgroundColor="?attr/colorSurface"
-    app:cardCornerRadius="@dimen/radius_medium"
-    app:cardElevation="1dp"
-    app:strokeWidth="0dp">
+    android:layout_marginBottom="@dimen/grid_12">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp"
+        android:padding="@dimen/card_padding"
         android:gravity="center_vertical">
 
         <LinearLayout
@@ -25,38 +21,35 @@
 
             <TextView
                 android:id="@+id/text_cart_service_name"
+                style="@style/TextAppearance.App.Title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                android:textColor="?attr/colorOnSurface"
-                android:textStyle="bold"
                 tools:text="Photocopy B/W" />
 
             <TextView
                 android:id="@+id/text_cart_price"
+                style="@style/TextAppearance.App.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
-                android:textColor="?attr/colorOnSurfaceVariant"
                 android:layout_marginTop="2dp"
                 tools:text="₹ 2.00 unit price" />
 
             <TextView
                 android:id="@+id/text_cart_subtotal"
+                style="@style/TextAppearance.App.Value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                android:textColor="?attr/colorPrimary"
-                android:textStyle="bold"
                 android:layout_marginTop="6dp"
+                android:textColor="@color/brand_primary"
+                android:textSize="18sp"
                 tools:text="Subtotal: ₹ 4.00" />
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="?attr/colorSurfaceVariant"
-            app:cardCornerRadius="@dimen/radius_small"
+            app:cardBackgroundColor="@color/brand_divider"
+            app:cardCornerRadius="10dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 
@@ -74,17 +67,17 @@
                     android:layout_height="36dp"
                     android:text="-"
                     android:padding="0dp"
+                    app:backgroundTint="@color/brand_surface"
                     app:cornerRadius="8dp" />
 
                 <TextView
                     android:id="@+id/text_cart_quantity"
+                    style="@style/TextAppearance.App.Title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:minWidth="36dp"
                     android:gravity="center"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textStyle="bold"
+                    android:textSize="16sp"
                     tools:text="2" />
 
                 <com.google.android.material.button.MaterialButton
@@ -94,6 +87,7 @@
                     android:layout_height="36dp"
                     android:text="+"
                     android:padding="0dp"
+                    app:backgroundTint="@color/brand_surface"
                     app:cornerRadius="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

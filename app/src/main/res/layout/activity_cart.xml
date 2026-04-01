@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="@color/brand_background"
     tools:context=".CartActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -19,7 +19,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
             app:title="Shopping Cart"
-            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+            app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -28,20 +28,20 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:padding="16dp"
+        android:padding="@dimen/screen_padding"
         android:paddingBottom="140dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        tools:listitem="@layout/item_cart" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        app:cardCornerRadius="32dp"
-        app:cardElevation="12dp"
-        app:cardBackgroundColor="?attr/colorSurface"
         android:layout_margin="16dp"
-        app:strokeWidth="0dp"
-        app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Card.TopOnly">
+        app:cardBackgroundColor="@color/brand_surface"
+        app:cardElevation="8dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/brand_divider">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -51,21 +51,21 @@
 
             <TextView
                 android:id="@+id/text_total"
+                style="@style/TextAppearance.App.Value"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-                android:textColor="?attr/colorOnSurface"
-                android:textStyle="bold"
                 android:gravity="center"
+                android:textColor="@color/brand_primary"
                 tools:text="Total: ₹ 0.00" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_complete_order"
+                style="@style/Widget.App.Button.Primary"
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
+                android:layout_height="60dp"
                 android:layout_marginTop="16dp"
                 android:text="@string/complete_order"
-                app:icon="@android:drawable/ic_menu_save"
+                app:icon="@android:drawable/checkbox_on_background"
                 app:iconGravity="textStart" />
 
         </LinearLayout>

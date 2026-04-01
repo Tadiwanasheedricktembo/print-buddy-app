@@ -5,6 +5,9 @@
     <string name="developed_by">Crafted by Tadiwa</string>
     <string name="app_description">A high-performance business companion designed to help print shops manage orders, transactions, and customer relationships with absolute precision.</string>
 
+    <string name="hello_welcome">Hello, Welcome!</string>
+    <string name="what_would_you_like_to_print_today">What would you like to print today?</string>
+
     <!-- Contact Info -->
     <string name="website_url">https://tadiwaedricktembo.blogspot.com</string>
     <string name="email_address">tadiwanasheedricktembo@gmail.com</string>
@@ -17,7 +20,7 @@
 
     <string name="line_total_format">Line Total: %1$s</string>
     <string name="cart_total_format">Total: ₹ %.2f</string>
-    <string name="complete_order">COMPLETE ORDER</string>
+    <string name="complete_order">Complete Order</string>
     <string name="go_to_cart">GO TO CART</string>
     <string name="no_orders_yet">No orders found</string>
 
@@ -45,7 +48,7 @@
     <string name="order_details_caps">ORDER DETAILS</string>
     <string name="estimated_total_caps">ESTIMATED TOTAL</string>
     <string name="confirm_save_order">CONFIRM &amp; SAVE ORDER</string>
-    <string name="new_order">New Order</string>
+    <string name="new_order">Order</string>
 
     <string name="total_revenue">Total Revenue</string>
     <string name="total_orders">Total Orders</string>
@@ -69,4 +72,20 @@
     <string name="no_upi_app_found">No UPI app found on this device</string>
     <string name="order_saved_successfully">Order saved successfully</string>
     <string name="show_qr_code">Show QR Code</string>
+
+    <string name="payment_status">Payment Status</string>
+    <string name="payment_method">Payment Method</string>
+    <string name="status_paid">Paid</string>
+    <string name="status_owes_me">Owes Me</string>
+    <string name="method_cash">CASH</string>
+    <string name="method_upi">UPI</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Business Insights</string>
+    <string name="label_revenue">REVENUE</string>
+    <string name="label_orders">ORDERS</string>
+    <string name="revenue_by_service">Revenue by Service Type</string>
+
+    <!-- Content Descriptions -->
+    <string name="desc_wallet">Wallet Shortcut</string>
 </resources>

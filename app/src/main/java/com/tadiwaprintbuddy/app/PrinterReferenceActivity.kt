@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,8 +21,12 @@ import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.PrinterReference
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityPrinterReferenceBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -32,7 +37,7 @@ class PrinterReferenceActivity : AppCompatActivity() {
     private lateinit var repository: PrintRepository
     private lateinit var adapter: PrinterReferenceAdapter
     private var latestTmpUri: Uri? = null
-    private var latestTmpFilePath: String? = null // To store the absolute path
+    private var latestTmpFilePath: String? = null
     private var references: List<PrinterReference> = emptyList()
 
     private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
@@ -43,9 +48,17 @@ class PrinterReferenceActivity : AppCompatActivity() {
         }
     }
 
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                copyImageToInternalStorage(uri)
+            }
+        }
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
-            launchCamera()
+            showImageSourceDialog()
         } else {
             Toast.makeText(this, "Camera permission is required", Toast.LENGTH_SHORT).show()
         }
@@ -76,10 +89,24 @@ class PrinterReferenceActivity : AppCompatActivity() {
         binding.recyclerPrinterReferences.adapter = adapter
 
         binding.fabAddReference.setOnClickListener {
-            requestCameraPermission()
+            showImageSourceDialog()
         }
 
         loadReferences()
+    }
+
+    private fun showImageSourceDialog() {
+        val options = arrayOf("Take Photo", "Choose from Gallery", "Cancel")
+        AlertDialog.Builder(this)
+            .setTitle("Add Reference")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> requestCameraPermission()
+                    1 -> launchGallery()
+                    2 -> dialog.dismiss()
+                }
+            }
+            .show()
     }
 
     private fun requestCameraPermission() {
@@ -105,10 +132,31 @@ class PrinterReferenceActivity : AppCompatActivity() {
         }
     }
 
+    private fun launchGallery() {
+        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        pickImageLauncher.launch(intent)
+    }
+
     private fun createTmpFile(): File {
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val storageDir: File? = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         return File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
+    }
+
+    private fun copyImageToInternalStorage(uri: Uri) {
+        lifecycleScope.launch {
+            val tmpFile = withContext(Dispatchers.IO) {
+                val inputStream: InputStream? = contentResolver.openInputStream(uri)
+                val file = createTmpFile()
+                val outputStream = FileOutputStream(file)
+                inputStream?.copyTo(outputStream)
+                inputStream?.close()
+                outputStream.close()
+                file
+            }
+            latestTmpFilePath = tmpFile.absolutePath
+            showAddReferenceDialog(Uri.fromFile(tmpFile))
+        }
     }
 
     private fun showAddReferenceDialog(imageUri: Uri) {
@@ -128,7 +176,7 @@ class PrinterReferenceActivity : AppCompatActivity() {
                         val reference = PrinterReference(
                             title = title,
                             notes = notes,
-                            imagePath = latestTmpFilePath!!, // Save the absolute path
+                            imagePath = latestTmpFilePath!!,
                             timestamp = System.currentTimeMillis()
                         )
                         repository.addPrinterReference(reference)

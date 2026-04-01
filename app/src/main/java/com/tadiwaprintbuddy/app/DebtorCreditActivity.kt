@@ -2,13 +2,17 @@ package com.tadiwaprintbuddy.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.MenuItem
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
@@ -18,13 +22,18 @@ import com.tadiwaprintbuddy.app.databinding.ActivityDebtorCreditBinding
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
-import kotlin.math.abs
 
 class DebtorCreditActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDebtorCreditBinding
     private lateinit var repository: PrintRepository
     private lateinit var adapter: DebtorCreditAdapter
+    private var allDebtorCredits: List<DebtorCredit> = emptyList()
+    private var currentFilter = FilterMode.ALL
+
+    private enum class FilterMode {
+        ALL, OWES_ME, I_OWE_CHANGE
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,18 +47,117 @@ class DebtorCreditActivity : AppCompatActivity() {
         val database = AppDatabase.getDatabase(this)
         repository = PrintRepository(database.printDao())
 
-        adapter = DebtorCreditAdapter(emptyList()) { debtorCredit ->
-            showSettlePaymentDialog(debtorCredit)
-        }
-
-        binding.recyclerDebtorCredits.layoutManager = LinearLayoutManager(this)
-        binding.recyclerDebtorCredits.adapter = adapter
+        setupRecyclerView()
+        setupSearch()
+        setupSummaryCardFilters()
 
         binding.buttonAddDebtorCredit.setOnClickListener {
             showAddNewEntryDialog()
         }
 
         loadDebtorCredits()
+    }
+
+    private fun setupRecyclerView() {
+        adapter = DebtorCreditAdapter(emptyList()) { debtorCredit ->
+            showSettlePaymentDialog(debtorCredit)
+        }
+        binding.recyclerDebtorCredits.layoutManager = LinearLayoutManager(this)
+        binding.recyclerDebtorCredits.adapter = adapter
+    }
+
+    private fun setupSearch() {
+        binding.editSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                applyFilters()
+                binding.imageClearSearch.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        binding.imageClearSearch.setOnClickListener {
+            binding.editSearch.text.clear()
+        }
+    }
+
+    private fun setupSummaryCardFilters() {
+        binding.cardOwesMe.setOnClickListener {
+            toggleFilter(FilterMode.OWES_ME)
+        }
+        binding.cardIOwe.setOnClickListener {
+            toggleFilter(FilterMode.I_OWE_CHANGE)
+        }
+    }
+
+    private fun toggleFilter(mode: FilterMode) {
+        currentFilter = if (currentFilter == mode) FilterMode.ALL else mode
+        updateFilterUI()
+        applyFilters()
+    }
+
+    private fun updateFilterUI() {
+        when (currentFilter) {
+            FilterMode.ALL -> {
+                binding.cardOwesMe.alpha = 1.0f
+                binding.cardIOwe.alpha = 1.0f
+                binding.cardOwesMe.strokeWidth = 0
+                binding.cardIOwe.strokeWidth = 0
+                binding.textFilterLabel.visibility = View.GONE
+            }
+            FilterMode.OWES_ME -> {
+                binding.cardOwesMe.alpha = 1.0f
+                binding.cardIOwe.alpha = 0.5f
+                binding.cardOwesMe.strokeWidth = dpToPx(2)
+                binding.cardOwesMe.strokeColor = ContextCompat.getColor(this, R.color.brand_secondary)
+                binding.cardIOwe.strokeWidth = 0
+                binding.textFilterLabel.visibility = View.VISIBLE
+                binding.textFilterLabel.text = "Showing customers who owe me"
+            }
+            FilterMode.I_OWE_CHANGE -> {
+                binding.cardOwesMe.alpha = 0.5f
+                binding.cardIOwe.alpha = 1.0f
+                binding.cardOwesMe.strokeWidth = 0
+                binding.cardIOwe.strokeWidth = dpToPx(2)
+                binding.cardIOwe.strokeColor = ContextCompat.getColor(this, R.color.brand_secondary)
+                binding.textFilterLabel.visibility = View.VISIBLE
+                binding.textFilterLabel.text = "Showing customers I owe change"
+            }
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    private fun applyFilters() {
+        val searchQuery = binding.editSearch.text.toString()
+        
+        var filteredList = allDebtorCredits
+        
+        // Apply category filter
+        filteredList = when (currentFilter) {
+            FilterMode.ALL -> filteredList
+            FilterMode.OWES_ME -> filteredList.filter { it.amount > 0 }
+            FilterMode.I_OWE_CHANGE -> filteredList.filter { it.amount < 0 }
+        }
+        
+        // Apply search filter
+        if (searchQuery.isNotEmpty()) {
+            filteredList = filteredList.filter { 
+                it.customerName.contains(searchQuery, ignoreCase = true) 
+            }
+        }
+        
+        adapter.updateDebtorCredits(filteredList)
+        
+        if (filteredList.isEmpty() && allDebtorCredits.isNotEmpty()) {
+            binding.textNoResults.visibility = View.VISIBLE
+            binding.recyclerDebtorCredits.visibility = View.GONE
+        } else {
+            binding.textNoResults.visibility = View.GONE
+            binding.recyclerDebtorCredits.visibility = View.VISIBLE
+        }
     }
 
     override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
@@ -69,9 +177,9 @@ class DebtorCreditActivity : AppCompatActivity() {
 
     private fun loadDebtorCredits() {
         lifecycleScope.launch {
-            val debtorCredits = repository.getDebtorCreditList()
-            adapter.updateDebtorCredits(debtorCredits)
-            updateTotals(debtorCredits)
+            allDebtorCredits = repository.getDebtorCreditList()
+            applyFilters()
+            updateTotals(allDebtorCredits)
         }
     }
 
@@ -101,34 +209,16 @@ class DebtorCreditActivity : AppCompatActivity() {
                 }
 
                 val currentAmount = debtorCredit.amount
-
-                // Correct delta direction
-                val amountDelta = if (currentAmount > 0) {
-                    -paymentAmount   // customer paying you
-                } else {
-                    paymentAmount    // you giving change
-                }
-
+                val amountDelta = if (currentAmount > 0) -paymentAmount else paymentAmount
                 val remainingAfter = currentAmount + amountDelta
 
-                // Prevent over-settlement (flipping sign)
-                if (
-                    (currentAmount > 0 && remainingAfter < 0) ||
-                    (currentAmount < 0 && remainingAfter > 0)
-                ) {
-                    Toast.makeText(
-                        this,
-                        "Amount exceeds remaining balance",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                if ((currentAmount > 0 && remainingAfter < 0) || (currentAmount < 0 && remainingAfter > 0)) {
+                    Toast.makeText(this, "Amount exceeds remaining balance", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
                 lifecycleScope.launch {
-                    repository.addOrUpdateDebtorCredit(
-                        debtorCredit.customerName,
-                        amountDelta
-                    )
+                    repository.addOrUpdateDebtorCredit(debtorCredit.customerName, amountDelta)
                     loadDebtorCredits()
                 }
             }
@@ -143,11 +233,7 @@ class DebtorCreditActivity : AppCompatActivity() {
         val editAmount = dialogView.findViewById<EditText>(R.id.editAmount)
 
         val types = arrayOf("Owes Me", "I Owe Change")
-        val spinnerAdapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            types
-        )
+        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, types)
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerType.adapter = spinnerAdapter
 
@@ -165,11 +251,7 @@ class DebtorCreditActivity : AppCompatActivity() {
                 }
 
                 val selectedType = spinnerType.selectedItem.toString()
-                val finalAmount = if (selectedType == "I Owe Change") {
-                    -amount
-                } else {
-                    amount
-                }
+                val finalAmount = if (selectedType == "I Owe Change") -amount else amount
 
                 lifecycleScope.launch {
                     repository.addOrUpdateDebtorCredit(customerName, finalAmount)

@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PrintDao {
@@ -19,20 +20,19 @@ interface PrintDao {
     @Query("SELECT * FROM orders ORDER BY date DESC")
     suspend fun getAllOrders(): List<Order>
 
+    @Query("SELECT * FROM orders WHERE date BETWEEN :start AND :end ORDER BY date DESC")
+    suspend fun getOrdersBetween(start: Long, end: Long): List<Order>
+
     @Query("SELECT * FROM OrderItem WHERE orderId = :orderId")
     suspend fun getItemsForOrder(orderId: Int): List<OrderItem>
 
     @Query("SELECT SUM(totalAmount) FROM `orders`")
-    suspend fun getTotalRevenue(): Double?
+    fun getTotalRevenueFlow(): Flow<Double?>
 
     @Query("SELECT COUNT(*) FROM `orders`")
-    suspend fun getTotalOrders(): Int
+    fun getTotalOrdersFlow(): Flow<Int>
 
-    @Query("""
-SELECT SUM(totalAmount)
-FROM `orders`
-WHERE date BETWEEN :start AND :end
-""")
+    @Query("SELECT SUM(totalAmount) FROM `orders` WHERE date BETWEEN :start AND :end")
     suspend fun getRevenueBetween(start: Long, end: Long): Double?
 
     @Query("""
@@ -40,17 +40,7 @@ WHERE date BETWEEN :start AND :end
     FROM OrderItem 
     GROUP BY serviceName
     """)
-    suspend fun getRevenueByCategory(): List<CategoryRevenue>
-
-    @Query("""
-    SELECT strftime('%w', date / 1000, 'unixepoch') as day,
-           SUM(totalAmount) as total
-    FROM `orders`
-    WHERE date >= :sevenDaysAgo
-    GROUP BY day
-    ORDER BY day
-    """)
-    suspend fun getRevenueLast7Days(sevenDaysAgo: Long): List<DailyRevenue>
+    fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>>
 
     @Query("SELECT * FROM `orders` WHERE totalAmount > paidAmount")
     suspend fun getUnpaidOrders(): List<Order>
@@ -96,23 +86,57 @@ WHERE date BETWEEN :start AND :end
     @Delete
     suspend fun deletePrinterReference(reference: PrinterReference)
 
-    // Feature 1: Delete Order History
     @Query("SELECT * FROM orders WHERE id = :orderId")
     suspend fun getOrderById(orderId: Int): Order?
 
     @Delete
     suspend fun deleteOrder(order: Order)
 
+    @Query("DELETE FROM orders WHERE date BETWEEN :start AND :end")
+    suspend fun deleteOrdersBetween(start: Long, end: Long)
+
+    @Query("DELETE FROM orders")
+    suspend fun deleteAllOrders()
+
     @Transaction
     suspend fun deleteOrderAndItems(order: Order) {
         deleteOrder(order)
-        // Items are deleted via ForeignKey CASCADE
     }
 
-    // Feature 2: Settlement History
     @Insert
     suspend fun insertSettlement(settlement: SettlementHistory)
 
     @Query("SELECT * FROM settlement_history ORDER BY timestamp DESC")
     suspend fun getAllSettlements(): List<SettlementHistory>
+
+    // External Ledger (Legacy/Audit)
+    @Insert
+    suspend fun insertExternalLedger(entry: ExternalLedger)
+
+    @Query("SELECT SUM(CASE WHEN transactionType = 'CREDIT_TO_EXTERNAL' THEN amount ELSE -amount END) FROM external_ledger")
+    suspend fun getExternalBalance(): Double?
+
+    // Cash in Hand (Sum of paid amount from CASH orders)
+    @Query("SELECT SUM(paidAmount) FROM `orders` WHERE paymentMethod = 'CASH'")
+    fun getCashInHandFlow(): Flow<Double?>
+
+    // Total Receivables (Money owed to business)
+    @Query("SELECT SUM(totalAmount - paidAmount) FROM `orders`")
+    fun getTotalReceivablesFlow(): Flow<Double?>
+
+    // Beauty Account (New Dedicated Logic)
+    @Insert
+    suspend fun insertBeautyTransaction(transaction: BeautyTransaction)
+
+    @Query("SELECT * FROM beauty_transactions ORDER BY timestamp DESC")
+    fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>>
+
+    @Query("SELECT * FROM beauty_transactions ORDER BY timestamp DESC")
+    suspend fun getAllBeautyTransactions(): List<BeautyTransaction>
+
+    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount ELSE -amount END) FROM beauty_transactions")
+    fun getBeautyBalanceFlow(): Flow<Double?>
+
+    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount ELSE -amount END) FROM beauty_transactions")
+    suspend fun getBeautyBalance(): Double?
 }

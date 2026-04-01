@@ -1,22 +1,45 @@
 package com.tadiwaprintbuddy.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.Order
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityOrdersBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileWriter
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class OrdersActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOrdersBinding
     private lateinit var repository: PrintRepository
     private lateinit var adapter: OrdersAdapter
+    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+
+    private var currentFilterType = FilterType.ALL
+    private var currentStart: Long? = null
+    private var currentEnd: Long? = null
+    private var currentOrders: List<Order> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,42 +49,322 @@ class OrdersActivity : AppCompatActivity() {
         val database = AppDatabase.getDatabase(this)
         repository = PrintRepository(database.printDao())
 
+        setupToolbar()
+        setupRecyclerView()
+        setupFilters()
+
+        val initialFilter = intent.getStringExtra("filter")
+        if (initialFilter == "MONTH") {
+            loadOrders(FilterType.MONTH)
+            // Sync UI chip state
+            binding.chipMonth.isChecked = true
+        } else {
+            loadOrders(FilterType.ALL)
+        }
+    }
+
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_orders, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_clear_filtered -> {
+                showBulkDeleteSafetyDialog(isAll = false)
+                true
+            }
+            R.id.action_clear_all -> {
+                showBulkDeleteSafetyDialog(isAll = true)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun setupRecyclerView() {
         adapter = OrdersAdapter(emptyList()) { order ->
             showDeleteConfirmation(order)
         }
-
         binding.recyclerOrders.layoutManager = LinearLayoutManager(this)
         binding.recyclerOrders.adapter = adapter
-
-        loadOrders()
     }
 
-    private fun loadOrders() {
-        lifecycleScope.launch {
-            val orders = repository.getAllOrders()
-            if (orders.isEmpty()) {
-                binding.textNoOrders.visibility = android.view.View.VISIBLE
-                binding.recyclerOrders.visibility = android.view.View.GONE
-            } else {
-                binding.textNoOrders.visibility = android.view.View.GONE
-                binding.recyclerOrders.visibility = android.view.View.VISIBLE
-                adapter.updateOrders(orders)
+    private fun setupFilters() {
+        binding.chipGroupFilters.setOnCheckedStateChangeListener { group, _ ->
+            when (group.checkedChipId) {
+                R.id.chipAll -> loadOrders(FilterType.ALL)
+                R.id.chipToday -> loadOrders(FilterType.TODAY)
+                R.id.chipWeek -> loadOrders(FilterType.WEEK)
+                R.id.chipMonth -> loadOrders(FilterType.MONTH)
+                R.id.chipLastMonth -> loadOrders(FilterType.LAST_MONTH)
+                R.id.chipLast3Months -> loadOrders(FilterType.LAST_3_MONTHS)
+                R.id.chipYear -> loadOrders(FilterType.YEAR)
+                R.id.chipCustom -> showCustomDatePicker()
             }
         }
+    }
+
+    private enum class FilterType {
+        ALL, TODAY, WEEK, MONTH, LAST_MONTH, LAST_3_MONTHS, YEAR, CUSTOM
+    }
+
+    private fun loadOrders(filter: FilterType, customStart: Long? = null, customEnd: Long? = null) {
+        currentFilterType = filter
+        currentStart = customStart
+        currentEnd = customEnd
+
+        lifecycleScope.launch {
+            val orders = when (filter) {
+                FilterType.ALL -> {
+                    updateSummary("Showing All Orders")
+                    repository.getAllOrders()
+                }
+                FilterType.CUSTOM -> {
+                    if (customStart != null && customEnd != null) {
+                        updateSummary("Custom Range")
+                        repository.getOrdersBetween(customStart, customEnd)
+                    } else {
+                        repository.getAllOrders()
+                    }
+                }
+                else -> {
+                    val range = getDateRange(filter)
+                    currentStart = range.first
+                    currentEnd = range.second
+                    updateSummary(getFilterName(filter))
+                    repository.getOrdersBetween(range.first, range.second)
+                }
+            }
+            currentOrders = orders
+            updateUI(orders)
+        }
+    }
+
+    private fun updateUI(orders: List<Order>) {
+        if (orders.isEmpty()) {
+            binding.layoutEmptyState.visibility = View.VISIBLE
+            binding.recyclerOrders.visibility = View.GONE
+            binding.textTimelineStats.text = currencyFormat.format(0.0) + " (0 orders)"
+        } else {
+            binding.layoutEmptyState.visibility = View.GONE
+            binding.recyclerOrders.visibility = View.VISIBLE
+            adapter.updateOrders(orders)
+            
+            val totalRevenue = orders.sumOf { it.totalAmount }
+            binding.textTimelineStats.text = "${currencyFormat.format(totalRevenue)} (${orders.size} orders)"
+        }
+    }
+
+    private fun updateSummary(text: String) {
+        binding.textFilterSummary.text = text
+    }
+
+    private fun getFilterName(filter: FilterType): String = when (filter) {
+        FilterType.TODAY -> "Today's Orders"
+        FilterType.WEEK -> "This Week"
+        FilterType.MONTH -> "This Month"
+        FilterType.LAST_MONTH -> "Last Month"
+        FilterType.LAST_3_MONTHS -> "Last 3 Months"
+        FilterType.YEAR -> "This Year"
+        else -> "Orders"
+    }
+
+    private fun getDateRange(filter: FilterType): Pair<Long, Long> {
+        val calendar = Calendar.getInstance()
+        val end = calendar.timeInMillis
+        
+        when (filter) {
+            FilterType.TODAY -> {
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+            }
+            FilterType.WEEK -> {
+                calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+            }
+            FilterType.MONTH -> {
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+            }
+            FilterType.LAST_MONTH -> {
+                calendar.add(Calendar.MONTH, -1)
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                val start = calendar.timeInMillis
+                calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+                calendar.set(Calendar.HOUR_OF_DAY, 23)
+                calendar.set(Calendar.MINUTE, 59)
+                return Pair(start, calendar.timeInMillis)
+            }
+            FilterType.LAST_3_MONTHS -> {
+                calendar.add(Calendar.MONTH, -3)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+            }
+            FilterType.YEAR -> {
+                calendar.set(Calendar.DAY_OF_YEAR, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+            }
+            else -> {}
+        }
+        
+        return Pair(calendar.timeInMillis, end)
+    }
+
+    private fun showCustomDatePicker() {
+        val builder = MaterialDatePicker.Builder.dateRangePicker()
+        builder.setTitleText("Select Date Range")
+        val picker = builder.build()
+        
+        picker.addOnPositiveButtonClickListener { range ->
+            val start = range.first
+            val end = range.second
+            val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            calendar.timeInMillis = end
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            
+            loadOrders(FilterType.CUSTOM, start, calendar.timeInMillis)
+        }
+        
+        picker.addOnCancelListener {
+             binding.chipAll.isChecked = true
+        }
+        
+        picker.addOnNegativeButtonClickListener {
+             binding.chipAll.isChecked = true
+        }
+
+        picker.show(supportFragmentManager, "DATE_PICKER")
     }
 
     private fun showDeleteConfirmation(order: Order) {
         AlertDialog.Builder(this)
             .setTitle("Delete Order")
-            .setMessage("Are you sure you want to delete Order #${order.id} for ${order.customerName} of amount ₹${"%.2f".format(order.totalAmount)}?")
+            .setMessage("Are you sure you want to delete Order #${order.id} for ${order.customerName}? This action cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch {
                     repository.deleteOrder(order.id)
-                    loadOrders()
+                    loadOrders(currentFilterType, currentStart, currentEnd)
                     Toast.makeText(this@OrdersActivity, "Order deleted", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun showBulkDeleteSafetyDialog(isAll: Boolean) {
+        val title = if (isAll) "Clear All History" else "Clear Filtered History"
+        val message = "You are about to delete business records. It is highly recommended to export a backup before deletion. This action cannot be undone."
+        
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Export & Delete") { _, _ ->
+                handleExportAndDelete(isAll)
+            }
+            .setNeutralButton("Delete Without Export") { _, _ ->
+                if (isAll) performClearAll() else performClearFiltered()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun handleExportAndDelete(isAll: Boolean) {
+        lifecycleScope.launch {
+            val fileName = getExportFileName(isAll)
+            val success = exportOrdersToCsv(currentOrders, fileName)
+            if (success) {
+                if (isAll) performClearAll() else performClearFiltered()
+            } else {
+                Toast.makeText(this@OrdersActivity, "Export failed. Deletion aborted.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun getExportFileName(isAll: Boolean): String {
+        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        return when {
+            isAll -> "orders_all_$dateStr.csv"
+            currentFilterType == FilterType.CUSTOM -> {
+                val startStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(currentStart ?: 0))
+                val endStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(currentEnd ?: 0))
+                "orders_custom_${startStr}_to_$endStr.csv"
+            }
+            else -> "orders_${getFilterName(currentFilterType).lowercase().replace(" ", "_")}_$dateStr.csv"
+        }
+    }
+
+    private suspend fun exportOrdersToCsv(orders: List<Order>, fileName: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val exportDir = File(cacheDir, "exports")
+            if (!exportDir.exists()) exportDir.mkdirs()
+            val file = File(exportDir, fileName)
+            val writer = FileWriter(file)
+
+            // CSV Header
+            writer.append("Order ID,Date,Customer Name,Total Amount,Paid Amount,Payment Method,Status\n")
+
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            for (order in orders) {
+                val status = if (order.paidAmount >= order.totalAmount) "PAID" else "PENDING"
+                writer.append("${order.id},")
+                writer.append("${dateFormat.format(Date(order.date))},")
+                writer.append("\"${order.customerName.replace("\"", "\"\"")}\",")
+                writer.append("${order.totalAmount},")
+                writer.append("${order.paidAmount},")
+                writer.append("${order.paymentMethod},")
+                writer.append("$status\n")
+            }
+            writer.flush()
+            writer.close()
+
+            // Share/Open File
+            withContext(Dispatchers.Main) {
+                val uri = FileProvider.getUriForFile(this@OrdersActivity, "${packageName}.fileprovider", file)
+                val intent = Intent(Intent.ACTION_SEND)
+                intent.type = "text/csv"
+                intent.putExtra(Intent.EXTRA_STREAM, uri)
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                startActivity(Intent.createChooser(intent, "Export Order History"))
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    private fun performClearFiltered() {
+        lifecycleScope.launch {
+            val start = currentStart
+            val end = currentEnd
+            if (start != null && end != null) {
+                repository.deleteOrdersBetween(start, end)
+                loadOrders(currentFilterType, currentStart, currentEnd)
+                Toast.makeText(this@OrdersActivity, "Filtered history cleared", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun performClearAll() {
+        lifecycleScope.launch {
+            repository.deleteAllOrders()
+            loadOrders(FilterType.ALL)
+            Toast.makeText(this@OrdersActivity, "All history cleared", Toast.LENGTH_SHORT).show()
+        }
     }
 }

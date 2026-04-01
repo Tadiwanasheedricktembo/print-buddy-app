@@ -4,9 +4,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/brand_surface"
     app:cardCornerRadius="28dp"
     app:cardElevation="0dp"
-    app:strokeWidth="0dp">
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/brand_divider">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,26 +17,26 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <View
+        <com.google.android.material.divider.MaterialDivider
             android:layout_width="40dp"
             android:layout_height="4dp"
-            android:layout_marginBottom="16dp"
-            android:background="?attr/colorOutlineVariant" />
+            android:layout_marginBottom="24dp"
+            app:dividerColor="@color/brand_divider"
+            app:dividerThickness="4dp" />
 
         <TextView
+            style="@style/TextAppearance.App.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Scan to Pay"
-            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-            android:textStyle="bold" />
+            android:textSize="22sp" />
 
         <TextView
             android:id="@+id/textMerchantName"
+            style="@style/TextAppearance.App.Label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant"
             tools:text="Tadiwa Print Buddy" />
 
         <com.google.android.material.card.MaterialCardView
@@ -57,30 +59,29 @@
 
         <TextView
             android:id="@+id/textAmount"
+            style="@style/TextAppearance.App.Value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-            android:textColor="?attr/colorPrimary"
-            android:textStyle="bold"
+            android:textColor="@color/brand_primary"
+            android:textSize="28sp"
             tools:text="₹ 250.00" />
 
         <TextView
             android:id="@+id/textUpiId"
+            style="@style/TextAppearance.App.Label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp"
             tools:text="yourupi@bank" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonOpenUpi"
-            style="@style/Widget.Material3.Button"
+            style="@style/Widget.App.Button.Primary"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="24dp"
             android:text="Open in UPI App"
-            app:cornerRadius="16dp"
             app:icon="@android:drawable/ic_menu_send" />
 
         <com.google.android.material.button.MaterialButton
@@ -90,7 +91,9 @@
             android:layout_height="56dp"
             android:layout_marginTop="12dp"
             android:text="Mark as Paid"
-            app:cornerRadius="16dp" />
+            android:textColor="@color/text_primary"
+            app:backgroundTint="@color/brand_divider"
+            app:cornerRadius="14dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonClose"
@@ -98,7 +101,8 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="8dp"
-            android:text="Close" />
+            android:text="Close"
+            android:textColor="@color/text_muted" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

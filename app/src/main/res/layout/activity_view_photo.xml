@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
+    android:background="@color/brand_background"
     tools:context=".ViewPhotoActivity">
 
     <androidx.viewpager2.widget.ViewPager2
@@ -22,8 +22,8 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
-            app:navigationIconTint="@android:color/white">
+            app:navigationIcon="?attr/homeAsUpIndicator"
+            app:navigationIconTint="#FFFFFF">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonDelete"
@@ -33,9 +33,9 @@
                 android:layout_gravity="end"
                 android:layout_marginEnd="8dp"
                 android:text="Delete"
-                android:textColor="#FF4444"
+                android:textColor="@color/brand_error"
                 app:icon="@android:drawable/ic_menu_delete"
-                app:iconTint="#FF4444" />
+                app:iconTint="@color/brand_error" />
 
         </com.google.android.material.appbar.MaterialToolbar>
 
@@ -46,10 +46,11 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_margin="16dp"
-        app:cardBackgroundColor="#CC000000"
+        app:cardBackgroundColor="#CC111827"
         app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
-        app:strokeWidth="0dp">
+        app:strokeWidth="1dp"
+        app:strokeColor="#33FFFFFF">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -59,20 +60,19 @@
 
             <TextView
                 android:id="@+id/textTitleFull"
+                style="@style/TextAppearance.App.Title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                android:textColor="@android:color/white"
-                android:textStyle="bold"
+                android:textColor="#FFFFFF"
                 tools:text="Reference Photo" />
 
             <TextView
                 android:id="@+id/textNotesFull"
+                style="@style/TextAppearance.App.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                android:textColor="#CCCCCC"
+                android:textColor="#BBBBBB"
                 tools:text="These are some notes about this specific printer reference photo." />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

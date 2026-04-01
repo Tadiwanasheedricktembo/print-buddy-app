@@ -10,5 +10,6 @@ data class Order(
     val totalAmount: Double,
     val date: Long,
     val customerName: String,
-    val paidAmount: Double = 0.0
+    val paidAmount: Double = 0.0,
+    val paymentMethod: String = "CASH" // "CASH" or "UPI"
 )

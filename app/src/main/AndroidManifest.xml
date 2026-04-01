@@ -64,6 +64,16 @@
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <activity
+            android:name=".BeautyAccountActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".BeautyUpiActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
             android:name=".DebtorCreditActivity"
             android:exported="false"
             android:theme="@style/Theme.TadiwaPrintBuddy" />

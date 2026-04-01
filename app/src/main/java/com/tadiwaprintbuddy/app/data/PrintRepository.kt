@@ -1,24 +1,23 @@
 package com.tadiwaprintbuddy.app.data
 
 import com.tadiwaprintbuddy.app.CartItem
+import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
 
 class PrintRepository(private val printDao: PrintDao) {
 
-    suspend fun getTotalRevenue(): Double? = printDao.getTotalRevenue()
+    fun getTotalRevenueFlow(): Flow<Double?> = printDao.getTotalRevenueFlow()
 
-    suspend fun getTotalOrders(): Int = printDao.getTotalOrders()
+    fun getTotalOrdersFlow(): Flow<Int> = printDao.getTotalOrdersFlow()
 
     suspend fun getTodaysRevenue(): Double? {
         val calendar = Calendar.getInstance()
-        // Set to start of today
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
         val start = calendar.timeInMillis
 
-        // Set to end of today
         calendar.add(Calendar.DAY_OF_YEAR, 1)
         val end = calendar.timeInMillis
 
@@ -29,16 +28,22 @@ class PrintRepository(private val printDao: PrintDao) {
         val orderId = printDao.insertOrder(order)
         val itemsWithOrderId = items.map { it.copy(orderId = orderId.toInt()) }
         printDao.insertOrderItems(itemsWithOrderId)
+        
+        if (order.paymentMethod == "UPI" && order.paidAmount > 0) {
+            insertBeautyTransaction(order.paidAmount, "ADD", "Order #${orderId} - ${order.customerName}")
+        }
     }
 
-    suspend fun confirmOrder(customerName: String, cartItems: List<CartItem>): Int {
+    suspend fun confirmOrder(customerName: String, cartItems: List<CartItem>, paymentMethod: String = "CASH"): Int {
         if (cartItems.isEmpty()) return -1
 
         val total = cartItems.sumOf { it.price * it.quantity }
         val order = Order(
             totalAmount = total,
             date = System.currentTimeMillis(),
-            customerName = customerName
+            customerName = customerName,
+            paidAmount = total,
+            paymentMethod = paymentMethod
         )
 
         val orderId = printDao.insertOrder(order).toInt()
@@ -52,18 +57,21 @@ class PrintRepository(private val printDao: PrintDao) {
             )
         }
         printDao.insertOrderItems(orderItems)
+
+        if (paymentMethod == "UPI") {
+            insertBeautyTransaction(total, "ADD", "Direct Pay - $customerName")
+        }
+
         return orderId
     }
 
     suspend fun getAllOrders(): List<Order> = printDao.getAllOrders()
 
-    suspend fun getRevenueByCategory(): List<CategoryRevenue> = printDao.getRevenueByCategory()
+    suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
 
-    suspend fun getRevenueLast7Days(sevenDaysAgo: Long): List<DailyRevenue> = printDao.getRevenueLast7Days(sevenDaysAgo)
+    fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
-    suspend fun getDebtors(): List<DebtorSummary> = printDao.getDebtors()
-
-    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double) {
+    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double, paymentMethod: String = "CASH") {
         val debtors = printDao.getDebtors()
         val previousBalance = debtors.find { it.customerName == customerName }?.totalOwed ?: 0.0
         
@@ -82,7 +90,6 @@ class PrintRepository(private val printDao: PrintDao) {
             remainingPayment -= paymentForThisOrder
         }
 
-        // Log settlement
         val actualSettled = paymentAmount - remainingPayment
         if (actualSettled > 0) {
             printDao.insertSettlement(
@@ -92,9 +99,13 @@ class PrintRepository(private val printDao: PrintDao) {
                     settledAmount = actualSettled,
                     remainingBalance = previousBalance - actualSettled,
                     timestamp = System.currentTimeMillis(),
-                    note = "Order Payment"
+                    note = "Payment via $paymentMethod"
                 )
             )
+
+            if (paymentMethod == "UPI") {
+                insertBeautyTransaction(actualSettled, "ADD", "Debt Settlement - $customerName")
+            }
         }
     }
 
@@ -107,6 +118,8 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getPhotosForOrder(orderId: Int): List<Photo> = printDao.getPhotosForOrder(orderId)
 
     suspend fun getDebtorCreditList(): List<DebtorCredit> = printDao.getDebtorCreditList()
+
+    suspend fun getDebtors(): List<DebtorSummary> = printDao.getDebtors()
 
     suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double) {
         val existingEntry = printDao.getDebtorCreditByName(customerName)
@@ -125,13 +138,11 @@ class PrintRepository(private val printDao: PrintDao) {
             }
         }
 
-        // Log settlement if it's a payment/settlement (amountDelta reduces the absolute balance)
-        // Actually, let's log any update to this as it's an "audit trail"
         printDao.insertSettlement(
             SettlementHistory(
                 customerName = customerName,
                 previousBalance = previousBalance,
-                settledAmount = -amountDelta, // Positive if paying off debt, negative if increasing debt
+                settledAmount = -amountDelta,
                 remainingBalance = previousBalance + amountDelta,
                 timestamp = System.currentTimeMillis(),
                 note = if (amountDelta < 0) "Settlement/Payment" else "Balance Adjustment"
@@ -145,7 +156,6 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun deletePrinterReference(reference: PrinterReference) = printDao.deletePrinterReference(reference)
 
-    // Feature 1
     suspend fun deleteOrder(orderId: Int) {
         val order = printDao.getOrderById(orderId)
         if (order != null) {
@@ -153,6 +163,43 @@ class PrintRepository(private val printDao: PrintDao) {
         }
     }
 
-    // Feature 2
+    suspend fun deleteOrdersBetween(start: Long, end: Long) {
+        printDao.deleteOrdersBetween(start, end)
+    }
+
+    suspend fun deleteAllOrders() {
+        printDao.deleteAllOrders()
+    }
+
     suspend fun getAllSettlements(): List<SettlementHistory> = printDao.getAllSettlements()
+
+    // Money Tracking Methods
+    fun getCashInHandFlow(): Flow<Double?> = printDao.getCashInHandFlow()
+    
+    fun getTotalReceivablesFlow(): Flow<Double?> = printDao.getTotalReceivablesFlow()
+
+    suspend fun recordMoneyReturnedFromExternal(amount: Double, note: String? = null) {
+        insertBeautyTransaction(amount, "RETURN", note ?: "Money returned by Beauty Rani")
+    }
+
+    suspend fun addManualExternalCredit(amount: Double, note: String? = null) {
+        insertBeautyTransaction(amount, "ADD", note ?: "Manual Entry")
+    }
+
+    // Beauty Account Logic
+    suspend fun insertBeautyTransaction(amount: Double, type: String, note: String? = null) {
+        printDao.insertBeautyTransaction(BeautyTransaction(amount = amount, type = type, note = note))
+    }
+
+    fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()
+    
+    suspend fun getAllBeautyTransactions(): List<BeautyTransaction> = printDao.getAllBeautyTransactions()
+
+    fun getBeautyBalanceFlow(): Flow<Double?> = printDao.getBeautyBalanceFlow()
+    
+    suspend fun getBeautyBalance(): Double? = printDao.getBeautyBalance()
+
+    // Compatibility methods for External Ledger
+    suspend fun getExternalBalance(): Double? = getBeautyBalance()
+    suspend fun getAllExternalLedgerEntries(): List<BeautyTransaction> = getAllBeautyTransactions()
 }

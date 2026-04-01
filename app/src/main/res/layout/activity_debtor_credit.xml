@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="@color/brand_background"
     tools:context=".DebtorCreditActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -19,8 +19,58 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
             app:title="Customer Credit/Change"
-            app:menu="@menu/menu_debtors"
-            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+            app:titleTextAppearance="@style/TextAppearance.App.Title" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="@color/brand_surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/brand_divider"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    app:tint="@color/text_secondary" />
+
+                <EditText
+                    android:id="@+id/editSearch"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:hint="Search customer"
+                    android:imeOptions="actionSearch"
+                    android:inputType="textPersonName"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="15sp" />
+
+                <ImageView
+                    android:id="@+id/imageClearSearch"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:padding="4dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:visibility="gone"
+                    app:tint="@color/text_muted"
+                    tools:visibility="visible" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -41,15 +91,19 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:baselineAligned="false"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="16dp">
 
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardOwesMe"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
-                    app:cardBackgroundColor="?attr/colorSecondaryContainer"
-                    app:cardElevation="0dp">
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="@color/secondary_container"
+                    app:rippleColor="@color/brand_divider"
+                    app:strokeWidth="0dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -58,31 +112,36 @@
                         android:padding="16dp">
 
                         <TextView
+                            style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Owes Me"
-                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                            android:textColor="?attr/colorOnSecondaryContainer" />
+                            android:textColor="@color/on_secondary_container"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/textTotalOwedToMe"
+                            style="@style/TextAppearance.App.Value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                            android:textColor="?attr/colorOnSecondaryContainer"
-                            android:textStyle="bold"
+                            android:textColor="@color/on_secondary_container"
+                            android:textSize="20sp"
                             tools:text="₹ 0.00" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardIOwe"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    app:cardBackgroundColor="?attr/colorTertiaryContainer"
-                    app:cardElevation="0dp">
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="@color/primary_container"
+                    app:rippleColor="@color/brand_divider"
+                    app:strokeWidth="0dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -91,24 +150,37 @@
                         android:padding="16dp">
 
                         <TextView
+                            style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="I Owe Change"
-                            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                            android:textColor="?attr/colorOnTertiaryContainer" />
+                            android:textColor="@color/on_primary_container"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/textTotalIOwe"
+                            style="@style/TextAppearance.App.Value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                            android:textColor="?attr/colorOnTertiaryContainer"
-                            android:textStyle="bold"
+                            android:textColor="@color/on_primary_container"
+                            android:textSize="20sp"
                             tools:text="₹ 0.00" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/textFilterLabel"
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text="Showing All Records"
+                android:textColor="@color/brand_secondary"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_debtor_credits"
@@ -116,6 +188,16 @@
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_debtor_credit" />
+
+            <TextView
+                android:id="@+id/textNoResults"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:gravity="center"
+                android:text="No matching customer found"
+                android:textColor="@color/text_muted"
+                android:visibility="gone" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -127,6 +209,9 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:text="Add Entry"
-        app:icon="@android:drawable/ic_input_add" />
+        android:textColor="#FFFFFF"
+        app:icon="@android:drawable/ic_input_add"
+        app:iconTint="#FFFFFF"
+        app:backgroundTint="@color/brand_secondary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

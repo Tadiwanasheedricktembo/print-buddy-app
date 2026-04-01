@@ -4,70 +4,32 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="@color/brand_background"
     tools:context=".MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
+        android:background="@color/brand_background"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="140dp"
-            android:gravity="bottom"
-            app:contentInsetStartWithNavigation="0dp"
-            app:title="@string/new_order"
+            android:layout_height="?attr/actionBarSize"
+            app:title="@string/app_name"
             app:titleCentered="false"
-            app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineLarge"
-            app:titleTextColor="?attr/colorOnSurface">
+            app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="16dp"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/btnShowQr"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_icon_button"
-                    android:contentDescription="Show QR Code"
-                    android:src="@drawable/ic_qr_code"
-                    app:tint="?attr/colorOnSurface" />
-
-                <Space
-                    android:layout_width="8dp"
-                    android:layout_height="wrap_content" />
-
-                <ImageButton
-                    android:id="@+id/btnAbout"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_icon_button"
-                    android:contentDescription="@string/about_title"
-                    android:src="@android:drawable/ic_menu_info_details"
-                    app:tint="?attr/colorOnSurface" />
-
-                <Space
-                    android:layout_width="8dp"
-                    android:layout_height="wrap_content" />
-
-                <ImageButton
-                    android:id="@+id/btnSettings"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_icon_button"
-                    android:contentDescription="@string/settings"
-                    android:src="@android:drawable/ic_menu_manage"
-                    app:tint="?attr/colorOnSurface" />
-            </LinearLayout>
-
-        </com.google.android.material.appbar.MaterialToolbar>
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorColor="@color/brand_secondary"
+            app:trackColor="@color/brand_divider" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -75,215 +37,172 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingBottom="120dp"
+        android:paddingBottom="100dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/screen_padding">
+            android:padding="16dp">
 
-            <!-- Order Entry Card -->
+            <TextView
+                style="@style/TextAppearance.App.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/hello_welcome"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="24dp"
+                android:text="@string/what_would_you_like_to_print_today"
+                android:textColor="@color/text_secondary" />
+
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardElevation="2dp">
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/brand_surface"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/brand_divider">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:id="@+id/tvOrderLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="20dp"
-                        android:text="@string/order_details_caps"
-                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                        android:textColor="?attr/colorSecondary"
-                        android:letterSpacing="0.1"
-                        android:textStyle="bold" />
+                    android:padding="16dp">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/layoutCustomerName"
+                        style="@style/Widget.App.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Customer Name"
-                        app:startIconDrawable="@android:drawable/ic_menu_myplaces">
-
+                        android:hint="Customer Name (Required if credit)"
+                        android:layout_marginBottom="16dp">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editCustomerName"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="textPersonName" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/layoutService"
-                        style="@style/Widget.App.TextInputLayout.Dropdown"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:hint="Select Service"
-                        app:startIconDrawable="@android:drawable/ic_menu_sort_by_size">
-
-                        <AutoCompleteTextView
-                            android:id="@+id/autoCompleteService"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none" />
+                            android:inputType="textCapWords"
+                            android:textColor="@color/text_primary" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
                         android:baselineAligned="false"
-                        android:orientation="horizontal">
+                        android:layout_marginBottom="16dp">
 
                         <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutQuantity"
+                            style="@style/Widget.App.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="8dp"
-                            android:hint="Qty"
-                            app:startIconDrawable="@android:drawable/ic_input_add">
-
+                            android:hint="Quantity">
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editQuantity"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
-                                android:text="1" />
+                                android:text="1"
+                                android:textColor="@color/text_primary" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutPrice"
+                            style="@style/Widget.App.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1.5"
+                            android:layout_weight="1"
                             android:layout_marginStart="8dp"
-                            android:hint="Price (₹)"
-                            app:startIconDrawable="@android:drawable/ic_menu_send">
-
+                            android:hint="Price (₹)">
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:inputType="numberDecimal" />
+                                android:inputType="numberDecimal"
+                                android:textColor="@color/text_primary" />
                         </com.google.android.material.textfield.TextInputLayout>
-
                     </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:paddingVertical="8dp">
+
+                        <TextView
+                            android:id="@+id/lblTotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="TOTAL ESTIMATE"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.1"
+                            android:textColor="@color/text_muted" />
+
+                        <TextView
+                            android:id="@+id/textLineTotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="36sp"
+                            android:textStyle="bold"
+                            tools:text="₹ 0.00" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCompleteOrder"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="16dp"
+                        android:text="Confirm &amp; Save Order"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/brand_primary"
+                        app:cornerRadius="12dp"
+                        android:textColor="@android:color/white" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnShowQr"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/show_qr_code"
+                        app:icon="@drawable/ic_qr_code"
+                        app:iconGravity="textStart"
+                        app:iconTint="@color/brand_secondary"
+                        android:textColor="@color/brand_secondary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Line Total Summary Area -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardSummary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                app:cardBackgroundColor="?attr/colorPrimaryContainer"
-                app:cardElevation="0dp"
-                app:strokeWidth="0dp">
-
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="28dp">
-
-                    <TextView
-                        android:id="@+id/lblLineTotal"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/estimated_total_caps"
-                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                        android:textColor="?attr/colorOnPrimaryContainer"
-                        android:letterSpacing="0.15"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/textLineTotal"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/lblLineTotal"
-                        android:layout_marginTop="8dp"
-                        android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
-                        android:textColor="?attr/colorOnPrimaryContainer"
-                        android:textStyle="bold"
-                        tools:text="₹250.00" />
-
-                    <ImageView
-                        android:layout_width="72dp"
-                        android:layout_height="72dp"
-                        android:layout_alignParentEnd="true"
-                        android:layout_centerVertical="true"
-                        android:alpha="0.2"
-                        android:src="@android:drawable/ic_menu_save"
-                        app:tint="?attr/colorOnPrimaryContainer" />
-
-                </RelativeLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/layoutPaymentStatus"
-                style="@style/Widget.App.TextInputLayout.Dropdown"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:hint="Payment Status"
-                app:startIconDrawable="@android:drawable/ic_menu_agenda">
-
-                <AutoCompleteTextView
-                    android:id="@+id/autoCompletePaymentStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="none" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCompleteOrder"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:layout_marginTop="32dp"
-                android:text="@string/confirm_save_order"
-                app:icon="@android:drawable/ic_menu_save"
-                app:iconGravity="textStart"
-                app:iconPadding="12dp" />
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <com.google.android.material.card.MaterialCardView
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        app:cardCornerRadius="0dp"
-        app:cardElevation="16dp"
-        app:strokeWidth="0dp">
-
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/bottom_navigation"
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:background="?attr/colorSurface"
-            app:itemIconSize="26dp"
-            app:itemRippleColor="?attr/colorPrimaryContainer"
-            app:labelVisibilityMode="labeled"
-            app:menu="@menu/bottom_nav_menu" />
-    </com.google.android.material.card.MaterialCardView>
-
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+        app:menu="@menu/bottom_nav_menu"
+        app:labelVisibilityMode="labeled"
+        app:backgroundTint="@color/brand_surface"
+        app:itemIconTint="@color/selector_nav_colors"
+        app:itemTextColor="@color/selector_nav_colors"
+        app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

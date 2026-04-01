@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="@color/brand_background"
     tools:context=".PrinterReferenceActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -19,7 +19,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
             app:title="Printer References"
-            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+            app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -40,9 +40,9 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
         android:text="Add Reference"
-        android:textColor="?attr/colorOnPrimary"
-        app:backgroundTint="?attr/colorPrimary"
+        android:textColor="#FFFFFF"
+        app:backgroundTint="@color/brand_secondary"
         app:icon="@android:drawable/ic_input_add"
-        app:iconTint="?attr/colorOnPrimary" />
+        app:iconTint="#FFFFFF" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

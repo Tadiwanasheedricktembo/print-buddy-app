@@ -56,16 +56,19 @@ class DebtorsActivity : AppCompatActivity() {
 
     private fun loadDebtors() {
         lifecycleScope.launch {
-            val debtors = repository.getDebtors()
-            adapter.updateDebtors(debtors)
-            updateTotalOwed(debtors)
+            val summaries = repository.getCustomerSummaries()
+            adapter.updateDebtors(summaries)
+            updateTotals(summaries)
         }
     }
 
-    private fun updateTotalOwed(debtors: List<DebtorSummary>) {
-        val totalOwed = debtors.sumOf { it.totalOwed }
+    private fun updateTotals(summaries: List<DebtorSummary>) {
+        val owesMe = summaries.filter { it.type == "OWES" }.sumOf { it.totalBalance }
+        val changeDue = summaries.filter { it.type == "CHANGE" }.sumOf { it.totalBalance }
+        
         val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-        binding.textTotalOwed.text = format.format(totalOwed)
+        binding.textTotalOwed.text = format.format(owesMe)
+        // Optionally display changeDue somewhere if layout allows
     }
 
     private fun showReceivePaymentDialog(debtor: DebtorSummary) {

@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="40dp"
+    android:viewportWidth="200"
+    android:viewportHeight="40">
+
+    <group android:translateX="20" android:translateY="10">
+        <!-- Text representation: "Created by Tadiwa E Tembo" -->
+        <!-- Since vector doesn't support <text>, I'll use simple paths or just keep it minimal -->
+        <!-- For now, I'll create a clean stylized branding line -->
+        <path
+            android:fillColor="#6B7280"
+            android:pathData="M0,10 h160 v1 h-160 z" />
+
+        <!-- Simplified 'Created by' indicator -->
+        <path
+            android:fillColor="#9CA3AF"
+            android:pathData="M60,15 L62,13 L64,15 L62,17 Z" />
+    </group>
+</vector>

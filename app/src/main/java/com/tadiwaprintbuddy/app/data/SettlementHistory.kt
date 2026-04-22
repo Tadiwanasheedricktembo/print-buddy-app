@@ -1,5 +1,6 @@
 package com.tadiwaprintbuddy.app.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -8,9 +9,10 @@ data class SettlementHistory(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val customerName: String,
-    val previousBalance: Double,
-    val settledAmount: Double,
-    val remainingBalance: Double,
+    @ColumnInfo(name = "previousBalance") val balanceBefore: Double,
+    @ColumnInfo(name = "settledAmount") val amountPaid: Double,
+    @ColumnInfo(name = "remainingBalance") val balanceAfter: Double,
     val timestamp: Long,
-    val note: String? = null
+    val type: String = "PAYMENT",
+    val note: String = ""
 )

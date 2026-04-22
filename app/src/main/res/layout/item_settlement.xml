@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="@dimen/grid_12"
+    android:layout_marginBottom="12dp"
     app:cardBackgroundColor="@color/brand_surface"
     app:strokeWidth="1dp"
     app:strokeColor="@color/brand_divider">
@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="@dimen/card_padding">
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -56,15 +56,16 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/labelPrevious"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Previous"
+                    android:text="Balance Before"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/textPreviousBalance"
+                    android:id="@+id/textBalanceBefore"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -79,20 +80,21 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/labelSettled"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Settled"
-                    android:textColor="@color/brand_primary"
+                    android:text="Amount Paid"
+                    android:textColor="@android:color/holo_blue_dark"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/textSettledAmount"
+                    android:id="@+id/textAmountPaid"
                     style="@style/TextAppearance.App.Value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/brand_primary"
+                    android:textColor="@android:color/holo_blue_dark"
                     android:textSize="16sp"
                     tools:text="₹ 500.00" />
             </LinearLayout>
@@ -104,15 +106,16 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/labelRemaining"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Remaining"
+                    android:text="Balance After"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/textRemainingBalance"
+                    android:id="@+id/textBalanceAfter"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -121,15 +124,35 @@
             </LinearLayout>
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/textNote"
-            style="@style/TextAppearance.App.Label"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textSize="11sp"
-            android:textStyle="italic"
-            tools:text="Note: Order Payment" />
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:id="@+id/textType"
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge_gray"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                tools:text="PAYMENT" />
+
+            <TextView
+                android:id="@+id/textNote"
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:textSize="11sp"
+                android:textStyle="italic"
+                tools:text="Note: Order Payment" />
+        </LinearLayout>
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

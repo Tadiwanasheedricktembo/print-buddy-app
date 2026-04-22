@@ -1,6 +1,7 @@
 package com.tadiwaprintbuddy.app
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -13,14 +14,21 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.DebtorCredit
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityDebtorCreditBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileWriter
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class DebtorCreditActivity : AppCompatActivity() {
@@ -59,9 +67,14 @@ class DebtorCreditActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = DebtorCreditAdapter(emptyList()) { debtorCredit ->
+        adapter = DebtorCreditAdapter(emptyList(), { debtorCredit ->
             showSettlePaymentDialog(debtorCredit)
-        }
+        }, { debtorCredit ->
+            val intent = Intent(this, SettlementHistoryActivity::class.java).apply {
+                putExtra("EXTRA_CUSTOMER_NAME", debtorCredit.customerName)
+            }
+            startActivity(intent)
+        })
         binding.recyclerDebtorCredits.layoutManager = LinearLayoutManager(this)
         binding.recyclerDebtorCredits.adapter = adapter
     }
@@ -167,12 +180,64 @@ class DebtorCreditActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_export_csv -> {
+                exportDebtorsToCSV()
+                true
+            }
             R.id.action_settlement_history -> {
                 startActivity(Intent(this, SettlementHistoryActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun exportDebtorsToCSV() {
+        if (allDebtorCredits.isEmpty()) {
+            Toast.makeText(this, "No data to export", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val fileName = "debtors_report_${SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())}.csv"
+                val file = File(getExternalFilesDir(null), fileName)
+                val writer = FileWriter(file)
+
+                // Header
+                writer.append("Customer Name,Status,Amount,Last Updated\n")
+
+                // Data
+                allDebtorCredits.forEach { debtor ->
+                    val status = if (debtor.amount > 0) "OWES ME" else "I OWE CHANGE"
+                    val displayAmount = if (debtor.amount > 0) debtor.amount else -debtor.amount
+                    val lastUpdated = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(debtor.lastUpdated))
+                    
+                    writer.append("${debtor.customerName.replace(",", " ")},$status,$displayAmount,$lastUpdated\n")
+                }
+
+                writer.flush()
+                writer.close()
+
+                withContext(Dispatchers.Main) {
+                    shareFile(file)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@DebtorCreditActivity, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun shareFile(file: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, "Share Debtors Report"))
     }
 
     private fun loadDebtorCredits() {

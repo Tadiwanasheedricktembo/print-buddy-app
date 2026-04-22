@@ -23,6 +23,15 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
             repository.insertBeautyTransaction(amount, "RETURN", note)
         }
     }
+
+    fun resetBalance() {
+        viewModelScope.launch {
+            val currentBalance = repository.getCurrentBeautyBalance()
+            if (currentBalance != 0.0) {
+                repository.insertBeautyTransaction(-currentBalance, "RESET", "Balance reset to zero")
+            }
+        }
+    }
 }
 
 class BeautyAccountViewModelFactory(private val repository: PrintRepository) : ViewModelProvider.Factory {

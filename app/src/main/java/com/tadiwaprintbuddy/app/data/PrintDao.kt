@@ -49,7 +49,7 @@ interface PrintDao {
     suspend fun updatePayment(orderId: Int, newPaidAmount: Double)
 
     @Query("""
-    SELECT customerName, SUM(totalAmount - paidAmount) as totalOwed
+    SELECT customerName, SUM(totalAmount - paidAmount) as totalBalance, 'OWES' as type
     FROM `orders`
     WHERE totalAmount > paidAmount
     GROUP BY customerName
@@ -65,7 +65,7 @@ interface PrintDao {
     @Query("SELECT * FROM debtor_credits WHERE customerName = :customerName")
     suspend fun getDebtorCreditByName(customerName: String): DebtorCredit?
 
-    @Query("SELECT * FROM debtor_credits ORDER BY amount DESC")
+    @Query("SELECT * FROM debtor_credits ORDER BY lastUpdated DESC")
     suspend fun getDebtorCreditList(): List<DebtorCredit>
 
     @Query("DELETE FROM debtor_credits WHERE customerName = :customerName")
@@ -109,6 +109,15 @@ interface PrintDao {
     @Query("SELECT * FROM settlement_history ORDER BY timestamp DESC")
     suspend fun getAllSettlements(): List<SettlementHistory>
 
+    @Query("SELECT * FROM settlement_history")
+    suspend fun getAllSettlementHistoryOnce(): List<SettlementHistory>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllSettlements(data: List<SettlementHistory>)
+
+    @Query("DELETE FROM settlement_history")
+    suspend fun clearSettlementHistory()
+
     // External Ledger (Legacy/Audit)
     @Insert
     suspend fun insertExternalLedger(entry: ExternalLedger)
@@ -134,9 +143,12 @@ interface PrintDao {
     @Query("SELECT * FROM beauty_transactions ORDER BY timestamp DESC")
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction>
 
-    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount ELSE -amount END) FROM beauty_transactions")
+    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount WHEN type = 'RETURN' THEN -amount WHEN type = 'RESET' THEN amount ELSE 0 END) FROM beauty_transactions")
     fun getBeautyBalanceFlow(): Flow<Double?>
 
-    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount ELSE -amount END) FROM beauty_transactions")
+    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount WHEN type = 'RETURN' THEN -amount WHEN type = 'RESET' THEN amount ELSE 0 END) FROM beauty_transactions")
     suspend fun getBeautyBalance(): Double?
+
+    @Query("SELECT IFNULL(SUM(CASE WHEN type = 'ADD' THEN amount WHEN type = 'RETURN' THEN -amount WHEN type = 'RESET' THEN amount ELSE 0 END), 0.0) FROM beauty_transactions")
+    suspend fun getCurrentBeautyBalance(): Double
 }

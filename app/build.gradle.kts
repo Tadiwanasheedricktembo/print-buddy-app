@@ -42,6 +42,7 @@ android {
     buildFeatures {
         viewBinding = true
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -59,6 +60,7 @@ dependencies {
     implementation(libs.androidx.navigation.ui)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.gson)
     
     // Compose dependencies (Required for Theme.kt)
     implementation(platform(libs.androidx.compose.bom))

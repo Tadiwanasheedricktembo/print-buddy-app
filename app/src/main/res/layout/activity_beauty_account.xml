@@ -74,7 +74,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="12dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAddMoney"
@@ -101,6 +101,17 @@
                     app:icon="@android:drawable/ic_menu_revert"
                     app:iconTint="@color/text_primary" />
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetBalance"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:text="Reset Totals"
+                android:textColor="#FF9800"
+                app:icon="@android:drawable/ic_menu_delete"
+                app:iconTint="#FF9800" />
 
             <com.google.android.material.divider.MaterialDivider
                 android:layout_width="match_parent"

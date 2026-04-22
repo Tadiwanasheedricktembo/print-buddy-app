@@ -50,7 +50,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:padding="32dp"
-                    android:src="@drawable/ic_splash_logo"
+                    android:src="@drawable/ic_printer"
                     app:tint="@color/brand_primary" />
             </com.google.android.material.card.MaterialCardView>
 
@@ -140,7 +140,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="© 2024 Querycubix. All rights reserved."
+                android:text="© 2026 Querycubix. All rights reserved."
                 android:textSize="10sp" />
 
         </LinearLayout>

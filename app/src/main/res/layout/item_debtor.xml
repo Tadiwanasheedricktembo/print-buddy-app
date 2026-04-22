@@ -50,6 +50,7 @@
                     tools:text="Tadiwa Nashe" />
 
                 <TextView
+                    android:id="@+id/textLabelOwed"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

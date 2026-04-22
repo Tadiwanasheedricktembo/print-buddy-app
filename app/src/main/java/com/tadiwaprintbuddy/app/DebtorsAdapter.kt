@@ -34,7 +34,15 @@ class DebtorsAdapter(
             val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
 
             binding.textCustomerName.text = debtor.customerName
-            binding.textAmountOwed.text = format.format(debtor.totalOwed)
+            binding.textAmountOwed.text = format.format(debtor.totalBalance)
+
+            if (debtor.type == "CHANGE") {
+                binding.textAmountOwed.setTextColor(0xFF2E7D32.toInt()) // Green
+                binding.textLabelOwed.text = "Change Due"
+            } else {
+                binding.textAmountOwed.setTextColor(0xFFC62828.toInt()) // Red
+                binding.textLabelOwed.text = "Amount Owed"
+            }
 
             binding.buttonReceivePayment.setOnClickListener {
                 onReceivePaymentClicked(debtor)

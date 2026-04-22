@@ -1,6 +1,7 @@
 package com.tadiwaprintbuddy.app.data
 
 import com.tadiwaprintbuddy.app.CartItem
+import com.tadiwaprintbuddy.app.data.DebtorCredit
 import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
 
@@ -67,13 +68,18 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getAllOrders(): List<Order> = printDao.getAllOrders()
 
+    suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
+
+    suspend fun updatePayment(orderId: Int, amount: Double) {
+        printDao.updatePayment(orderId, amount)
+    }
+
     suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
 
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
     suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double, paymentMethod: String = "CASH") {
-        val debtors = printDao.getDebtors()
-        val previousBalance = debtors.find { it.customerName == customerName }?.totalOwed ?: 0.0
+        val currentBalance = getCustomerBalance(customerName)
         
         val unpaidOrders = printDao.getUnpaidOrdersForCustomer(customerName)
         var remainingPayment = paymentAmount
@@ -90,64 +96,79 @@ class PrintRepository(private val printDao: PrintDao) {
             remainingPayment -= paymentForThisOrder
         }
 
-        val actualSettled = paymentAmount - remainingPayment
-        if (actualSettled > 0) {
-            printDao.insertSettlement(
-                SettlementHistory(
-                    customerName = customerName,
-                    previousBalance = previousBalance,
-                    settledAmount = actualSettled,
-                    remainingBalance = previousBalance - actualSettled,
-                    timestamp = System.currentTimeMillis(),
-                    note = "Payment via $paymentMethod"
-                )
-            )
-
-            if (paymentMethod == "UPI") {
-                insertBeautyTransaction(actualSettled, "ADD", "Debt Settlement - $customerName")
-            }
-        }
-    }
-
-    suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
-
-    suspend fun updatePayment(orderId: Int, newPaidAmount: Double) = printDao.updatePayment(orderId, newPaidAmount)
-
-    suspend fun addPhoto(photo: Photo) = printDao.addPhoto(photo)
-
-    suspend fun getPhotosForOrder(orderId: Int): List<Photo> = printDao.getPhotosForOrder(orderId)
-
-    suspend fun getDebtorCreditList(): List<DebtorCredit> = printDao.getDebtorCreditList()
-
-    suspend fun getDebtors(): List<DebtorSummary> = printDao.getDebtors()
-
-    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double) {
-        val existingEntry = printDao.getDebtorCreditByName(customerName)
-        val previousBalance = existingEntry?.amount ?: 0.0
-        
-        if (existingEntry != null) {
-            val newAmount = existingEntry.amount + amountDelta
-            if (newAmount == 0.0) {
-                printDao.deleteDebtorCredit(customerName)
-            } else {
-                printDao.insertOrUpdateDebtorCredit(existingEntry.copy(amount = newAmount))
-            }
-        } else {
-            if (amountDelta != 0.0) {
-                printDao.insertOrUpdateDebtorCredit(DebtorCredit(customerName, amountDelta))
-            }
-        }
+        val actualSettled = paymentAmount // Total money handed over
+        val newBalance = currentBalance - actualSettled
 
         printDao.insertSettlement(
             SettlementHistory(
                 customerName = customerName,
-                previousBalance = previousBalance,
-                settledAmount = -amountDelta,
-                remainingBalance = previousBalance + amountDelta,
+                balanceBefore = currentBalance,
+                amountPaid = actualSettled,
+                balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(),
-                note = if (amountDelta < 0) "Settlement/Payment" else "Balance Adjustment"
+                type = "PAYMENT",
+                note = "Payment via $paymentMethod"
             )
         )
+
+        if (paymentMethod == "UPI") {
+            insertBeautyTransaction(actualSettled, "ADD", "Debt Settlement - $customerName")
+        }
+    }
+
+    suspend fun getCustomerBalance(customerName: String): Double {
+        val allSettlements = printDao.getAllSettlementHistoryOnce()
+        return allSettlements
+            .filter { it.customerName.trim().equals(customerName.trim(), ignoreCase = true) }
+            .maxByOrNull { it.timestamp }
+            ?.balanceAfter ?: 0.0
+    }
+
+    suspend fun getCustomerSummaries(): List<DebtorSummary> {
+        val all = printDao.getAllSettlementHistoryOnce()
+        return all
+            .groupBy { it.customerName.trim().lowercase() }
+            .map { (_, transactions) ->
+                val latest = transactions.maxByOrNull { it.timestamp }!!
+                val balance = latest.balanceAfter
+                
+                DebtorSummary(
+                    customerName = latest.customerName,
+                    totalBalance = kotlin.math.abs(balance),
+                    type = if (balance > 0) "OWES" else "CHANGE"
+                )
+            }
+            .filter { it.totalBalance > 0.1 } // Ignore near-zero balances
+    }
+
+    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double, note: String? = null) {
+        val previousBalance = getCustomerBalance(customerName)
+        val newBalance = previousBalance + amountDelta
+
+        val isPayment = amountDelta < 0
+        val amount = if (isPayment) -amountDelta else amountDelta
+
+        val finalNote = note ?: when {
+            previousBalance == 0.0 && amountDelta > 0 -> "New Debt Added"
+            previousBalance == 0.0 && amountDelta < 0 -> "Initial Change Recorded"
+            amountDelta > 0 -> "Added to Balance"
+            else -> "Settlement Payment"
+        }
+        
+        printDao.insertSettlement(
+            SettlementHistory(
+                customerName = customerName,
+                balanceBefore = previousBalance,
+                amountPaid = if (isPayment) amount else 0.0,
+                balanceAfter = newBalance,
+                timestamp = System.currentTimeMillis(),
+                type = if (isPayment) "PAYMENT" else "ADJUSTMENT",
+                note = finalNote
+            )
+        )
+
+        // Sync with the summary table
+        printDao.insertOrUpdateDebtorCredit(DebtorCredit(customerName, newBalance, System.currentTimeMillis()))
     }
 
     suspend fun addPrinterReference(reference: PrinterReference) = printDao.addPrinterReference(reference)
@@ -155,6 +176,8 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getAllPrinterReferences(): List<PrinterReference> = printDao.getAllPrinterReferences()
 
     suspend fun deletePrinterReference(reference: PrinterReference) = printDao.deletePrinterReference(reference)
+
+    suspend fun getDebtorCreditList(): List<DebtorCredit> = printDao.getDebtorCreditList()
 
     suspend fun deleteOrder(orderId: Int) {
         val order = printDao.getOrderById(orderId)
@@ -172,6 +195,15 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun getAllSettlements(): List<SettlementHistory> = printDao.getAllSettlements()
+
+    suspend fun getAllSettlementHistoryOnce(): List<SettlementHistory> = printDao.getAllSettlementHistoryOnce()
+
+    suspend fun restoreSettlements(data: List<SettlementHistory>, fullReplace: Boolean) {
+        if (fullReplace) {
+            printDao.clearSettlementHistory()
+        }
+        printDao.insertAllSettlements(data)
+    }
 
     // Money Tracking Methods
     fun getCashInHandFlow(): Flow<Double?> = printDao.getCashInHandFlow()
@@ -198,6 +230,8 @@ class PrintRepository(private val printDao: PrintDao) {
     fun getBeautyBalanceFlow(): Flow<Double?> = printDao.getBeautyBalanceFlow()
     
     suspend fun getBeautyBalance(): Double? = printDao.getBeautyBalance()
+
+    suspend fun getCurrentBeautyBalance(): Double = printDao.getCurrentBeautyBalance()
 
     // Compatibility methods for External Ledger
     suspend fun getExternalBalance(): Double? = getBeautyBalance()

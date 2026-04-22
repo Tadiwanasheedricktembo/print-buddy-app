@@ -7,5 +7,6 @@ import androidx.room.PrimaryKey
 data class DebtorCredit(
     @PrimaryKey
     val customerName: String,
-    val amount: Double
+    val amount: Double,
+    val lastUpdated: Long = System.currentTimeMillis()
 )

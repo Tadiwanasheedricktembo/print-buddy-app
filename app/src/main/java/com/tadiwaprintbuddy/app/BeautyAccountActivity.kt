@@ -58,6 +58,25 @@ class BeautyAccountActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         binding.btnAddMoney.setOnClickListener { showAddMoneyDialog() }
         binding.btnReturnMoney.setOnClickListener { showReturnMoneyDialog() }
+        binding.btnResetBalance.setOnClickListener { showResetConfirmDialog() }
+    }
+
+    private fun showResetConfirmDialog() {
+        val currentBalance = viewModel.balance.value ?: 0.0
+        if (currentBalance == 0.0) {
+            Toast.makeText(this, "Balance is already zero", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Reset Totals?")
+            .setMessage("This will bring your balance to ₹0 by recording a reset entry. History will NOT be deleted.")
+            .setPositiveButton("Reset") { _, _ ->
+                viewModel.resetBalance()
+                Toast.makeText(this, "Totals reset recorded", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun observeViewModel() {
@@ -128,37 +147,121 @@ class BeautyAccountActivity : AppCompatActivity() {
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
     }
 
-    private class TransactionAdapter : RecyclerView.Adapter<TransactionAdapter.ViewHolder>() {
-        private var items = listOf<BeautyTransaction>()
+    private class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        private var originalTransactions = listOf<BeautyTransaction>()
+        private var items = listOf<Any>()
+        private val expandedHeaders = mutableSetOf<String>()
+
+        private companion object {
+            const val TYPE_TRANSACTION = 0
+            const val TYPE_HEADER = 1
+        }
 
         fun submitList(newItems: List<BeautyTransaction>) {
-            items = newItems
+            originalTransactions = newItems
+            updateList()
+        }
+
+        private fun updateList() {
+            val groupedItems = mutableListOf<Any>()
+            val groups = originalTransactions.sortedByDescending { it.timestamp }.groupBy { transaction ->
+                originalTransactions.count { it.type == "RESET" && it.timestamp > transaction.timestamp }
+            }
+
+            groups.keys.sorted().forEach { key ->
+                val groupTransactions = groups[key]!!
+                if (key > 0) {
+                    val resetTime = originalTransactions.filter { it.type == "RESET" }
+                        .sortedByDescending { it.timestamp }[key - 1].timestamp
+                    val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+                    val headerTitle = "History before ${dateFormat.format(Date(resetTime))}"
+                    
+                    groupedItems.add(headerTitle)
+                    if (expandedHeaders.contains(headerTitle)) {
+                        groupedItems.addAll(groupTransactions)
+                    }
+                } else {
+                    groupedItems.addAll(groupTransactions)
+                }
+            }
+
+            items = groupedItems
             notifyDataSetChanged()
         }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_2, parent, false)
-            return ViewHolder(view)
+        override fun getItemViewType(position: Int): Int {
+            return if (items[position] is String) TYPE_HEADER else TYPE_TRANSACTION
         }
 
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val item = items[position]
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-            val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-            
-            val typePrefix = if (item.type == "ADD") "+" else "-"
-            holder.text1.text = "${typePrefix}${format.format(item.amount)} (${if(item.type == "ADD") "Added" else "Returned"})"
-            holder.text2.text = "${dateFormat.format(Date(item.timestamp))} ${item.note?.let { "- $it" } ?: ""}"
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return if (viewType == TYPE_HEADER) {
+                val view = LayoutInflater.from(parent.context).inflate(R.layout.item_beauty_history_header, parent, false)
+                HeaderViewHolder(view)
+            } else {
+                val view = LayoutInflater.from(parent.context).inflate(R.layout.item_beauty_transaction, parent, false)
+                TransactionViewHolder(view)
+            }
+        }
 
-            val color = if (item.type == "ADD") 0xFF2E7D32.toInt() else 0xFFC62828.toInt()
-            holder.text1.setTextColor(color)
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            val item = items[position]
+            if (holder is HeaderViewHolder && item is String) {
+                holder.textHeaderTitle.text = item
+                val isExpanded = expandedHeaders.contains(item)
+                holder.imageChevron.rotation = if (isExpanded) 180f else 0f
+                
+                holder.itemView.setOnClickListener {
+                    if (isExpanded) expandedHeaders.remove(item)
+                    else expandedHeaders.add(item)
+                    updateList()
+                }
+            } else if (holder is TransactionViewHolder && item is BeautyTransaction) {
+                val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+                val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+                
+                holder.textNote.text = if (item.type == "RESET") "Totals Reset" else item.note ?: "Manual Entry"
+                holder.textTimestamp.text = dateFormat.format(Date(item.timestamp))
+
+                when (item.type) {
+                    "ADD" -> {
+                        holder.textAmount.text = "+ ${format.format(item.amount)}"
+                        holder.textAmount.setTextColor(0xFF2E7D32.toInt())
+                        holder.imageTransactionType.setImageResource(android.R.drawable.ic_input_add)
+                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(0xFF2E7D32.toInt())
+                        holder.cardIcon.setCardBackgroundColor(0x1A2E7D32)
+                    }
+                    "RETURN" -> {
+                        holder.textAmount.text = "- ${format.format(item.amount)}"
+                        holder.textAmount.setTextColor(0xFFC62828.toInt())
+                        holder.imageTransactionType.setImageResource(android.R.drawable.ic_menu_revert)
+                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(0xFFC62828.toInt())
+                        holder.cardIcon.setCardBackgroundColor(0x1AC62828)
+                    }
+                    "RESET" -> {
+                        holder.textAmount.text = format.format(item.amount)
+                        holder.textAmount.setTextColor(0xFFFF9800.toInt())
+                        holder.imageTransactionType.setImageResource(android.R.drawable.ic_menu_delete)
+                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFF9800.toInt())
+                        holder.cardIcon.setCardBackgroundColor(0x1AFF9800)
+                    }
+                }
+            }
         }
 
         override fun getItemCount() = items.size
 
-        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val text1: TextView = view.findViewById(android.R.id.text1)
-            val text2: TextView = view.findViewById(android.R.id.text2)
+        class TransactionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val textNote: TextView = view.findViewById(R.id.textNote)
+            val textTimestamp: TextView = view.findViewById(R.id.textTimestamp)
+            val textAmount: TextView = view.findViewById(R.id.textAmount)
+            val imageTransactionType: android.widget.ImageView = view.findViewById(R.id.imageTransactionType)
+            val cardIcon: com.google.android.material.card.MaterialCardView = view.findViewById(R.id.cardIcon)
+        }
+
+        class HeaderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val textHeaderTitle: TextView = view.findViewById(R.id.textHeaderTitle)
+            val textItemCount: TextView = view.findViewById(R.id.textItemCount)
+            val imageChevron: android.widget.ImageView = view.findViewById(R.id.imageChevron)
         }
     }
 }

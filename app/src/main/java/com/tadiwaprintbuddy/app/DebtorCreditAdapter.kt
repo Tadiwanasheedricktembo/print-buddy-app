@@ -11,7 +11,8 @@ import java.util.Locale
 
 class DebtorCreditAdapter(
     private var debtorCredits: List<DebtorCredit>,
-    private val onUpdateClicked: (DebtorCredit) -> Unit
+    private val onUpdateClicked: (DebtorCredit) -> Unit,
+    private val onItemClicked: (DebtorCredit) -> Unit
 ) : RecyclerView.Adapter<DebtorCreditAdapter.ViewHolder>() {
 
     fun updateDebtorCredits(newDebtorCredits: List<DebtorCredit>) {
@@ -46,6 +47,10 @@ class DebtorCreditAdapter(
 
             binding.buttonUpdateAmount.setOnClickListener {
                 onUpdateClicked(debtorCredit)
+            }
+
+            binding.root.setOnClickListener {
+                onItemClicked(debtorCredit)
             }
         }
     }

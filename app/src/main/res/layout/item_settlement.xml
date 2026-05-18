@@ -60,7 +60,7 @@
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Balance Before"
+                    android:text="Prev. Balance"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
@@ -80,21 +80,19 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/labelSettled"
+                    android:id="@+id/labelTransAmount"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Amount Paid"
-                    android:textColor="@android:color/holo_blue_dark"
+                    android:text="Added/Paid"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/textAmountPaid"
+                    android:id="@+id/textTransAmount"
                     style="@style/TextAppearance.App.Value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@android:color/holo_blue_dark"
                     android:textSize="16sp"
                     tools:text="₹ 500.00" />
             </LinearLayout>
@@ -106,11 +104,11 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/labelRemaining"
+                    android:id="@+id/labelNew"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Balance After"
+                    android:text="New Balance"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
@@ -120,6 +118,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="@color/text_primary"
+                    android:textStyle="bold"
                     tools:text="₹ 500.00" />
             </LinearLayout>
         </LinearLayout>

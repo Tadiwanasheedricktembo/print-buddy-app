@@ -71,6 +71,7 @@ class DebtorCreditActivity : AppCompatActivity() {
             showSettlePaymentDialog(debtorCredit)
         }, { debtorCredit ->
             val intent = Intent(this, SettlementHistoryActivity::class.java).apply {
+                putExtra("EXTRA_CUSTOMER_ID", debtorCredit.customerId)
                 putExtra("EXTRA_CUSTOMER_NAME", debtorCredit.customerName)
             }
             startActivity(intent)

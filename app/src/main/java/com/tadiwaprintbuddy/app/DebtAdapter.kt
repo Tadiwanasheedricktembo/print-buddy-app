@@ -43,6 +43,13 @@ class DebtAdapter(
             binding.buttonUpdatePayment.setOnClickListener {
                 onUpdatePaymentClicked(order)
             }
+
+            if (order.newBalance != 0.0 || order.previousBalance != 0.0) {
+                binding.layoutClarity.visibility = android.view.View.VISIBLE
+                binding.textBalanceSnapshot.text = "Snapshot: ${format.format(order.previousBalance)} → ${format.format(order.newBalance)}"
+            } else {
+                binding.layoutClarity.visibility = android.view.View.GONE
+            }
         }
     }
 }

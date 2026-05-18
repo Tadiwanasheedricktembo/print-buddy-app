@@ -163,7 +163,8 @@ class SettlementHistoryActivity : AppCompatActivity() {
     }
 
     private fun loadSettlements() {
-        val targetCustomer = intent.getStringExtra("EXTRA_CUSTOMER_NAME")
+        val targetCustomerName = intent.getStringExtra("EXTRA_CUSTOMER_NAME")
+        val targetCustomerId = intent.getLongExtra("EXTRA_CUSTOMER_ID", -1L)
         
         lifecycleScope.launch {
             try {
@@ -175,22 +176,27 @@ class SettlementHistoryActivity : AppCompatActivity() {
                     binding.textEmpty.visibility = View.GONE
                     binding.recyclerSettlements.visibility = View.VISIBLE
                     
-                    val grouped = allSettlements.groupBy { it.customerName }
-                        .map { (name, trans) ->
+                    val grouped = allSettlements.groupBy { it.customerId }
+                        .map { (id, trans) ->
                             val sortedTrans = trans.sortedByDescending { it.timestamp }
+                            val name = sortedTrans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
+                            
                             GroupedSettlement(
+                                customerId = id,
                                 customerName = name,
                                 totalOwed = sortedTrans.firstOrNull()?.balanceAfter ?: 0.0,
                                 transactions = sortedTrans,
-                                isExpanded = name.equals(targetCustomer, ignoreCase = true)
+                                isExpanded = id == targetCustomerId || (targetCustomerName != null && name.equals(targetCustomerName, ignoreCase = true))
                             )
                         }.sortedBy { it.customerName }
                     
                     adapter.updateGroups(grouped)
 
                     // Scroll to the targeted customer if found
-                    if (targetCustomer != null) {
-                        val index = grouped.indexOfFirst { it.customerName.equals(targetCustomer, ignoreCase = true) }
+                    if (targetCustomerId != -1L || targetCustomerName != null) {
+                        val index = grouped.indexOfFirst { 
+                            it.customerId == targetCustomerId || (targetCustomerName != null && it.customerName.equals(targetCustomerName, ignoreCase = true)) 
+                        }
                         if (index != -1) {
                             binding.recyclerSettlements.post {
                                 binding.recyclerSettlements.scrollToPosition(index)
@@ -285,6 +291,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
 }
 
 data class GroupedSettlement(
+    val customerId: Long,
     val customerName: String,
     val totalOwed: Double,
     val transactions: List<SettlementHistory>,
@@ -361,15 +368,26 @@ class TransactionAdapter(private val transactions: List<SettlementHistory>) :
         
         // Use mapping for backward-compatible logic (Phase 3)
         holder.binding.textBalanceBefore.text = format.format(transaction.balanceBefore)
-        holder.binding.textAmountPaid.text = format.format(transaction.amountPaid)
-        holder.binding.textBalanceAfter.text = format.format(transaction.balanceAfter)
+        
+        // Transaction Amount Logic
+        val delta = if (transaction.transactionAmount != 0.0) transaction.transactionAmount else (transaction.balanceAfter - transaction.balanceBefore)
+        if (delta > 0) {
+            holder.binding.textTransAmount.text = "+ ${format.format(delta)}"
+            holder.binding.textTransAmount.setTextColor(0xFFC62828.toInt()) // Red
+        } else if (delta < 0) {
+            holder.binding.textTransAmount.text = "- ${format.format(-delta)}"
+            holder.binding.textTransAmount.setTextColor(0xFF2E7D32.toInt()) // Green
+        } else {
+            holder.binding.textTransAmount.text = format.format(0.0)
+            holder.binding.textTransAmount.setTextColor(Color.GRAY)
+        }
 
-        // Color Rules
-        holder.binding.textAmountPaid.setTextColor(Color.BLUE)
+        val displayBalanceAfter = if (transaction.newBalance != 0.0 || transaction.transactionAmount != 0.0) transaction.newBalance else transaction.balanceAfter
+        holder.binding.textBalanceAfter.text = format.format(displayBalanceAfter)
 
-        if (transaction.balanceAfter > 0) {
+        if (displayBalanceAfter > 0) {
             holder.binding.textBalanceAfter.setTextColor(Color.RED)
-        } else if (transaction.balanceAfter == 0.0) {
+        } else if (displayBalanceAfter == 0.0) {
             holder.binding.textBalanceAfter.setTextColor(Color.parseColor("#22C55E"))
         }
 

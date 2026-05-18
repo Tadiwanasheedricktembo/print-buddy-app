@@ -1,11 +1,31 @@
 package com.tadiwaprintbuddy.app.data
 
 import com.tadiwaprintbuddy.app.CartItem
-import com.tadiwaprintbuddy.app.data.DebtorCredit
 import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
 
 class PrintRepository(private val printDao: PrintDao) {
+
+    // --- Customer Management ---
+
+    private suspend fun getOrCreateCustomer(name: String): CustomerEntity {
+        val trimmedName = name.trim()
+        val normalized = trimmedName.lowercase()
+        return printDao.getCustomerByNormalizedName(normalized) ?: run {
+            val newCustomer = CustomerEntity(
+                displayName = trimmedName,
+                normalizedName = normalized
+            )
+            val id = printDao.insertCustomer(newCustomer)
+            newCustomer.copy(id = id)
+        }
+    }
+
+    suspend fun getCustomerById(id: Long) = printDao.getCustomerById(id)
+
+    fun getAllCustomersFlow(): Flow<List<CustomerEntity>> = printDao.getAllCustomersFlow()
+
+    // --- Orders ---
 
     fun getTotalRevenueFlow(): Flow<Double?> = printDao.getTotalRevenueFlow()
 
@@ -26,25 +46,53 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun saveOrder(order: Order, items: List<OrderItem>) {
-        val orderId = printDao.insertOrder(order)
+        val customer = getOrCreateCustomer(order.customerName)
+        
+        // Capture balance snapshots
+        val previousBalance = getCustomerBalanceById(customer.id)
+        val transactionAmount = order.totalAmount - order.paidAmount
+        val newBalance = previousBalance + transactionAmount
+
+        val orderWithSnapshots = order.copy(
+            customerId = customer.id,
+            previousBalance = previousBalance,
+            transactionAmount = transactionAmount,
+            newBalance = newBalance
+        )
+        
+        val orderId = printDao.insertOrder(orderWithSnapshots)
         val itemsWithOrderId = items.map { it.copy(orderId = orderId.toInt()) }
         printDao.insertOrderItems(itemsWithOrderId)
         
-        if (order.paymentMethod == "UPI" && order.paidAmount > 0) {
-            insertBeautyTransaction(order.paidAmount, "ADD", "Order #${orderId} - ${order.customerName}")
+        if (orderWithSnapshots.paymentMethod == "UPI" && orderWithSnapshots.paidAmount > 0) {
+            insertBeautyTransaction(orderWithSnapshots.paidAmount, "ADD", "Order #${orderId} - ${customer.displayName}")
         }
     }
 
     suspend fun confirmOrder(customerName: String, cartItems: List<CartItem>, paymentMethod: String = "CASH"): Int {
         if (cartItems.isEmpty()) return -1
 
+        val customer = getOrCreateCustomer(customerName)
         val total = cartItems.sumOf { it.price * it.quantity }
+        
+        val finalPaidAmount = if (paymentMethod == "OWES_ME") 0.0 else total
+        val finalPaymentMethod = if (paymentMethod == "OWES_ME") "CASH" else paymentMethod
+
+        // Capture balance snapshots
+        val previousBalance = getCustomerBalanceById(customer.id)
+        val transactionAmount = total - finalPaidAmount
+        val newBalance = previousBalance + transactionAmount
+
         val order = Order(
             totalAmount = total,
             date = System.currentTimeMillis(),
-            customerName = customerName,
-            paidAmount = total,
-            paymentMethod = paymentMethod
+            customerName = customer.displayName,
+            customerId = customer.id,
+            paidAmount = finalPaidAmount,
+            paymentMethod = finalPaymentMethod,
+            previousBalance = previousBalance,
+            transactionAmount = transactionAmount,
+            newBalance = newBalance
         )
 
         val orderId = printDao.insertOrder(order).toInt()
@@ -59,8 +107,8 @@ class PrintRepository(private val printDao: PrintDao) {
         }
         printDao.insertOrderItems(orderItems)
 
-        if (paymentMethod == "UPI") {
-            insertBeautyTransaction(total, "ADD", "Direct Pay - $customerName")
+        if (finalPaymentMethod == "UPI" && finalPaidAmount > 0) {
+            insertBeautyTransaction(finalPaidAmount, "ADD", "Direct Pay - ${customer.displayName}")
         }
 
         return orderId
@@ -71,6 +119,10 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
 
     suspend fun updatePayment(orderId: Int, amount: Double) {
+        // Note: this method updates an existing order. 
+        // For full transaction clarity, we might want to update the order's snapshots too,
+        // but adding payment is usually reflected in SettlementHistory separately if via applyPayment.
+        // If it's a direct updatePayment, we just update the paidAmount.
         printDao.updatePayment(orderId, amount)
     }
 
@@ -78,10 +130,18 @@ class PrintRepository(private val printDao: PrintDao) {
 
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
+    // --- Debt & Settlements ---
+
     suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double, paymentMethod: String = "CASH") {
-        val currentBalance = getCustomerBalance(customerName)
+        val customer = getOrCreateCustomer(customerName)
+        applyPaymentToCustomerId(customer.id, paymentAmount, paymentMethod)
+    }
+
+    suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: Double, paymentMethod: String = "CASH") {
+        val customer = printDao.getCustomerById(customerId) ?: return
+        val currentBalance = getCustomerBalanceById(customer.id)
         
-        val unpaidOrders = printDao.getUnpaidOrdersForCustomer(customerName)
+        val unpaidOrders = printDao.getUnpaidOrdersForCustomer(customer.id)
         var remainingPayment = paymentAmount
 
         for (order in unpaidOrders) {
@@ -96,53 +156,46 @@ class PrintRepository(private val printDao: PrintDao) {
             remainingPayment -= paymentForThisOrder
         }
 
-        val actualSettled = paymentAmount // Total money handed over
+        val actualSettled = paymentAmount
         val newBalance = currentBalance - actualSettled
 
         printDao.insertSettlement(
             SettlementHistory(
-                customerName = customerName,
+                customerName = customer.displayName,
+                customerId = customer.id,
                 balanceBefore = currentBalance,
                 amountPaid = actualSettled,
                 balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(),
                 type = "PAYMENT",
-                note = "Payment via $paymentMethod"
+                note = "Payment via $paymentMethod",
+                transactionAmount = -actualSettled,
+                newBalance = newBalance
             )
         )
 
         if (paymentMethod == "UPI") {
-            insertBeautyTransaction(actualSettled, "ADD", "Debt Settlement - $customerName")
+            insertBeautyTransaction(actualSettled, "ADD", "Debt Settlement - ${customer.displayName}")
         }
     }
 
+    suspend fun getCustomerBalanceById(customerId: Long): Double {
+        return printDao.getLatestBalanceForCustomer(customerId) ?: 0.0
+    }
+
+    // Deprecated: use getCustomerBalanceById
     suspend fun getCustomerBalance(customerName: String): Double {
-        val allSettlements = printDao.getAllSettlementHistoryOnce()
-        return allSettlements
-            .filter { it.customerName.trim().equals(customerName.trim(), ignoreCase = true) }
-            .maxByOrNull { it.timestamp }
-            ?.balanceAfter ?: 0.0
+        val customer = printDao.getCustomerByNormalizedName(customerName.trim().lowercase())
+        return if (customer != null) getCustomerBalanceById(customer.id) else 0.0
     }
 
     suspend fun getCustomerSummaries(): List<DebtorSummary> {
-        val all = printDao.getAllSettlementHistoryOnce()
-        return all
-            .groupBy { it.customerName.trim().lowercase() }
-            .map { (_, transactions) ->
-                val latest = transactions.maxByOrNull { it.timestamp }!!
-                val balance = latest.balanceAfter
-                
-                DebtorSummary(
-                    customerName = latest.customerName,
-                    totalBalance = kotlin.math.abs(balance),
-                    type = if (balance > 0) "OWES" else "CHANGE"
-                )
-            }
-            .filter { it.totalBalance > 0.1 } // Ignore near-zero balances
+        return printDao.getDebtors()
     }
 
     suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double, note: String? = null) {
-        val previousBalance = getCustomerBalance(customerName)
+        val customer = getOrCreateCustomer(customerName)
+        val previousBalance = getCustomerBalanceById(customer.id)
         val newBalance = previousBalance + amountDelta
 
         val isPayment = amountDelta < 0
@@ -157,19 +210,28 @@ class PrintRepository(private val printDao: PrintDao) {
         
         printDao.insertSettlement(
             SettlementHistory(
-                customerName = customerName,
+                customerName = customer.displayName,
+                customerId = customer.id,
                 balanceBefore = previousBalance,
                 amountPaid = if (isPayment) amount else 0.0,
                 balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(),
                 type = if (isPayment) "PAYMENT" else "ADJUSTMENT",
-                note = finalNote
+                note = finalNote,
+                transactionAmount = amountDelta,
+                newBalance = newBalance
             )
         )
 
         // Sync with the summary table
-        printDao.insertOrUpdateDebtorCredit(DebtorCredit(customerName, newBalance, System.currentTimeMillis()))
+        printDao.insertOrUpdateDebtorCredit(DebtorCredit(customer.id, customer.displayName, newBalance, System.currentTimeMillis()))
     }
+
+    suspend fun deleteDebtorCredit(customerId: Long) {
+        printDao.deleteDebtorCredit(customerId)
+    }
+
+    // --- Other ---
 
     suspend fun addPrinterReference(reference: PrinterReference) = printDao.addPrinterReference(reference)
 
@@ -220,7 +282,24 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // Beauty Account Logic
     suspend fun insertBeautyTransaction(amount: Double, type: String, note: String? = null) {
-        printDao.insertBeautyTransaction(BeautyTransaction(amount = amount, type = type, note = note))
+        val previousBalance = getCurrentBeautyBalance()
+        val transactionAmount = when (type) {
+            "ADD", "RESET" -> amount
+            "RETURN" -> -amount
+            else -> amount
+        }
+        val newBalance = if (type == "RESET") amount else previousBalance + transactionAmount
+
+        printDao.insertBeautyTransaction(
+            BeautyTransaction(
+                amount = amount, 
+                type = type, 
+                note = note,
+                previousBalance = previousBalance,
+                transactionAmount = transactionAmount,
+                newBalance = newBalance
+            )
+        )
     }
 
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()

@@ -27,7 +27,8 @@ class PhotoAdapter(private var photos: List<Photo>) : RecyclerView.Adapter<Photo
 
     inner class ViewHolder(private val binding: ItemPhotoBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(photo: Photo) {
-            binding.imagePhoto.setImageURI(Uri.parse(photo.filePath))
+            val fullPath = StorageUtils.getFullImagePath(binding.root.context, photo.filePath)
+            binding.imagePhoto.setImageURI(Uri.parse(fullPath))
         }
     }
 }

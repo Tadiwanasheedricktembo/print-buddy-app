@@ -39,12 +39,28 @@ class OrdersAdapter(
             binding.textTotalAmount.text = "₹ %.2f".format(order.totalAmount)
             binding.textDate.text = dateFormat.format(order.date)
 
-            itemView.setOnClickListener {
-                val context = itemView.context
-                val intent = Intent(context, com.tadiwaprintbuddy.app.OrderDetailsActivity::class.java).apply {
-                    putExtra("ORDER_ID", order.id)
+            // Balance Clarity Logic
+            if (order.newBalance != 0.0 || order.previousBalance != 0.0) {
+                binding.layoutClarity.visibility = android.view.View.VISIBLE
+                binding.textPrevBalance.text = "₹ %.2f".format(order.previousBalance)
+                binding.textNewBalance.text = "₹ %.2f".format(order.newBalance)
+                
+                val delta = order.transactionAmount
+                if (delta > 0) {
+                    binding.textTransAmount.text = "+ ₹ %.2f".format(delta)
+                    binding.textTransAmount.setTextColor(0xFFC62828.toInt()) // Red (Debt Increase)
+                    binding.labelAmount.text = "Added Debt:"
+                } else if (delta < 0) {
+                    binding.textTransAmount.text = "- ₹ %.2f".format(-delta)
+                    binding.textTransAmount.setTextColor(0xFF2E7D32.toInt()) // Green (Settlement)
+                    binding.labelAmount.text = "Reduction:"
+                } else {
+                    binding.textTransAmount.text = "₹ 0.00"
+                    binding.textTransAmount.setTextColor(0xFF757575.toInt())
+                    binding.labelAmount.text = "No Change:"
                 }
-                context.startActivity(intent)
+            } else {
+                binding.layoutClarity.visibility = android.view.View.GONE
             }
 
             itemView.setOnLongClickListener {

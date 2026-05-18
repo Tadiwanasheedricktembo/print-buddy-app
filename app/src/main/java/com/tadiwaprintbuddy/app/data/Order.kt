@@ -11,5 +11,9 @@ data class Order(
     val date: Long,
     val customerName: String,
     val paidAmount: Double = 0.0,
-    val paymentMethod: String = "CASH" // "CASH" or "UPI"
+    val paymentMethod: String = "CASH", // "CASH" or "UPI"
+    val customerId: Long = 0,
+    val previousBalance: Double = 0.0,
+    val transactionAmount: Double = 0.0,
+    val newBalance: Double = 0.0
 )

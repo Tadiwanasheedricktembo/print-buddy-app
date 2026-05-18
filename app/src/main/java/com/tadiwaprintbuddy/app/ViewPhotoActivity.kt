@@ -75,7 +75,8 @@ class ViewPhotoActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 val referenceToDelete = references[currentPosition]
                 try {
-                    val file = File(referenceToDelete.imagePath)
+                    val fullPath = StorageUtils.getFullImagePath(this@ViewPhotoActivity, referenceToDelete.imagePath)
+                    val file = File(fullPath)
                     if (file.exists()) {
                         file.delete()
                     }

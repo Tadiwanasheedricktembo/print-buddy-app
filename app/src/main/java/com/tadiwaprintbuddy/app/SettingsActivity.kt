@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -16,12 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.databinding.ActivitySettingsBinding
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -111,12 +105,12 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         binding.btnBackup.setOnClickListener {
-            val fileName = "PrintBuddy_Backup_${System.currentTimeMillis()}.db"
+            val fileName = "PrintBuddy_Backup_${System.currentTimeMillis()}.zip"
             backupLauncher.launch(fileName)
         }
 
         binding.btnRestore.setOnClickListener {
-            restoreLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+            restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
         }
 
         binding.btnSaveSettings.setOnClickListener {
@@ -181,61 +175,28 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun performBackup(uri: Uri) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val dbFile = getDatabasePath("print_database")
-                
-                // Ensure all data is checkpointed to the main DB file
-                AppDatabase.getDatabase(this@SettingsActivity).close()
-                
-                contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    FileInputStream(dbFile).use { inputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SettingsActivity, "Backup successful!", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("Backup", "Error during backup", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SettingsActivity, "Backup failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+        lifecycleScope.launch {
+            val success = BackupUtils.createZipBackup(this@SettingsActivity, uri)
+            if (success) {
+                Toast.makeText(this@SettingsActivity, "Backup successful!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this@SettingsActivity, "Backup failed!", Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun performRestore(uri: Uri) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val dbFile = getDatabasePath("print_database")
-                
-                // Close current database connections
-                AppDatabase.getDatabase(this@SettingsActivity).close()
-                
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    FileOutputStream(dbFile).use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                }
-                
-                // Delete WAL and SHM files to ensure the restored DB is used
-                File(dbFile.path + "-shm").delete()
-                File(dbFile.path + "-wal").delete()
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SettingsActivity, "Restore successful! Restarting app...", Toast.LENGTH_LONG).show()
-                    // Restart app to re-initialize database
-                    val intent = packageManager.getLaunchIntentForPackage(packageName)
-                    intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    startActivity(intent)
-                    finish()
-                }
-            } catch (e: Exception) {
-                Log.e("Restore", "Error during restore", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SettingsActivity, "Restore failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+        lifecycleScope.launch {
+            val success = BackupUtils.restoreZipBackup(this@SettingsActivity, uri)
+            if (success) {
+                Toast.makeText(this@SettingsActivity, "Restore successful! Restarting app...", Toast.LENGTH_LONG).show()
+                // Restart app to re-initialize database
+                val intent = packageManager.getLaunchIntentForPackage(packageName)
+                intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                startActivity(intent)
+                finish()
+            } else {
+                Toast.makeText(this@SettingsActivity, "Restore failed!", Toast.LENGTH_LONG).show()
             }
         }
     }

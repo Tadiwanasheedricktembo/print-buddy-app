@@ -176,7 +176,7 @@ class PrinterReferenceActivity : AppCompatActivity() {
                         val reference = PrinterReference(
                             title = title,
                             notes = notes,
-                            imagePath = latestTmpFilePath!!,
+                            imagePath = StorageUtils.getRelativeFilename(latestTmpFilePath!!),
                             timestamp = System.currentTimeMillis()
                         )
                         repository.addPrinterReference(reference)

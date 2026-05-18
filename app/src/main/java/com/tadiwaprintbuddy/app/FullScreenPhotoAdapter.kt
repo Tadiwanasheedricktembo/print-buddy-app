@@ -23,7 +23,8 @@ class FullScreenPhotoAdapter(private val references: List<PrinterReference>) : R
 
     inner class PhotoViewHolder(private val photoView: PhotoView) : RecyclerView.ViewHolder(photoView) {
         fun bind(reference: PrinterReference) {
-            photoView.setImageURI(Uri.fromFile(File(reference.imagePath)))
+            val fullPath = StorageUtils.getFullImagePath(photoView.context, reference.imagePath)
+            photoView.setImageURI(Uri.fromFile(File(fullPath)))
         }
     }
 }

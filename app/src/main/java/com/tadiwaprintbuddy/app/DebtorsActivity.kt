@@ -81,7 +81,11 @@ class DebtorsActivity : AppCompatActivity() {
             .setPositiveButton("Receive") { _, _ ->
                 val paymentAmount = editPaymentAmount.text.toString().toDoubleOrNull() ?: 0.0
                 lifecycleScope.launch {
-                    repository.applyPaymentToCustomer(debtor.customerName, paymentAmount)
+                    if (debtor.customerId != 0L) {
+                        repository.applyPaymentToCustomerId(debtor.customerId, paymentAmount)
+                    } else {
+                        repository.applyPaymentToCustomer(debtor.customerName, paymentAmount)
+                    }
                     loadDebtors()
                 }
             }

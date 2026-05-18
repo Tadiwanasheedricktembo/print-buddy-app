@@ -6,7 +6,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "debtor_credits")
 data class DebtorCredit(
     @PrimaryKey
-    val customerName: String,
+    val customerId: Long,
+    val customerName: String, // Keeping for safety during migration/display
     val amount: Double,
     val lastUpdated: Long = System.currentTimeMillis()
 )

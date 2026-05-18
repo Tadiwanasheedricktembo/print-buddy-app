@@ -11,6 +11,7 @@ data class ExternalLedger(
     val amount: Double,
     val timestamp: Long,
     val customerName: String? = null,
+    val customerId: Long? = null,
     val orderId: Int? = null,
     val note: String? = null,
     val accountHolder: String = "Beauty Rani",

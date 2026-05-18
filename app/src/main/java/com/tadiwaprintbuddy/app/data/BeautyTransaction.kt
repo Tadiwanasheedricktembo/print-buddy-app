@@ -10,5 +10,8 @@ data class BeautyTransaction(
     val amount: Double,
     val type: String, // "ADD" or "RETURN"
     val note: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val previousBalance: Double = 0.0,
+    val transactionAmount: Double = 0.0,
+    val newBalance: Double = 0.0
 )

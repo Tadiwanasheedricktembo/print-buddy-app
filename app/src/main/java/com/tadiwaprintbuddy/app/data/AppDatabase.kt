@@ -10,8 +10,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
-    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class],
-    version = 10,
+    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class],
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,7 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "print_database"
-                ).addMigrations(MIGRATION_8_9, MIGRATION_9_10)
+                ).addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
 
                 if (BuildConfig.DEBUG) {
                     builder.fallbackToDestructiveMigration()
@@ -37,6 +37,149 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 12 to 13 (Relative Path Healing)")
+                
+                // Heal printer_references
+                val refCursor = db.query("SELECT id, imagePath FROM printer_references")
+                while (refCursor.moveToNext()) {
+                    val id = refCursor.getInt(0)
+                    val path = refCursor.getString(1)
+                    if (path != null && path.contains("/")) {
+                        val filename = path.substringAfterLast("/")
+                        db.execSQL("UPDATE printer_references SET imagePath = '$filename' WHERE id = $id")
+                    }
+                }
+                refCursor.close()
+
+                // Heal photos
+                val photoCursor = db.query("SELECT id, filePath FROM photos")
+                while (photoCursor.moveToNext()) {
+                    val id = photoCursor.getInt(0)
+                    val path = photoCursor.getString(1)
+                    if (path != null && path.contains("/")) {
+                        val filename = path.substringAfterLast("/")
+                        db.execSQL("UPDATE photos SET filePath = '$filename' WHERE id = $id")
+                    }
+                }
+                photoCursor.close()
+
+                Log.d("DatabaseMigration", "Migration 12 to 13 completed successfully")
+            }
+        }
+
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 11 to 12 (Transaction Clarity)")
+                
+                // 1. Orders
+                db.execSQL("ALTER TABLE orders ADD COLUMN previousBalance REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE orders ADD COLUMN transactionAmount REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE orders ADD COLUMN newBalance REAL NOT NULL DEFAULT 0.0")
+
+                // 2. Settlement History
+                db.execSQL("ALTER TABLE settlement_history ADD COLUMN transactionAmount REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE settlement_history ADD COLUMN newBalance REAL NOT NULL DEFAULT 0.0")
+                
+                // Backfill settlement_history
+                db.execSQL("UPDATE settlement_history SET newBalance = remainingBalance")
+                db.execSQL("UPDATE settlement_history SET transactionAmount = remainingBalance - previousBalance")
+
+                // 3. Beauty Transactions
+                db.execSQL("ALTER TABLE beauty_transactions ADD COLUMN previousBalance REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE beauty_transactions ADD COLUMN transactionAmount REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE beauty_transactions ADD COLUMN newBalance REAL NOT NULL DEFAULT 0.0")
+                
+                Log.d("DatabaseMigration", "Migration 11 to 12 completed successfully")
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 10 to 11 (Customer Identity Refactor)")
+                
+                // 1. Create customers table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS customers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        normalizedName TEXT NOT NULL,
+                        phoneNumber TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_customers_normalizedName ON customers (normalizedName)")
+
+                // 2. Insert unique customers from existing tables
+                val now = System.currentTimeMillis()
+                db.execSQL("""
+                    INSERT OR IGNORE INTO customers (displayName, normalizedName, createdAt, updatedAt)
+                    SELECT customerName, LOWER(TRIM(customerName)), $now, $now
+                    FROM (
+                        SELECT customerName FROM orders
+                        UNION
+                        SELECT customerName FROM settlement_history
+                        UNION
+                        SELECT customerName FROM debtor_credits
+                        UNION
+                        SELECT customerName FROM external_ledger WHERE customerName IS NOT NULL
+                    )
+                """.trimIndent())
+
+                // 3. Add customerId column to existing tables
+                db.execSQL("ALTER TABLE orders ADD COLUMN customerId INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE settlement_history ADD COLUMN customerId INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE external_ledger ADD COLUMN customerId INTEGER")
+
+                // 4. Map customerId from customers table
+                Log.d("DatabaseMigration", "Mapping customer IDs in orders...")
+                db.execSQL("""
+                    UPDATE orders SET customerId = (
+                        SELECT id FROM customers WHERE normalizedName = LOWER(TRIM(orders.customerName))
+                    )
+                """.trimIndent())
+                
+                Log.d("DatabaseMigration", "Mapping customer IDs in settlement_history...")
+                db.execSQL("""
+                    UPDATE settlement_history SET customerId = (
+                        SELECT id FROM customers WHERE normalizedName = LOWER(TRIM(settlement_history.customerName))
+                    )
+                """.trimIndent())
+                
+                Log.d("DatabaseMigration", "Mapping customer IDs in external_ledger...")
+                db.execSQL("""
+                    UPDATE external_ledger SET customerId = (
+                        SELECT id FROM customers WHERE normalizedName = LOWER(TRIM(external_ledger.customerName))
+                    ) WHERE customerName IS NOT NULL
+                """.trimIndent())
+
+                // 5. Rebuild debtor_credits table to change Primary Key from customerName to customerId
+                db.execSQL("""
+                    CREATE TABLE debtor_credits_new (
+                        customerId INTEGER PRIMARY KEY NOT NULL,
+                        customerName TEXT NOT NULL,
+                        amount REAL NOT NULL,
+                        lastUpdated INTEGER NOT NULL
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    INSERT INTO debtor_credits_new (customerId, customerName, amount, lastUpdated)
+                    SELECT c.id, dc.customerName, SUM(dc.amount), MAX(dc.lastUpdated)
+                    FROM debtor_credits dc
+                    JOIN customers c ON c.normalizedName = LOWER(TRIM(dc.customerName))
+                    GROUP BY c.id
+                """.trimIndent())
+
+                db.execSQL("DROP TABLE debtor_credits")
+                db.execSQL("ALTER TABLE debtor_credits_new RENAME TO debtor_credits")
+                
+                Log.d("DatabaseMigration", "Migration 10 to 11 completed successfully")
             }
         }
 

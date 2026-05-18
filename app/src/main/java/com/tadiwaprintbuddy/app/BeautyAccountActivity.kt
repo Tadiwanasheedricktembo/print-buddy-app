@@ -245,6 +245,14 @@ class BeautyAccountActivity : AppCompatActivity() {
                         holder.cardIcon.setCardBackgroundColor(0x1AFF9800)
                     }
                 }
+
+                // Balance Clarity
+                if (item.newBalance != 0.0 || item.previousBalance != 0.0) {
+                    holder.layoutClarity.visibility = View.VISIBLE
+                    holder.textBalanceFlow.text = "Balance: ${format.format(item.previousBalance)} → ${format.format(item.newBalance)}"
+                } else {
+                    holder.layoutClarity.visibility = View.GONE
+                }
             }
         }
 
@@ -256,6 +264,8 @@ class BeautyAccountActivity : AppCompatActivity() {
             val textAmount: TextView = view.findViewById(R.id.textAmount)
             val imageTransactionType: android.widget.ImageView = view.findViewById(R.id.imageTransactionType)
             val cardIcon: com.google.android.material.card.MaterialCardView = view.findViewById(R.id.cardIcon)
+            val layoutClarity: View = view.findViewById(R.id.layoutClarity)
+            val textBalanceFlow: TextView = view.findViewById(R.id.textBalanceFlow)
         }
 
         class HeaderViewHolder(view: View) : RecyclerView.ViewHolder(view) {

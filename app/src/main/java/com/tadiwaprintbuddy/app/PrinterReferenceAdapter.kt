@@ -34,7 +34,8 @@ class PrinterReferenceAdapter(
 
     inner class ViewHolder(private val binding: ItemPrinterReferenceBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(reference: PrinterReference) {
-            binding.imageThumbnail.setImageURI(Uri.parse(reference.imagePath))
+            val fullPath = StorageUtils.getFullImagePath(binding.root.context, reference.imagePath)
+            binding.imageThumbnail.setImageURI(Uri.parse(fullPath))
             binding.textTitle.text = reference.title
             val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             binding.textDate.text = sdf.format(Date(reference.timestamp))

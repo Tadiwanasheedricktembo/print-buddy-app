@@ -14,5 +14,8 @@ data class SettlementHistory(
     @ColumnInfo(name = "remainingBalance") val balanceAfter: Double,
     val timestamp: Long,
     val type: String = "PAYMENT",
-    val note: String = ""
+    val note: String = "",
+    val customerId: Long = 0,
+    val transactionAmount: Double = 0.0,
+    val newBalance: Double = 0.0
 )

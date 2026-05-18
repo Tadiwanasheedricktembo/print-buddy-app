@@ -49,27 +49,51 @@ interface PrintDao {
     suspend fun updatePayment(orderId: Int, newPaidAmount: Double)
 
     @Query("""
-    SELECT customerName, SUM(totalAmount - paidAmount) as totalBalance, 'OWES' as type
-    FROM `orders`
-    WHERE totalAmount > paidAmount
-    GROUP BY customerName
+    SELECT o.customerId as customerId, c.displayName as customerName, SUM(o.totalAmount - o.paidAmount) as totalBalance, 'OWES' as type
+    FROM `orders` o
+    JOIN customers c ON o.customerId = c.id
+    WHERE o.totalAmount > o.paidAmount
+    GROUP BY o.customerId
     """)
     suspend fun getDebtors(): List<DebtorSummary>
 
-    @Query("SELECT * FROM `orders` WHERE customerName = :customerName AND totalAmount > paidAmount ORDER BY date ASC")
-    suspend fun getUnpaidOrdersForCustomer(customerName: String): List<Order>
+    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND totalAmount > paidAmount ORDER BY date ASC")
+    suspend fun getUnpaidOrdersForCustomer(customerId: Long): List<Order>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateDebtorCredit(debtorCredit: DebtorCredit)
 
-    @Query("SELECT * FROM debtor_credits WHERE customerName = :customerName")
-    suspend fun getDebtorCreditByName(customerName: String): DebtorCredit?
+    @Query("SELECT * FROM debtor_credits WHERE customerId = :customerId")
+    suspend fun getDebtorCreditById(customerId: Long): DebtorCredit?
 
     @Query("SELECT * FROM debtor_credits ORDER BY lastUpdated DESC")
     suspend fun getDebtorCreditList(): List<DebtorCredit>
 
-    @Query("DELETE FROM debtor_credits WHERE customerName = :customerName")
-    suspend fun deleteDebtorCredit(customerName: String)
+    @Query("DELETE FROM debtor_credits WHERE customerId = :customerId")
+    suspend fun deleteDebtorCredit(customerId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCustomer(customer: CustomerEntity): Long
+
+    @Query("SELECT * FROM customers WHERE normalizedName = :normalizedName")
+    suspend fun getCustomerByNormalizedName(normalizedName: String): CustomerEntity?
+
+    @Query("SELECT * FROM customers WHERE id = :id")
+    suspend fun getCustomerById(id: Long): CustomerEntity?
+
+    @Query("SELECT * FROM customers ORDER BY displayName ASC")
+    fun getAllCustomersFlow(): Flow<List<CustomerEntity>>
+
+    @Query("SELECT * FROM customers")
+    suspend fun getAllCustomers(): List<CustomerEntity>
+
+    @Query("SELECT remainingBalance FROM settlement_history WHERE customerId = :customerId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestBalanceForCustomer(customerId: Long): Double?
+
+    @Transaction
+    suspend fun updateCustomerIdentity(oldName: String, newCustomer: CustomerEntity) {
+        // This is for merging or fixing names if needed manually later
+    }
 
     @Insert
     suspend fun addPhoto(photo: Photo)
@@ -101,6 +125,15 @@ interface PrintDao {
     @Transaction
     suspend fun deleteOrderAndItems(order: Order) {
         deleteOrder(order)
+        // Add item deletion if not handled by foreign key
+    }
+
+    @Transaction
+    suspend fun insertOrderWithItems(order: Order, items: List<OrderItem>): Long {
+        val orderId = insertOrder(order)
+        val itemsWithOrderId = items.map { it.copy(orderId = orderId.toInt()) }
+        insertOrderItems(itemsWithOrderId)
+        return orderId
     }
 
     @Insert

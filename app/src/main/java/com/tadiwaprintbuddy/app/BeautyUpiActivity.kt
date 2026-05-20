@@ -6,18 +6,18 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.BeautyTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityBeautyUpiBinding
-import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -26,7 +26,9 @@ import java.util.Locale
 class BeautyUpiActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBeautyUpiBinding
-    private lateinit var repository: PrintRepository
+    private val viewModel: BeautyAccountViewModel by viewModels {
+        BeautyAccountViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
+    }
     private val ledgerAdapter = LedgerAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,13 +36,10 @@ class BeautyUpiActivity : AppCompatActivity() {
         binding = ActivityBeautyUpiBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val database = AppDatabase.getDatabase(this)
-        repository = PrintRepository(database.printDao())
-
         setupToolbar()
         setupRecyclerView()
         setupClickListeners()
-        refreshData()
+        observeViewModel()
     }
 
     private fun setupToolbar() {
@@ -50,6 +49,18 @@ class BeautyUpiActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         binding.recyclerViewLedger.layoutManager = LinearLayoutManager(this)
         binding.recyclerViewLedger.adapter = ledgerAdapter
+    }
+
+    private fun observeViewModel() {
+        viewModel.balance.observe(this) { balance ->
+            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+            val format = NumberFormat.getCurrencyInstance(locale)
+            binding.textCurrentBalance.text = format.format(balance ?: 0.0)
+        }
+
+        viewModel.transactions.observe(this) { history ->
+            ledgerAdapter.submitList(history)
+        }
     }
 
     private fun setupClickListeners() {
@@ -69,11 +80,8 @@ class BeautyUpiActivity : AppCompatActivity() {
             .setPositiveButton("Record") { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()
                 if (amount != null && amount > 0) {
-                    lifecycleScope.launch {
-                        repository.recordMoneyReturnedFromExternal(amount)
-                        Toast.makeText(this@BeautyUpiActivity, "Recorded successfully", Toast.LENGTH_SHORT).show()
-                        refreshData()
-                    }
+                    viewModel.returnMoney(amount, "Money returned by Beauty Rani")
+                    Toast.makeText(this, "Recorded successfully", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -92,26 +100,12 @@ class BeautyUpiActivity : AppCompatActivity() {
             .setPositiveButton("Add Credit") { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()
                 if (amount != null && amount > 0) {
-                    lifecycleScope.launch {
-                        repository.addManualExternalCredit(amount)
-                        Toast.makeText(this@BeautyUpiActivity, "Credit added", Toast.LENGTH_SHORT).show()
-                        refreshData()
-                    }
+                    viewModel.addMoney(amount, "Manual Entry")
+                    Toast.makeText(this, "Credit added", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
             .show()
-    }
-
-    private fun refreshData() {
-        lifecycleScope.launch {
-            val balance = repository.getExternalBalance()
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-            binding.textCurrentBalance.text = format.format(balance ?: 0.0)
-
-            val history = repository.getAllExternalLedgerEntries()
-            ledgerAdapter.submitList(history)
-        }
     }
 
     private class LedgerAdapter : RecyclerView.Adapter<LedgerAdapter.ViewHolder>() {
@@ -123,28 +117,54 @@ class BeautyUpiActivity : AppCompatActivity() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_2, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_ledger_entry, parent, false)
             return ViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-            val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+            val format = NumberFormat.getCurrencyInstance(locale)
+            val dateFormat = SimpleDateFormat("dd MMM, yyyy • hh:mm a", Locale.getDefault())
             
-            val typePrefix = if (item.type == "ADD") "+" else "-"
-            holder.text1.text = "${typePrefix}${format.format(item.amount)} - ${item.note ?: "Transaction"}"
-            holder.text2.text = dateFormat.format(Date(item.timestamp))
+            val isAdd = item.type == "ADD" || item.type == "RESET"
+            val typePrefix = if (isAdd) "+" else "-"
+            
+            holder.textAmount.text = "${typePrefix} ${format.format(item.amount)}"
+            holder.textNote.text = item.note ?: (if (isAdd) "Credit Entry" else "Withdrawal")
+            holder.textDate.text = dateFormat.format(Date(item.timestamp))
+            holder.textNewBalance.text = format.format(item.newBalance)
+            
+            holder.textLabel.text = when(item.type) {
+                "ADD" -> "CREDIT RECEIVED"
+                "RETURN" -> "WITHDRAWAL"
+                "RESET" -> "BALANCE RESET"
+                else -> "TRANSACTION"
+            }
 
-            val color = if (item.type == "ADD") 0xFF2E7D32.toInt() else 0xFFC62828.toInt()
-            holder.text1.setTextColor(color)
+            val color = if (isAdd) 0xFF22C55E.toInt() else 0xFFEF4444.toInt()
+            holder.textAmount.setTextColor(color)
+            holder.textLabel.setTextColor(color)
+            holder.imageIcon.setColorFilter(color)
+            holder.circleIcon.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+            
+            // Timeline line visibility
+            holder.lineTop.visibility = if (position == 0) View.INVISIBLE else View.VISIBLE
+            holder.lineBottom.visibility = if (position == itemCount - 1) View.INVISIBLE else View.VISIBLE
         }
 
         override fun getItemCount() = items.size
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val text1: TextView = view.findViewById(android.R.id.text1)
-            val text2: TextView = view.findViewById(android.R.id.text2)
+            val textLabel: TextView = view.findViewById(R.id.textLabel)
+            val textDate: TextView = view.findViewById(R.id.textDate)
+            val textAmount: TextView = view.findViewById(R.id.textAmount)
+            val textNote: TextView = view.findViewById(R.id.textNote)
+            val textNewBalance: TextView = view.findViewById(R.id.textNewBalance)
+            val imageIcon: ImageView = view.findViewById(R.id.imageIcon)
+            val circleIcon: View = view.findViewById(R.id.circleIcon)
+            val lineTop: View = view.findViewById(R.id.lineTop)
+            val lineBottom: View = view.findViewById(R.id.lineBottom)
         }
     }
 }

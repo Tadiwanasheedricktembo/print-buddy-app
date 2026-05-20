@@ -31,7 +31,8 @@ class DebtorsAdapter(
 
     inner class ViewHolder(private val binding: ItemDebtorBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(debtor: DebtorSummary) {
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+            val format = NumberFormat.getCurrencyInstance(locale)
 
             binding.textCustomerName.text = debtor.customerName
             binding.textAmountOwed.text = format.format(debtor.totalBalance)

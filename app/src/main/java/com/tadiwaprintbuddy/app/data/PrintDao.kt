@@ -49,11 +49,11 @@ interface PrintDao {
     suspend fun updatePayment(orderId: Int, newPaidAmount: Double)
 
     @Query("""
-    SELECT o.customerId as customerId, c.displayName as customerName, SUM(o.totalAmount - o.paidAmount) as totalBalance, 'OWES' as type
-    FROM `orders` o
-    JOIN customers c ON o.customerId = c.id
-    WHERE o.totalAmount > o.paidAmount
-    GROUP BY o.customerId
+    SELECT c.id as customerId, c.displayName as customerName, dc.amount as totalBalance, 
+           CASE WHEN dc.amount >= 0 THEN 'OWES' ELSE 'CHANGE' END as type
+    FROM customers c
+    JOIN debtor_credits dc ON c.id = dc.customerId
+    WHERE ABS(dc.amount) > 0.01
     """)
     suspend fun getDebtors(): List<DebtorSummary>
 
@@ -72,6 +72,23 @@ interface PrintDao {
     @Query("DELETE FROM debtor_credits WHERE customerId = :customerId")
     suspend fun deleteDebtorCredit(customerId: Long)
 
+    @Query("DELETE FROM customers WHERE id = :customerId")
+    suspend fun deleteCustomer(customerId: Long)
+
+    @Query("DELETE FROM orders WHERE customerId = :customerId")
+    suspend fun deleteOrdersForCustomer(customerId: Long)
+
+    @Query("DELETE FROM settlement_history WHERE customerId = :customerId")
+    suspend fun deleteSettlementsForCustomer(customerId: Long)
+
+    @Transaction
+    suspend fun deleteCustomerCompletely(customerId: Long) {
+        deleteOrdersForCustomer(customerId)
+        deleteSettlementsForCustomer(customerId)
+        deleteDebtorCredit(customerId)
+        deleteCustomer(customerId)
+    }
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCustomer(customer: CustomerEntity): Long
 
@@ -89,6 +106,9 @@ interface PrintDao {
 
     @Query("SELECT remainingBalance FROM settlement_history WHERE customerId = :customerId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestBalanceForCustomer(customerId: Long): Double?
+
+    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE customerId = :customerId")
+    suspend fun getUnpaidTotalForCustomer(customerId: Long): Double
 
     @Transaction
     suspend fun updateCustomerIdentity(oldName: String, newCustomer: CustomerEntity) {
@@ -139,6 +159,71 @@ interface PrintDao {
     @Insert
     suspend fun insertSettlement(settlement: SettlementHistory)
 
+    @Transaction
+    suspend fun recordCommercialOrder(order: Order, items: List<OrderItem>): Int {
+        val orderId = insertOrder(order).toInt()
+        val itemsWithOrderId = items.map { it.copy(orderId = orderId) }
+        insertOrderItems(itemsWithOrderId)
+
+        if (order.transactionAmount != 0.0) {
+            insertSettlement(
+                SettlementHistory(
+                    customerName = order.customerName,
+                    customerId = order.customerId,
+                    balanceBefore = order.previousBalance,
+                    amountPaid = order.paidAmount,
+                    balanceAfter = order.newBalance,
+                    timestamp = order.date,
+                    type = "ORDER",
+                    note = "Order #$orderId",
+                    transactionAmount = order.transactionAmount,
+                    newBalance = order.newBalance,
+                    originId = orderId,
+                    ledgerEntryType = "ORDER_POST",
+                    reconciliationStatus = "VERIFIED"
+                )
+            )
+            rebuildCustomerProjection(order.customerId)
+        }
+        return orderId
+    }
+
+    @Transaction
+    suspend fun rebuildCustomerProjection(customerId: Long) {
+        val customer = getCustomerById(customerId) ?: return
+        
+        // Balance derivation: Use latest settlement as baseline, then apply order changes
+        // If settlement exists (most customers), use its balance directly (it's authoritative)
+        // If no settlement (new customers), derive from unpaid orders sum
+        val latestSettlement = getLatestBalanceForCustomer(customerId)
+        val calculatedBalance = if (latestSettlement != null) {
+            latestSettlement  // Settlement is the source of truth (includes all prior transactions)
+        } else {
+            getUnpaidTotalForCustomer(customerId)  // Fallback for new customers with no settlement
+        }
+        
+        insertOrUpdateDebtorCredit(
+            DebtorCredit(
+                customerId = customer.id,
+                customerName = customer.displayName,
+                amount = calculatedBalance,
+                lastUpdated = System.currentTimeMillis()
+            )
+        )
+    }
+
+    @Transaction
+    suspend fun verifyCustomerBalance(customerId: Long): Boolean {
+        val cached = getDebtorCreditById(customerId)?.amount ?: 0.0
+        val calculated = getUnpaidTotalForCustomer(customerId)
+        
+        if (Math.abs(cached - calculated) > 0.001) {
+             rebuildCustomerProjection(customerId)
+             return false
+        }
+        return true
+    }
+
     @Query("SELECT * FROM settlement_history ORDER BY timestamp DESC")
     suspend fun getAllSettlements(): List<SettlementHistory>
 
@@ -176,12 +261,50 @@ interface PrintDao {
     @Query("SELECT * FROM beauty_transactions ORDER BY timestamp DESC")
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction>
 
-    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount WHEN type = 'RETURN' THEN -amount WHEN type = 'RESET' THEN amount ELSE 0 END) FROM beauty_transactions")
+    @Query("SELECT newBalance FROM beauty_transactions ORDER BY timestamp DESC, id DESC LIMIT 1")
     fun getBeautyBalanceFlow(): Flow<Double?>
 
-    @Query("SELECT SUM(CASE WHEN type = 'ADD' THEN amount WHEN type = 'RETURN' THEN -amount WHEN type = 'RESET' THEN amount ELSE 0 END) FROM beauty_transactions")
+    @Query("SELECT newBalance FROM beauty_transactions ORDER BY timestamp DESC, id DESC LIMIT 1")
     suspend fun getBeautyBalance(): Double?
 
-    @Query("SELECT IFNULL(SUM(CASE WHEN type = 'ADD' THEN amount WHEN type = 'RETURN' THEN -amount WHEN type = 'RESET' THEN amount ELSE 0 END), 0.0) FROM beauty_transactions")
+    @Query("SELECT IFNULL((SELECT newBalance FROM beauty_transactions ORDER BY timestamp DESC, id DESC LIMIT 1), 0.0)")
     suspend fun getCurrentBeautyBalance(): Double
+
+    // Expenses
+    @Insert
+    suspend fun insertExpense(expense: Expense)
+
+    @Query("SELECT * FROM expenses ORDER BY timestamp DESC")
+    fun getAllExpensesFlow(): Flow<List<Expense>>
+
+    @Query("SELECT SUM(amount) FROM expenses")
+    suspend fun getTotalExpenses(): Double?
+
+    @Query("DELETE FROM expenses WHERE id = :expenseId")
+    suspend fun deleteExpense(expenseId: Int)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllExpenses(expenses: List<Expense>)
+
+    @Query("DELETE FROM expenses")
+    suspend fun clearExpenses()
+
+    // Stock Management
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertStockItem(item: StockItem)
+
+    @Query("SELECT * FROM stock_items ORDER BY name ASC")
+    fun getAllStockItemsFlow(): Flow<List<StockItem>>
+
+    @Query("SELECT * FROM stock_items WHERE currentQuantity <= lowStockThreshold")
+    fun getLowStockItemsFlow(): Flow<List<StockItem>>
+
+    @Query("UPDATE stock_items SET currentQuantity = currentQuantity - :amount WHERE name = :name")
+    suspend fun deductStockByName(name: String, amount: Int)
+
+    @Query("SELECT * FROM stock_items WHERE name = :name LIMIT 1")
+    suspend fun getStockItemByName(name: String): StockItem?
+
+    @Delete
+    suspend fun deleteStockItem(item: StockItem)
 }

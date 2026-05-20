@@ -2,6 +2,7 @@ package com.tadiwaprintbuddy.app
 
 import android.Manifest
 import android.app.TimePickerDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -23,6 +24,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var prefs: ReminderPreferencesManager
     private lateinit var scheduler: ReminderScheduler
     private lateinit var themeManager: ThemeManager
+    private lateinit var securityManager: SecurityManager
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -58,6 +60,7 @@ class SettingsActivity : AppCompatActivity() {
         prefs = ReminderPreferencesManager(this)
         scheduler = ReminderScheduler(this)
         themeManager = ThemeManager(this)
+        securityManager = SecurityManager.getInstance(this)
 
         setupUI()
         loadSettings()
@@ -78,6 +81,24 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.switchEnableReminders.setOnCheckedChangeListener { _, isChecked ->
             binding.layoutReminderSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
+        }
+
+        binding.switchEnableBiometrics.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                val canAuth = securityManager.canAuthenticate()
+                if (canAuth != androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS) {
+                    Toast.makeText(this, getString(R.string.auth_error_unavailable), Toast.LENGTH_LONG).show()
+                    binding.switchEnableBiometrics.isChecked = false
+                }
+            }
+        }
+
+        binding.btnLockNow.setOnClickListener {
+            securityManager.lockApp()
+            // To trigger the lock immediately, we can just finish or restart
+            val intent = Intent(this, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
         }
 
         binding.btnSelectTime.setOnClickListener {
@@ -129,6 +150,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.toggleGroupTheme.check(buttonId)
 
         binding.switchEnableReminders.isChecked = prefs.isEnabled
+        binding.switchEnableBiometrics.isChecked = securityManager.isBiometricEnabled
         binding.layoutReminderSettings.visibility = if (prefs.isEnabled) View.VISIBLE else View.GONE
         binding.btnSelectTime.text = String.format("%02d:%02d", prefs.hour, prefs.minute)
         
@@ -160,6 +182,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveAndSchedule() {
         prefs.isEnabled = binding.switchEnableReminders.isChecked
+        securityManager.isBiometricEnabled = binding.switchEnableBiometrics.isChecked
         
         val freq = when (binding.spinnerFrequency.text.toString()) {
             "Daily" -> ReminderPreferencesManager.FREQUENCY_DAILY
@@ -189,14 +212,17 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val success = BackupUtils.restoreZipBackup(this@SettingsActivity, uri)
             if (success) {
-                Toast.makeText(this@SettingsActivity, "Restore successful! Restarting app...", Toast.LENGTH_LONG).show()
-                // Restart app to re-initialize database
+                Toast.makeText(this@SettingsActivity, "Restore successful! Restarting...", Toast.LENGTH_LONG).show()
+                
+                // Give the toast a moment to show, then kill the process to force a clean reload
+                kotlinx.coroutines.delay(1500)
+                
                 val intent = packageManager.getLaunchIntentForPackage(packageName)
-                intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                startActivity(intent)
-                finish()
+                val mainIntent = Intent.makeRestartActivityTask(intent?.component)
+                startActivity(mainIntent)
+                Runtime.getRuntime().exit(0)
             } else {
-                Toast.makeText(this@SettingsActivity, "Restore failed!", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SettingsActivity, "Restore failed! Ensure you selected a valid .zip backup.", Toast.LENGTH_LONG).show()
             }
         }
     }

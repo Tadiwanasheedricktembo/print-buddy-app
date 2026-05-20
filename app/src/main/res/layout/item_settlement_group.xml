@@ -1,96 +1,183 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    app:cardBackgroundColor="@color/brand_surface"
-    app:cardCornerRadius="12dp"
-    app:strokeWidth="1dp"
-    app:strokeColor="@color/brand_divider">
+    android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="16dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/imageAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@color/brand_surface_variant"
+            android:padding="10dp"
+            android:src="@drawable/ic_person"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+            app:tint="@color/text_secondary" />
 
         <LinearLayout
-            android:id="@+id/layoutHeader"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="16dp">
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/textCustomerName"
-                    style="@style/TextAppearance.App.Title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="18sp"
-                    tools:text="John Doe" />
-
-                <TextView
-                    android:id="@+id/textTransactionCount"
-                    style="@style/TextAppearance.App.Label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/text_secondary"
-                    tools:text="5 transactions" />
-            </LinearLayout>
-
-            <LinearLayout
+            <TextView
+                android:id="@+id/textCustomerName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="end"
-                android:orientation="vertical">
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Alan" />
 
-                <TextView
-                    style="@style/TextAppearance.App.Label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="TOTAL OWED"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textTotalOwed"
-                    style="@style/TextAppearance.App.Value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/brand_error"
-                    android:textSize="18sp"
-                    tools:text="₹ 2,500.00" />
-            </LinearLayout>
-
-            <ImageView
-                android:id="@+id/imageExpand"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="12dp"
-                android:src="@drawable/ic_expand_more"
-                app:tint="@color/text_secondary" />
+            <TextView
+                android:id="@+id/textTransactionCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                tools:text="2 transactions" />
         </LinearLayout>
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerTransactions"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="16dp"
-            android:visibility="gone"
-            tools:listitem="@layout/item_settlement"
-            tools:visibility="visible" />
+            android:gravity="end"
+            android:orientation="vertical">
 
+            <TextView
+                android:id="@+id/textTotalOwed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand_error"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                tools:text="₹ 8.00" />
+
+            <TextView
+                android:id="@+id/textBalanceLabel"
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PENDING"
+                android:textSize="10sp"
+                android:textColor="@color/brand_error" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/imageExpand"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginStart="12dp"
+            android:src="@drawable/ic_expand_more"
+            app:tint="@color/text_muted" />
     </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+
+    <!-- EXPANDABLE CONTENT (NO BACKGROUNDS, FLAT LINEAR FLOW) -->
+    <LinearLayout
+        android:id="@+id/layoutSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total Added"
+                android:textSize="10sp" />
+            <TextView
+                android:id="@+id/textTotalDebt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="₹ 8.00" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total Paid"
+                android:textSize="10sp" />
+            <TextView
+                android:id="@+id/textTotalPaid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand_success"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="₹ 0.00" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:orientation="vertical">
+            <TextView
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Balance"
+                android:textSize="10sp" />
+            <TextView
+                android:id="@+id/textCurrentBalanceSummary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="₹ 8.00" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerTransactions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="12dp"
+        android:visibility="gone"
+        tools:listitem="@layout/item_ledger_entry"
+        tools:visibility="visible" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="20dp"
+        android:background="@color/brand_divider" />
+
+</LinearLayout>

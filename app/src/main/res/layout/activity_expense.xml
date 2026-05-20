@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/brand_background"
+    tools:context=".ExpenseActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="?attr/homeAsUpIndicator"
+            app:title="Expense Tracker"
+            app:titleTextAppearance="@style/TextAppearance.App.Title" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/brand_surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TOTAL EXPENSES"
+                    android:textColor="@color/brand_secondary"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textTotalExpenses"
+                    style="@style/TextAppearance.App.Value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="28sp"
+                    tools:text="₹ 0.00" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerExpenses"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingHorizontal="@dimen/screen_padding"
+        android:paddingBottom="100dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        tools:listitem="@layout/item_expense" />
+
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/btnAddExpense"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:text="Add Expense"
+        android:textColor="#FFFFFF"
+        app:icon="@android:drawable/ic_input_add"
+        app:iconTint="#FFFFFF"
+        app:backgroundTint="@color/brand_secondary" />
+
+    <TextView
+        android:id="@+id/textEmpty"
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="No expenses recorded yet"
+        android:visibility="gone" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -3,113 +3,154 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/brand_surface"
+    android:background="@drawable/bg_bottom_sheet"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="24dp">
 
     <View
-        android:layout_width="40dp"
-        android:layout_height="4dp"
+        android:layout_width="48dp"
+        android:layout_height="5dp"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="28dp"
         android:background="@color/brand_divider" />
 
     <TextView
-        style="@style/TextAppearance.App.Title"
+        style="@style/TextAppearance.App.Heading"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Payment Type"
-        android:textColor="@color/text_primary" />
+        android:text="Checkout"
+        android:textSize="22sp" />
 
-    <com.google.android.material.button.MaterialButtonToggleGroup
-        android:id="@+id/toggleGroupPaymentStatus"
+    <TextView
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose how you want to settle this order"
+        android:layout_marginTop="4dp" />
+
+    <!-- Status Selection: Paid vs Credit -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        app:checkedButton="@+id/btnPaid"
-        app:singleSelection="true">
+        android:orientation="horizontal"
+        android:layout_marginTop="28dp"
+        android:weightSum="2">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPaid"
-            style="@style/Widget.Material3.Button.TonalButton"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardStatusPaid"
             android:layout_width="0dp"
-            android:layout_height="60dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Paid"
-            app:cornerRadius="12dp" />
+            android:layout_marginEnd="8dp"
+            app:cardCornerRadius="@dimen/radius_medium"
+            app:cardElevation="0dp"
+            app:strokeWidth="2dp"
+            app:strokeColor="@color/brand_primary"
+            app:cardBackgroundColor="@color/primary_container">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:gravity="center">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_check"
+                    app:tint="@color/brand_primary" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Settle Now"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/brand_primary" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCredit"
-            style="@style/Widget.Material3.Button.TonalButton"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardStatusCredit"
             android:layout_width="0dp"
-            android:layout_height="60dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Credit"
-            app:cornerRadius="12dp" />
+            android:layout_marginStart="8dp"
+            app:cardCornerRadius="@dimen/radius_medium"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/brand_divider"
+            app:cardBackgroundColor="@color/brand_surface">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:gravity="center">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_wallet"
+                    app:tint="@color/text_muted" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Add as Debt"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
-    </com.google.android.material.button.MaterialButtonToggleGroup>
-
+    <!-- Payment Method Selection (Shown only if Settle Now is active) -->
     <LinearLayout
         android:id="@+id/layoutPaymentMethod"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="32dp"
         android:orientation="vertical">
 
         <TextView
-            style="@style/TextAppearance.App.Title"
+            style="@style/TextAppearance.App.Label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Payment Method"
-            android:textColor="@color/text_primary" />
+            android:text="Select Method"
+            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:letterSpacing="0.05" />
 
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/toggleGroupPaymentMethod"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            app:checkedButton="@+id/btnCash"
-            app:singleSelection="true">
-
-            <com.google.android.material.button.MaterialButton
+            app:singleSelection="true"
+            app:selectionRequired="true">
+            <Button
                 android:id="@+id/btnCash"
-                style="@style/Widget.Material3.Button.TonalButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="60dp"
+                android:layout_height="64dp"
                 android:layout_weight="1"
                 android:text="Cash"
-                app:cornerRadius="12dp" />
-
-            <com.google.android.material.button.MaterialButton
+                android:textSize="16sp" />
+            <Button
                 android:id="@+id/btnUpi"
-                style="@style/Widget.Material3.Button.TonalButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="60dp"
+                android:layout_height="64dp"
                 android:layout_weight="1"
                 android:text="UPI"
-                app:cornerRadius="12dp" />
-
+                android:textSize="16sp" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/textCreditHint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center"
-        android:text="Customer will pay later"
-        android:textColor="@color/text_secondary"
-        android:visibility="gone" />
-
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnConfirmPayment"
-        style="@style/Widget.Material3.Button"
+        style="@style/Widget.App.Button.Primary"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="32dp"
-        android:text="Confirm Order"
-        app:backgroundTint="@color/brand_primary"
-        app:cornerRadius="12dp" />
+        android:layout_height="64dp"
+        android:layout_marginTop="40dp"
+        android:text="Confirm and Print"
+        app:icon="@drawable/ic_check" />
 
 </LinearLayout>

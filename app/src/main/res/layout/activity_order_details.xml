@@ -37,6 +37,7 @@
             android:padding="@dimen/screen_padding">
 
             <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/section_spacing"
@@ -126,10 +127,14 @@
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:layout_gravity="bottom"
-        android:layout_margin="16dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
         android:text="Pay Now (UPI QR)"
         android:visibility="gone"
         app:icon="@drawable/ic_qr_code"
+        app:iconPadding="14dp"
+        app:iconGravity="textStart"
         tools:visibility="visible" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

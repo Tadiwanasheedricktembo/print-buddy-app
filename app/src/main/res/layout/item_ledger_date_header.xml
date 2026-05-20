@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/textDateHeader"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="24dp"
+    android:layout_marginBottom="12dp"
+    android:layout_marginStart="24dp"
+    android:textAllCaps="true"
+    android:textColor="@color/brand_primary"
+    android:textSize="11sp"
+    android:textStyle="bold"
+    android:letterSpacing="0.05"
+    tools:text="Monday, Oct 12, 2023" />

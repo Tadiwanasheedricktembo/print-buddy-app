@@ -18,141 +18,265 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="@string/dashboard_title"
+            app:title="Analytics"
             app:titleCentered="true"
             app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="@dimen/screen_padding"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <!-- Metrics Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:baselineAligned="false"
-            android:layout_marginTop="@dimen/grid_8"
-            android:layout_marginBottom="@dimen/section_spacing">
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="40dp">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardRevenue"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="@dimen/grid_8"
-                android:clickable="true"
-                android:focusable="true"
-                app:rippleColor="@color/brand_divider">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_wallet"
-                        android:layout_marginBottom="12dp"
-                        android:contentDescription="@string/label_revenue"
-                        app:tint="@color/brand_primary" />
-
-                    <TextView
-                        style="@style/TextAppearance.App.Label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_revenue"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/textTotalRevenue"
-                        style="@style/TextAppearance.App.Value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/grid_4"
-                        android:textColor="@color/brand_primary"
-                        tools:text="₹15,250" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardOrders"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="@dimen/grid_8"
-                android:clickable="true"
-                android:focusable="true"
-                app:rippleColor="@color/brand_divider">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_agenda"
-                        android:layout_marginBottom="12dp"
-                        android:contentDescription="@string/label_orders"
-                        app:tint="@color/brand_secondary" />
-
-                    <TextView
-                        style="@style/TextAppearance.App.Label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_orders"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/textTotalOrders"
-                        style="@style/TextAppearance.App.Value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/grid_4"
-                        android:textColor="@color/brand_secondary"
-                        tools:text="142" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
-
-        <!-- Analytics Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
+            <!-- Primary Metrics Row -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:padding="@dimen/card_padding">
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp">
 
-                <TextView
-                    style="@style/TextAppearance.App.Title"
-                    android:layout_width="wrap_content"
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.App.Card"
+                    android:id="@+id/cardRevenue"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="start"
-                    android:layout_marginBottom="@dimen/section_spacing"
-                    android:text="@string/revenue_by_service" />
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    app:cardBackgroundColor="@color/brand_primary"
+                    app:cardElevation="4dp"
+                    app:strokeWidth="0dp">
 
-                <com.github.mikephil.charting.charts.PieChart
-                    android:id="@+id/categoryChart"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
+                        <TextView
+                            style="@style/TextAppearance.App.Label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Revenue"
+                            android:textColor="@color/white"
+                            android:alpha="0.8"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textAllCaps="true" />
+
+                        <TextView
+                            android:id="@+id/textTotalRevenue"
+                            style="@style/TextAppearance.App.Value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/white"
+                            android:textSize="18sp"
+                            tools:text="₹15,250" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.App.Card"
+                    android:id="@+id/cardNetProfit"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    app:cardBackgroundColor="@color/brand_success"
+                    app:cardElevation="4dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            style="@style/TextAppearance.App.Label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Net Profit"
+                            android:textColor="@color/white"
+                            android:alpha="0.8"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:textAllCaps="true" />
+
+                        <TextView
+                            android:id="@+id/textNetProfit"
+                            style="@style/TextAppearance.App.Value"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/white"
+                            android:textSize="18sp"
+                            tools:text="₹12,400" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-    </LinearLayout>
+            <!-- Low Stock Alerts -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardLowStock"
+                style="@style/Widget.App.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#FEF2F2"
+                app:strokeColor="@color/brand_error"
+                app:strokeWidth="1dp"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="12dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@android:drawable/stat_sys_warning"
+                        app:tint="@color/brand_error" />
+
+                    <TextView
+                        android:id="@+id/textLowStockAlert"
+                        style="@style/TextAppearance.App.Label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:textColor="@color/brand_error"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        tools:text="Low stock: A4 Paper" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Secondary Metrics Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="false"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.App.Card"
+                    android:id="@+id/cardOrders"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    app:cardBackgroundColor="@color/brand_surface"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/brand_divider">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            style="@style/TextAppearance.App.Label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Orders"
+                            android:textStyle="bold"
+                            android:textSize="10sp" />
+
+                        <TextView
+                            android:id="@+id/textTotalOrders"
+                            style="@style/TextAppearance.App.Title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textSize="18sp"
+                            tools:text="32" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.App.Card"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    app:cardBackgroundColor="@color/brand_surface"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/brand_divider">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            style="@style/TextAppearance.App.Label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Cash"
+                            android:textStyle="bold"
+                            android:textSize="10sp" />
+
+                        <TextView
+                            android:id="@+id/textCashInHand"
+                            style="@style/TextAppearance.App.Title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textSize="18sp"
+                            tools:text="₹2,450" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Analytics Chart -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.App.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/brand_surface"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/brand_divider">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        style="@style/TextAppearance.App.Title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Revenue Breakdown"
+                        android:textSize="14sp" />
+
+                    <com.github.mikephil.charting.charts.PieChart
+                        android:id="@+id/categoryChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="280dp"
+                        android:layout_marginTop="12dp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

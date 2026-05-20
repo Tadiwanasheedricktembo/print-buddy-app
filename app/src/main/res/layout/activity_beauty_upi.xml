@@ -18,7 +18,8 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="UPI Account"
+            app:title="Beauty UPI Account"
+            app:titleCentered="true"
             app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -26,19 +27,23 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/screen_padding">
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="24dp">
 
-            <!-- Account Details Card -->
+            <!-- Premium Account Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/brand_surface"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/brand_divider">
 
@@ -46,54 +51,66 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="20dp">
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+                            <TextView
+                                style="@style/TextAppearance.App.Label"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="ACCOUNT HOLDER"
+                                android:alpha="0.7"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                style="@style/TextAppearance.App.Title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Beauty Rani"
+                                android:textSize="18sp" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_alignParentEnd="true"
+                            android:src="@drawable/ic_wallet"
+                            android:alpha="0.2"
+                            app:tint="@color/brand_primary" />
+                    </RelativeLayout>
 
                     <TextView
                         style="@style/TextAppearance.App.Label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Account Details"
-                        android:textColor="@color/brand_secondary"
-                        android:textStyle="bold" />
+                        android:layout_marginTop="12dp"
+                        android:text="9217011636@ptaxis"
+                        android:background="@drawable/bg_badge_gray"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="4dp" />
 
-                    <TextView
-                        style="@style/TextAppearance.App.Title"
-                        android:layout_width="wrap_content"
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="Beauty Rani"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        style="@style/TextAppearance.App.Label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="9217011636@ptaxis" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Balance Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="@color/secondary_container"
-                app:strokeWidth="0dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="24dp">
+                        android:layout_marginVertical="20dp"
+                        app:dividerColor="@color/brand_divider" />
 
                     <TextView
                         style="@style/TextAppearance.App.Label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="CURRENT BALANCE HELD"
-                        android:textColor="@color/on_secondary_container"
+                        android:layout_gravity="center"
+                        android:text="AVAILABLE BALANCE HELD"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -101,66 +118,76 @@
                         style="@style/TextAppearance.App.Value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:textColor="@color/on_secondary_container"
-                        android:textSize="32sp"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/brand_primary"
+                        android:textSize="36sp"
                         tools:text="₹4,500.00" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Quick Actions -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="32dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRecordReturn"
                     style="@style/Widget.App.Button.Primary"
                     android:layout_width="0dp"
-                    android:layout_height="60dp"
+                    android:layout_height="64dp"
                     android:layout_weight="1"
-                    android:layout_marginEnd="4dp"
-                    android:text="Record Return"
-                    app:icon="@android:drawable/ic_menu_revert" />
+                    android:layout_marginEnd="6dp"
+                    android:text="Withdrawal"
+                    app:icon="@drawable/ic_arrow_downward" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnManualCredit"
                     style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="0dp"
-                    android:layout_height="60dp"
+                    android:layout_height="64dp"
                     android:layout_weight="1"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginStart="6dp"
                     android:text="Manual Credit"
                     android:textColor="@color/text_primary"
-                    app:backgroundTint="@color/brand_surface"
-                    app:strokeColor="@color/brand_divider"
-                    app:strokeWidth="1dp"
-                    app:icon="@android:drawable/ic_input_add"
-                    app:iconTint="@color/text_primary" />
+                    app:icon="@drawable/ic_history"
+                    app:iconTint="@color/brand_primary" />
             </LinearLayout>
 
-            <com.google.android.material.divider.MaterialDivider
+            <!-- History Section -->
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                app:dividerColor="@color/brand_divider" />
+                android:layout_marginBottom="16dp">
 
-            <TextView
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:layout_marginStart="4dp"
-                android:text="TRANSACTION HISTORY"
-                android:textStyle="bold" />
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TRANSACTION LEDGER"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:text="Recent"
+                    android:textColor="@color/brand_secondary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewLedger"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                tools:listitem="@android:layout/simple_list_item_2" />
+                android:overScrollMode="never"
+                tools:listitem="@layout/item_ledger_entry" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

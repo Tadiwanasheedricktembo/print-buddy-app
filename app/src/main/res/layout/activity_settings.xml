@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="@string/settings"
+            app:title="Settings"
             app:titleCentered="true"
             app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
@@ -27,29 +27,27 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:paddingBottom="40dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="20dp">
 
             <!-- Appearance Section -->
             <TextView
-                style="@style/TextAppearance.App.Label"
+                style="@style/TextAppearance.App.SectionHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                android:layout_marginStart="4dp"
-                android:text="@string/appearance"
-                android:textColor="@color/brand_secondary"
-                android:textStyle="bold" />
+                android:text="Appearance" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="32dp"
+                android:layout_marginBottom="28dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/brand_divider">
 
@@ -63,7 +61,7 @@
                         style="@style/TextAppearance.App.Title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/app_theme"
+                        android:text="App Theme"
                         android:textSize="16sp" />
 
                     <TextView
@@ -71,7 +69,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="20dp"
-                        android:text="@string/theme_description" />
+                        android:text="Choose how you want the app to look." />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/toggleGroupTheme"
@@ -87,9 +85,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/light_mode"
-                            app:strokeColor="@color/brand_divider"
-                            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Toggle.Start" />
+                            android:text="Light" />
 
                         <Button
                             android:id="@+id/btnThemeDark"
@@ -97,9 +93,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/dark_mode"
-                            app:strokeColor="@color/brand_divider"
-                            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Toggle.Middle" />
+                            android:text="Dark" />
 
                         <Button
                             android:id="@+id/btnThemeSystem"
@@ -107,9 +101,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/system_default"
-                            app:strokeColor="@color/brand_divider"
-                            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Toggle.End" />
+                            android:text="System" />
 
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
@@ -123,13 +115,15 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 android:layout_marginStart="4dp"
-                android:text="@string/notifications"
-                android:textColor="@color/brand_secondary"
-                android:textStyle="bold" />
+                android:text="NOTIFICATIONS"
+                android:textColor="@color/brand_primary"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="28dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/brand_divider">
 
@@ -141,10 +135,11 @@
 
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchEnableReminders"
-                        style="@style/TextAppearance.App.Title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/enable_reminders"
+                        android:text="Enable Reminders"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <LinearLayout
@@ -160,7 +155,7 @@
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="@string/reminder_time"
+                            android:text="Reminder Time"
                             android:textStyle="bold" />
 
                         <Button
@@ -170,17 +165,15 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="20:00"
-                            android:textColor="@color/text_primary"
-                            app:backgroundTint="@color/brand_divider"
-                            app:icon="@android:drawable/ic_menu_today"
-                            app:iconTint="@color/text_primary" />
+                            android:textColor="@color/brand_primary"
+                            app:icon="@android:drawable/ic_menu_today" />
 
                         <TextView
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
-                            android:text="@string/frequency"
+                            android:text="Frequency"
                             android:textStyle="bold" />
 
                         <com.google.android.material.textfield.TextInputLayout
@@ -203,7 +196,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:hint="@string/interval_hours"
+                            android:hint="Interval (Hours)"
                             android:visibility="gone">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -219,7 +212,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:hint="@string/reminder_message">
+                            android:hint="Reminder Message">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editMessage"
@@ -233,22 +226,75 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Security Section -->
+            <TextView
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:layout_marginStart="4dp"
+                android:text="@string/security"
+                android:textColor="@color/brand_primary"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="28dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/brand_divider">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchEnableBiometrics"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/biometric_lock"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        style="@style/TextAppearance.App.Label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/biometric_description" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnLockNow"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/lock_app"
+                        app:icon="@android:drawable/ic_lock_idle_lock" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Data Management Section -->
             <TextView
                 style="@style/TextAppearance.App.Label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                android:layout_marginTop="32dp"
                 android:layout_marginStart="4dp"
                 android:text="DATA MANAGEMENT"
-                android:textColor="@color/brand_secondary"
-                android:textStyle="bold" />
+                android:textColor="@color/brand_primary"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="32dp"
+                android:layout_marginBottom="28dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/brand_divider">
 
@@ -305,8 +351,8 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginTop="40dp"
-                android:text="@string/test_notification"
+                android:layout_marginTop="12dp"
+                android:text="Test Notification"
                 android:textColor="@color/text_primary"
                 app:backgroundTint="@color/brand_surface"
                 app:strokeColor="@color/brand_divider"
@@ -318,9 +364,9 @@
                 android:id="@+id/btnSaveSettings"
                 style="@style/Widget.App.Button.Primary"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
+                android:layout_height="64dp"
                 android:layout_marginTop="12dp"
-                android:text="@string/save_settings"
+                android:text="Save All Settings"
                 app:icon="@android:drawable/ic_menu_save" />
 
         </LinearLayout>

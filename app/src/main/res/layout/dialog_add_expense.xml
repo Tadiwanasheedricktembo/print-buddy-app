@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Amount"
+        android:textColor="@color/brand_secondary"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/editAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="0.00"
+        android:inputType="numberDecimal"
+        android:textColor="@color/text_primary" />
+
+    <TextView
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Category"
+        android:textColor="@color/brand_secondary"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/editCategory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="e.g. Supplies, Rent"
+        android:inputType="textCapSentences"
+        android:textColor="@color/text_primary" />
+
+    <TextView
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Note (Optional)"
+        android:textColor="@color/brand_secondary"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/editNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Details..."
+        android:inputType="textCapSentences"
+        android:textColor="@color/text_primary" />
+
+    <TextView
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Payment Method"
+        android:textColor="@color/brand_secondary"
+        android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/spinnerPaymentMethod"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

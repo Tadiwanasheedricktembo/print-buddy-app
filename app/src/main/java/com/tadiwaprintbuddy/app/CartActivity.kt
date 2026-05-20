@@ -71,9 +71,11 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
     }
 
     private fun saveOrderAndShowPayment(customerName: String) {
+        binding.buttonCompleteOrder.isEnabled = false
         lifecycleScope.launch {
             val total = adapter.getTotal()
-            val orderId = repository.confirmOrder(customerName, cartItems)
+            // Save initially as unpaid so we can record the actual payment transaction later
+            val orderId = repository.confirmOrder(customerName, cartItems, "OWES_ME")
             
             if (orderId != -1) {
                 Toast.makeText(this@CartActivity, R.string.order_saved_successfully, Toast.LENGTH_SHORT).show()
@@ -81,19 +83,27 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
                 val paymentDialog = PaymentDialogFragment.newInstance(total, orderId)
                 paymentDialog.setOnPaymentConfirmedListener {
                     lifecycleScope.launch {
-                        repository.updatePayment(orderId, total)
+                        // Mark as paid via UPI since this is the QR dialog
+                        repository.updatePayment(orderId, total, "UPI")
                         Toast.makeText(this@CartActivity, "Payment marked as complete", Toast.LENGTH_SHORT).show()
                         finish()
                     }
                 }
                 
-                // If user just closes the dialog, we still want to finish CartActivity 
-                // because the order is already saved in database as pending.
-                // But we wait for them to interact with the dialog first.
                 paymentDialog.show(supportFragmentManager, "payment_qr")
                 
-                // We don't finish() immediately here because the dialog is showing.
-                // We'll handle finish in dialog callbacks or when dismissed.
+                // If the user dismisses the dialog without marking as paid, 
+                // we still finish this activity as the order is already saved as a debt.
+                supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                    override fun onFragmentDestroyed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+                        if (f is PaymentDialogFragment) {
+                            finish()
+                            supportFragmentManager.unregisterFragmentLifecycleCallbacks(this)
+                        }
+                    }
+                }, false)
+            } else {
+                binding.buttonCompleteOrder.isEnabled = true
             }
         }
     }

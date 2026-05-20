@@ -106,13 +106,12 @@
 
             <TextView
                 android:id="@+id/textFilterSummary"
-                style="@style/TextAppearance.App.Label"
+                style="@style/TextAppearance.App.SectionHeader"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Showing All Orders"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+                android:textColor="@color/text_secondary" />
 
             <TextView
                 android:id="@+id/textTimelineStats"
@@ -121,7 +120,6 @@
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
                 android:textColor="@color/brand_primary"
-                android:textSize="13sp"
                 tools:text="₹0.00 (0 orders)" />
         </LinearLayout>
 

@@ -46,7 +46,12 @@ class BeautyAccountActivity : AppCompatActivity() {
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener { 
             finish() 
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, android.R.anim.fade_in, android.R.anim.fade_out)
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            }
         }
     }
 
@@ -81,11 +86,14 @@ class BeautyAccountActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
         viewModel.balance.observe(this) { balance ->
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+            val format = NumberFormat.getCurrencyInstance(locale)
             binding.textCurrentBalance.text = format.format(balance ?: 0.0)
         }
 
         viewModel.transactions.observe(this) { transactions ->
+            val count = transactions?.size ?: 0
+            binding.textTransactionCount.text = if (count == 1) "1 transaction" else "$count transactions"
             transactionAdapter.submitList(transactions ?: emptyList())
         }
     }
@@ -142,9 +150,16 @@ class BeautyAccountActivity : AppCompatActivity() {
             .show()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        @Suppress("DEPRECATION")
         super.onBackPressed()
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, android.R.anim.fade_in, android.R.anim.fade_out)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
     }
 
     private class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -162,6 +177,8 @@ class BeautyAccountActivity : AppCompatActivity() {
             updateList()
         }
 
+        private data class HeaderData(val title: String, val count: Int)
+
         private fun updateList() {
             val groupedItems = mutableListOf<Any>()
             val groups = originalTransactions.sortedByDescending { it.timestamp }.groupBy { transaction ->
@@ -176,7 +193,7 @@ class BeautyAccountActivity : AppCompatActivity() {
                     val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
                     val headerTitle = "History before ${dateFormat.format(Date(resetTime))}"
                     
-                    groupedItems.add(headerTitle)
+                    groupedItems.add(HeaderData(headerTitle, groupTransactions.size))
                     if (expandedHeaders.contains(headerTitle)) {
                         groupedItems.addAll(groupTransactions)
                     }
@@ -190,7 +207,7 @@ class BeautyAccountActivity : AppCompatActivity() {
         }
 
         override fun getItemViewType(position: Int): Int {
-            return if (items[position] is String) TYPE_HEADER else TYPE_TRANSACTION
+            return if (items[position] is HeaderData) TYPE_HEADER else TYPE_TRANSACTION
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -205,18 +222,20 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             val item = items[position]
-            if (holder is HeaderViewHolder && item is String) {
-                holder.textHeaderTitle.text = item
-                val isExpanded = expandedHeaders.contains(item)
+            if (holder is HeaderViewHolder && item is HeaderData) {
+                holder.textHeaderTitle.text = item.title
+                holder.textItemCount.text = if (item.count == 1) "1 item" else "${item.count} items"
+                val isExpanded = expandedHeaders.contains(item.title)
                 holder.imageChevron.rotation = if (isExpanded) 180f else 0f
                 
                 holder.itemView.setOnClickListener {
-                    if (isExpanded) expandedHeaders.remove(item)
-                    else expandedHeaders.add(item)
+                    if (isExpanded) expandedHeaders.remove(item.title)
+                    else expandedHeaders.add(item.title)
                     updateList()
                 }
             } else if (holder is TransactionViewHolder && item is BeautyTransaction) {
-                val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+                val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+                val format = NumberFormat.getCurrencyInstance(locale)
                 val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
                 
                 holder.textNote.text = if (item.type == "RESET") "Totals Reset" else item.note ?: "Manual Entry"

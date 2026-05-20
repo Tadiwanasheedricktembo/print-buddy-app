@@ -10,30 +10,51 @@ import java.io.File
 class BackupWorker(context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
 
+    companion object {
+        private const val BACKUP_DIR_NAME = "backups"
+        private const val MAX_BACKUPS = 7
+        private const val BACKUP_FILE_PREFIX = "PrintBuddy_Backup_"
+        private const val BACKUP_FILE_EXT = ".zip"
+    }
+
     override suspend fun doWork(): Result {
         return try {
-            val database = AppDatabase.getDatabase(applicationContext)
-            val data = database.printDao().getAllSettlementHistoryOnce()
+            val externalFilesDir = applicationContext.getExternalFilesDir(null)
+                ?: return Result.failure()
 
-            if (data.isNotEmpty()) {
-                val backupDir = File(applicationContext.getExternalFilesDir(null), "backups")
-                if (!backupDir.exists()) backupDir.mkdirs()
-
-                val fileName = "backup_${System.currentTimeMillis()}.json"
-                val file = File(backupDir, fileName)
-                
-                val json = Gson().toJson(data)
-                file.writeText(json)
-
-                // Keep only last 7 backups
-                val files = backupDir.listFiles()?.sortedByDescending { it.lastModified() }
-                if (files != null && files.size > 7) {
-                    files.drop(7).forEach { it.delete() }
-                }
+            val backupDir = File(externalFilesDir, BACKUP_DIR_NAME)
+            if (!backupDir.exists() && !backupDir.mkdirs()) {
+                return Result.failure()
             }
+
+            val timestampedName = "$BACKUP_FILE_PREFIX${System.currentTimeMillis()}$BACKUP_FILE_EXT"
+            val tempFile = File(backupDir, "$timestampedName.tmp")
+            val finalFile = File(backupDir, timestampedName)
+
+            if (!BackupUtils.createZipBackupToFile(applicationContext, tempFile)) {
+                tempFile.delete()
+                return Result.retry()
+            }
+
+            if (!tempFile.renameTo(finalFile)) {
+                tempFile.delete()
+                return Result.retry()
+            }
+
+            cleanupOldBackups(backupDir)
             Result.success()
         } catch (e: Exception) {
             Result.retry()
+        }
+    }
+
+    private fun cleanupOldBackups(backupDir: File) {
+        val files = backupDir.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(BACKUP_FILE_EXT) }
+            ?.sortedByDescending { it.lastModified() }
+
+        if (files != null && files.size > MAX_BACKUPS) {
+            files.drop(MAX_BACKUPS).forEach { it.delete() }
         }
     }
 }

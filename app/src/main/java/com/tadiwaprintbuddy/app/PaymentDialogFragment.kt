@@ -71,7 +71,8 @@ class PaymentDialogFragment : BottomSheetDialogFragment() {
 
         val currentAmount = amount ?: 0.0
         if (currentAmount > 0) {
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+            val format = NumberFormat.getCurrencyInstance(locale)
             binding.textAmount.text = format.format(currentAmount)
             binding.textAmount.visibility = View.VISIBLE
         } else {

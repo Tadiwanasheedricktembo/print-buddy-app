@@ -11,6 +11,7 @@ import android.view.MenuItem
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -46,6 +47,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
     private lateinit var repository: PrintRepository
     private lateinit var adapter: GroupedSettlementAdapter
     private var allSettlements: List<SettlementHistory> = emptyList()
+    private var allGroups: List<GroupedSettlement> = emptyList()
 
     private val restorePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -71,7 +73,41 @@ class SettlementHistoryActivity : AppCompatActivity() {
         binding.recyclerSettlements.layoutManager = LinearLayoutManager(this)
         binding.recyclerSettlements.adapter = adapter
 
+        setupSearch()
         loadSettlements()
+    }
+
+    private fun setupSearch() {
+        binding.editSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                applySearch(s?.toString() ?: "")
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+    }
+
+    private fun applySearch(query: String) {
+        if (query.isBlank()) {
+            adapter.updateGroups(allGroups)
+            binding.textNoResults.visibility = View.GONE
+            binding.recyclerSettlements.visibility = if (allGroups.isEmpty()) View.GONE else View.VISIBLE
+            return
+        }
+
+        val filteredGroups = allGroups.filter {
+            it.customerName.contains(query, ignoreCase = true)
+        }
+
+        adapter.updateGroups(filteredGroups)
+
+        if (filteredGroups.isEmpty()) {
+            binding.textNoResults.visibility = View.VISIBLE
+            binding.recyclerSettlements.visibility = View.GONE
+        } else {
+            binding.textNoResults.visibility = View.GONE
+            binding.recyclerSettlements.visibility = View.VISIBLE
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -190,7 +226,8 @@ class SettlementHistoryActivity : AppCompatActivity() {
                             )
                         }.sortedBy { it.customerName }
                     
-                    adapter.updateGroups(grouped)
+                    allGroups = grouped
+                    applySearch(binding.editSearch.text.toString())
 
                     // Scroll to the targeted customer if found
                     if (targetCustomerId != -1L || targetCustomerName != null) {
@@ -298,6 +335,14 @@ data class GroupedSettlement(
     var isExpanded: Boolean = false
 )
 
+sealed class LedgerItem {
+    data class DateHeader(val date: String) : LedgerItem()
+    data class DebtAdded(val history: SettlementHistory) : LedgerItem()
+    data class PaymentReceived(val history: SettlementHistory) : LedgerItem()
+    data class CreditCreated(val history: SettlementHistory) : LedgerItem()
+    data class Adjustment(val history: SettlementHistory) : LedgerItem()
+}
+
 class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
     RecyclerView.Adapter<GroupedSettlementAdapter.GroupViewHolder>() {
 
@@ -310,23 +355,53 @@ class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
 
     override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
         val group = groups[position]
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
 
         holder.binding.textCustomerName.text = group.customerName
         holder.binding.textTransactionCount.text = "${group.transactions.size} transactions"
         
-        if (group.totalOwed > 0) {
-            holder.binding.textTotalOwed.text = "Owes: ${format.format(group.totalOwed)}"
+        val balance = group.totalOwed
+        if (balance > 0) {
+            // Customer Owes
+            holder.binding.textTotalOwed.text = format.format(balance)
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
-        } else if (group.totalOwed < 0) {
-            holder.binding.textTotalOwed.text = "Change: ${format.format(-group.totalOwed)}"
-            holder.binding.textTotalOwed.setTextColor(Color.parseColor("#22C55E")) // Green
-        } else {
-            holder.binding.textTotalOwed.text = "Settled"
+            holder.binding.textBalanceLabel.text = "PENDING"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+            holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.brand_surface_variant))
+        } else if (balance < 0) {
+            // Customer Credit
+            holder.binding.textTotalOwed.text = format.format(Math.abs(balance))
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+            holder.binding.textBalanceLabel.text = "CREDIT AVAILABLE"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+            holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.brand_surface_variant))
+        } else {
+            // Settled
+            holder.binding.textTotalOwed.text = "Settled"
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+            holder.binding.textBalanceLabel.text = "NO BALANCE"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+            holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.brand_surface_variant))
         }
 
+        // Summary Calculations
+        val totalDebt = group.transactions.filter { 
+            val delta = it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore)
+            delta > 0 
+        }.sumOf { it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore) }
+        
+        val totalPaid = group.transactions.filter { 
+            val delta = it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore)
+            delta < 0 
+        }.sumOf { Math.abs(it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore)) }
+
+        holder.binding.textTotalDebt.text = "+ ${format.format(totalDebt)}"
+        holder.binding.textTotalPaid.text = "- ${format.format(totalPaid)}"
+        holder.binding.textCurrentBalanceSummary.text = format.format(Math.abs(group.totalOwed))
+
         holder.binding.recyclerTransactions.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
+        holder.binding.layoutSummary.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
         holder.binding.imageExpand.rotation = if (group.isExpanded) 180f else 0f
 
         holder.binding.layoutHeader.setOnClickListener {
@@ -348,63 +423,145 @@ class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
     }
 }
 
-class TransactionAdapter(private val transactions: List<SettlementHistory>) :
-    RecyclerView.Adapter<TransactionAdapter.ViewHolder>() {
+class TransactionAdapter(private val historyList: List<SettlementHistory>) :
+    RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    class ViewHolder(val binding: ItemSettlementBinding) : RecyclerView.ViewHolder(binding.root)
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemSettlementBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ViewHolder(binding)
+    companion object {
+        private const val VIEW_TYPE_DATE_HEADER = 0
+        private const val VIEW_TYPE_DEBT_ADDED = 1
+        private const val VIEW_TYPE_PAYMENT = 2
+        private const val VIEW_TYPE_CREDIT_CREATED = 4
+        private const val VIEW_TYPE_ADJUSTMENT = 3
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val transaction = transactions[position]
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault())
+    private val ledgerItems: List<LedgerItem> = historyList
+        .sortedByDescending { it.timestamp }
+        .let { sortedList ->
+            val items = mutableListOf<LedgerItem>()
+            var lastDate = ""
+            val headerFormat = SimpleDateFormat("EEEE, MMM dd, yyyy", Locale.getDefault())
 
-        holder.binding.textCustomerName.visibility = View.GONE
-        holder.binding.textDate.text = dateFormat.format(Date(transaction.timestamp))
-        
-        // Use mapping for backward-compatible logic (Phase 3)
-        holder.binding.textBalanceBefore.text = format.format(transaction.balanceBefore)
-        
-        // Transaction Amount Logic
-        val delta = if (transaction.transactionAmount != 0.0) transaction.transactionAmount else (transaction.balanceAfter - transaction.balanceBefore)
-        if (delta > 0) {
-            holder.binding.textTransAmount.text = "+ ${format.format(delta)}"
-            holder.binding.textTransAmount.setTextColor(0xFFC62828.toInt()) // Red
-        } else if (delta < 0) {
-            holder.binding.textTransAmount.text = "- ${format.format(-delta)}"
-            holder.binding.textTransAmount.setTextColor(0xFF2E7D32.toInt()) // Green
-        } else {
-            holder.binding.textTransAmount.text = format.format(0.0)
-            holder.binding.textTransAmount.setTextColor(Color.GRAY)
+            sortedList.forEach { history ->
+                val dateStr = headerFormat.format(Date(history.timestamp))
+                if (dateStr != lastDate) {
+                    items.add(LedgerItem.DateHeader(dateStr))
+                    lastDate = dateStr
+                }
+
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
+
+                val item = when {
+                    history.ledgerEntryType == "ORDER_POST" || history.type == "ORDER" || delta > 0 -> LedgerItem.DebtAdded(history)
+                    (history.ledgerEntryType == "PAYMENT" || history.type == "PAYMENT" || delta < 0) && balAfter < 0 -> LedgerItem.CreditCreated(history)
+                    history.ledgerEntryType == "PAYMENT" || history.type == "PAYMENT" || delta < 0 -> LedgerItem.PaymentReceived(history)
+                    else -> LedgerItem.Adjustment(history)
+                }
+                items.add(item)
+            }
+            items
         }
 
-        val displayBalanceAfter = if (transaction.newBalance != 0.0 || transaction.transactionAmount != 0.0) transaction.newBalance else transaction.balanceAfter
-        holder.binding.textBalanceAfter.text = format.format(displayBalanceAfter)
-
-        if (displayBalanceAfter > 0) {
-            holder.binding.textBalanceAfter.setTextColor(Color.RED)
-        } else if (displayBalanceAfter == 0.0) {
-            holder.binding.textBalanceAfter.setTextColor(Color.parseColor("#22C55E"))
-        }
-
-        holder.binding.textType.text = transaction.type
-        if (transaction.type == "ADJUSTMENT") {
-            holder.binding.textType.setBackgroundResource(R.drawable.bg_badge_orange)
-        } else {
-            holder.binding.textType.setBackgroundResource(R.drawable.bg_badge_gray)
-        }
-
-        if (transaction.note.isEmpty()) {
-            holder.binding.textNote.visibility = View.GONE
-        } else {
-            holder.binding.textNote.visibility = View.VISIBLE
-            holder.binding.textNote.text = transaction.note
+    override fun getItemViewType(position: Int): Int {
+        return when (ledgerItems[position]) {
+            is LedgerItem.DateHeader -> VIEW_TYPE_DATE_HEADER
+            is LedgerItem.DebtAdded -> VIEW_TYPE_DEBT_ADDED
+            is LedgerItem.PaymentReceived -> VIEW_TYPE_PAYMENT
+            is LedgerItem.CreditCreated -> VIEW_TYPE_CREDIT_CREATED
+            is LedgerItem.Adjustment -> VIEW_TYPE_ADJUSTMENT
         }
     }
 
-    override fun getItemCount() = transactions.size
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            VIEW_TYPE_DATE_HEADER -> {
+                val view = inflater.inflate(R.layout.item_ledger_date_header, parent, false)
+                DateHeaderViewHolder(view)
+            }
+            VIEW_TYPE_DEBT_ADDED -> DebtAddedViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_PAYMENT -> PaymentViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_CREDIT_CREATED -> CreditCreatedViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
+            else -> AdjustmentViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val item = ledgerItems[position]
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
+        val dateTimeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+
+        when (holder) {
+            is DateHeaderViewHolder -> {
+                val header = item as LedgerItem.DateHeader
+                (holder.itemView as TextView).text = header.date
+            }
+            is DebtAddedViewHolder -> {
+                val history = (item as LedgerItem.DebtAdded).history
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
+                
+                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
+                holder.binding.textAmount.text = "+ ${format.format(delta)}"
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+                holder.binding.textLabel.text = "Debt Added"
+                holder.binding.textNote.text = history.note.ifEmpty { "Transaction for ${history.customerName}" }
+                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+                
+                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
+            }
+            is PaymentViewHolder -> {
+                val history = (item as LedgerItem.PaymentReceived).history
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
+                
+                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
+                holder.binding.textAmount.text = "− ${format.format(Math.abs(delta))}"
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+                holder.binding.textLabel.text = "Payment Received"
+                holder.binding.textNote.text = history.note.ifEmpty { "Payment from ${history.customerName}" }
+                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+
+                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
+            }
+            is CreditCreatedViewHolder -> {
+                val history = (item as LedgerItem.CreditCreated).history
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
+                
+                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
+                holder.binding.textAmount.text = format.format(Math.abs(delta))
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+                holder.binding.textLabel.text = "Credit Created"
+                holder.binding.textNote.text = "Excess payment converted to credit"
+                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+
+                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
+            }
+            is AdjustmentViewHolder -> {
+                val history = (item as LedgerItem.Adjustment).history
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
+                
+                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
+                val prefix = if (delta >= 0) "± " else "- "
+                holder.binding.textAmount.text = "$prefix${format.format(Math.abs(delta))}"
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_secondary))
+                holder.binding.textLabel.text = "Adjustment"
+                holder.binding.textNote.text = history.note.ifEmpty { "Manual Correction" }
+                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+
+                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
+            }
+        }
+    }
+
+    override fun getItemCount() = ledgerItems.size
+
+    class DateHeaderViewHolder(view: View) : RecyclerView.ViewHolder(view)
+    class DebtAddedViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
+    class PaymentViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
+    class CreditCreatedViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
+    class AdjustmentViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
 }

@@ -2,18 +2,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/button_view_dashboard"
-        android:icon="@android:drawable/ic_menu_manage"
+        android:icon="@drawable/ic_dashboard"
         android:title="Insights" />
     <item
         android:id="@+id/btnViewOrders"
-        android:icon="@android:drawable/ic_menu_agenda"
+        android:icon="@drawable/ic_history"
         android:title="History" />
     <item
         android:id="@+id/button_view_debtor_credit"
-        android:icon="@android:drawable/ic_menu_myplaces"
+        android:icon="@drawable/ic_wallet"
         android:title="Balances" />
     <item
         android:id="@+id/button_printer_references"
-        android:icon="@android:drawable/ic_menu_gallery"
+        android:icon="@drawable/ic_printer"
         android:title="Refs" />
 </menu>

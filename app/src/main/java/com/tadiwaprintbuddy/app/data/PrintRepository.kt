@@ -60,12 +60,10 @@ class PrintRepository(private val printDao: PrintDao) {
             newBalance = newBalance
         )
         
-        val orderId = printDao.insertOrder(orderWithSnapshots)
-        val itemsWithOrderId = items.map { it.copy(orderId = orderId.toInt()) }
-        printDao.insertOrderItems(itemsWithOrderId)
+        printDao.recordCommercialOrder(orderWithSnapshots, items)
         
         if (orderWithSnapshots.paymentMethod == "UPI" && orderWithSnapshots.paidAmount > 0) {
-            insertBeautyTransaction(orderWithSnapshots.paidAmount, "ADD", "Order #${orderId} - ${customer.displayName}")
+            insertBeautyTransaction(orderWithSnapshots.paidAmount, "ADD", "Order - ${customer.displayName}")
         }
     }
 
@@ -95,18 +93,18 @@ class PrintRepository(private val printDao: PrintDao) {
             newBalance = newBalance
         )
 
-        val orderId = printDao.insertOrder(order).toInt()
-
         val orderItems = cartItems.map { cartItem ->
             OrderItem(
-                orderId = orderId,
+                orderId = 0, // Will be set by DAO
                 serviceName = cartItem.serviceName,
                 price = cartItem.price,
                 quantity = cartItem.quantity
             )
         }
-        printDao.insertOrderItems(orderItems)
-
+        
+        // Use the new atomic DAO method
+        val orderId = printDao.recordCommercialOrder(order, orderItems)
+        
         if (finalPaymentMethod == "UPI" && finalPaidAmount > 0) {
             insertBeautyTransaction(finalPaidAmount, "ADD", "Direct Pay - ${customer.displayName}")
         }
@@ -118,12 +116,42 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
 
-    suspend fun updatePayment(orderId: Int, amount: Double) {
-        // Note: this method updates an existing order. 
-        // For full transaction clarity, we might want to update the order's snapshots too,
-        // but adding payment is usually reflected in SettlementHistory separately if via applyPayment.
-        // If it's a direct updatePayment, we just update the paidAmount.
-        printDao.updatePayment(orderId, amount)
+    suspend fun updatePayment(orderId: Int, newPaidAmount: Double, paymentMethod: String = "CASH") {
+        val order = printDao.getOrderById(orderId) ?: return
+        val delta = newPaidAmount - order.paidAmount
+        if (delta == 0.0) return
+
+        // Update the order itself
+        printDao.updatePayment(orderId, newPaidAmount)
+        
+        // Rebuild projection for the customer who owns this order
+        val customerId = order.customerId
+        val currentBalance = getCustomerBalanceById(customerId)
+        val newBalance = currentBalance - delta
+
+        printDao.insertSettlement(
+            SettlementHistory(
+                customerName = order.customerName,
+                customerId = customerId,
+                balanceBefore = currentBalance,
+                amountPaid = delta,
+                balanceAfter = newBalance,
+                timestamp = System.currentTimeMillis(),
+                type = "PAYMENT",
+                ledgerEntryType = "PAYMENT",
+                note = "Additional payment for Order #${order.id} via $paymentMethod",
+                transactionAmount = -delta,
+                newBalance = newBalance,
+                originId = orderId
+            )
+        )
+
+        // If UPI, record in Beauty Account
+        if (paymentMethod == "UPI") {
+            insertBeautyTransaction(delta, "ADD", "Payment Order #${order.id} - ${order.customerName}")
+        }
+
+        printDao.rebuildCustomerProjection(customerId)
     }
 
     suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
@@ -168,11 +196,15 @@ class PrintRepository(private val printDao: PrintDao) {
                 balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(),
                 type = "PAYMENT",
+                ledgerEntryType = "PAYMENT",
                 note = "Payment via $paymentMethod",
                 transactionAmount = -actualSettled,
                 newBalance = newBalance
             )
         )
+        
+        // Update projection
+        printDao.rebuildCustomerProjection(customer.id)
 
         if (paymentMethod == "UPI") {
             insertBeautyTransaction(actualSettled, "ADD", "Debt Settlement - ${customer.displayName}")
@@ -180,7 +212,11 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun getCustomerBalanceById(customerId: Long): Double {
-        return printDao.getLatestBalanceForCustomer(customerId) ?: 0.0
+        // Prefer the latest settlement balance if available; otherwise derive
+        // balance from unpaid orders so new customers without settlement
+        // records still have correct balances.
+        val latest = printDao.getLatestBalanceForCustomer(customerId)
+        return if (latest != null) latest else printDao.getUnpaidTotalForCustomer(customerId)
     }
 
     // Deprecated: use getCustomerBalanceById
@@ -217,18 +253,31 @@ class PrintRepository(private val printDao: PrintDao) {
                 balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(),
                 type = if (isPayment) "PAYMENT" else "ADJUSTMENT",
+                ledgerEntryType = if (isPayment) "PAYMENT" else "ADJUSTMENT",
                 note = finalNote,
                 transactionAmount = amountDelta,
                 newBalance = newBalance
             )
         )
 
-        // Sync with the summary table
-        printDao.insertOrUpdateDebtorCredit(DebtorCredit(customer.id, customer.displayName, newBalance, System.currentTimeMillis()))
+        // Sync with the summary table (rebuild projection)
+        printDao.rebuildCustomerProjection(customer.id)
     }
 
     suspend fun deleteDebtorCredit(customerId: Long) {
         printDao.deleteDebtorCredit(customerId)
+    }
+
+    suspend fun deleteCustomerCompletely(customerId: Long) {
+        printDao.deleteCustomerCompletely(customerId)
+    }
+
+    suspend fun rebuildCustomerProjection(customerId: Long) {
+        printDao.rebuildCustomerProjection(customerId)
+    }
+
+    suspend fun verifyCustomerBalance(customerId: Long): Boolean {
+        return printDao.verifyCustomerBalance(customerId)
     }
 
     // --- Other ---
@@ -315,4 +364,50 @@ class PrintRepository(private val printDao: PrintDao) {
     // Compatibility methods for External Ledger
     suspend fun getExternalBalance(): Double? = getBeautyBalance()
     suspend fun getAllExternalLedgerEntries(): List<BeautyTransaction> = getAllBeautyTransactions()
+
+    // --- Expenses ---
+
+    suspend fun addExpense(amount: Double, category: String, note: String?, paymentMethod: String = "CASH") {
+        printDao.insertExpense(Expense(amount = amount, category = category, note = note, paymentMethod = paymentMethod))
+        
+        // If paid via UPI, record it in Beauty account as a RETURN (money leaving the UPI account)
+        if (paymentMethod == "UPI") {
+            insertBeautyTransaction(amount, "RETURN", "Expense: $category${if (note != null) " - $note" else ""}")
+        }
+    }
+
+    fun getAllExpensesFlow(): Flow<List<Expense>> = printDao.getAllExpensesFlow()
+
+    suspend fun getTotalExpenses(): Double = printDao.getTotalExpenses() ?: 0.0
+
+    suspend fun deleteExpense(expenseId: Int) = printDao.deleteExpense(expenseId)
+
+    suspend fun restoreExpenses(expenses: List<Expense>, fullReplace: Boolean) {
+        if (fullReplace) {
+            printDao.clearExpenses()
+        }
+        printDao.insertAllExpenses(expenses)
+    }
+
+    // --- Stock Management ---
+
+    fun getAllStockItemsFlow(): Flow<List<StockItem>> = printDao.getAllStockItemsFlow()
+
+    fun getLowStockItemsFlow(): Flow<List<StockItem>> = printDao.getLowStockItemsFlow()
+
+    suspend fun addOrUpdateStockItem(item: StockItem) = printDao.insertStockItem(item)
+
+    suspend fun deleteStockItem(item: StockItem) = printDao.deleteStockItem(item)
+
+    suspend fun deductStockByName(name: String, amount: Int) = printDao.deductStockByName(name, amount)
+
+    suspend fun getStockItemByName(name: String) = printDao.getStockItemByName(name)
+
+    // --- Profit Analysis ---
+
+    suspend fun getNetProfit(): Double {
+        val totalRevenue = printDao.getRevenueBetween(0, Long.MAX_VALUE) ?: 0.0
+        val totalExpenses = printDao.getTotalExpenses() ?: 0.0
+        return totalRevenue - totalExpenses
+    }
 }

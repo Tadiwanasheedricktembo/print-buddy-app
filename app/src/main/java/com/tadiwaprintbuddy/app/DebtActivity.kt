@@ -48,7 +48,8 @@ class DebtActivity : AppCompatActivity() {
 
     private fun updateTotalOwed(orders: List<Order>) {
         val totalOwed = orders.sumOf { it.totalAmount - it.paidAmount }
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
         binding.textTotalOwed.text = format.format(totalOwed)
     }
 
@@ -63,7 +64,7 @@ class DebtActivity : AppCompatActivity() {
                 val additionalPayment = editAdditionalPayment.text.toString().toDoubleOrNull() ?: 0.0
                 val newPaidAmount = order.paidAmount + additionalPayment
                 lifecycleScope.launch {
-                    repository.updatePayment(order.id, newPaidAmount)
+                    repository.updatePayment(order.id, newPaidAmount, "CASH")
                     loadDebts()
                 }
             }

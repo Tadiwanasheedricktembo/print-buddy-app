@@ -36,11 +36,10 @@
             android:padding="@dimen/screen_padding">
 
             <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="@color/error_container"
-                app:cardElevation="0dp"
-                app:strokeWidth="0dp"
                 android:layout_marginBottom="@dimen/section_spacing">
 
                 <LinearLayout
@@ -71,13 +70,11 @@
             </com.google.android.material.card.MaterialCardView>
 
             <TextView
-                style="@style/TextAppearance.App.Label"
+                style="@style/TextAppearance.App.SectionHeader"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:layout_marginStart="4dp"
-                android:text="DEBT RECORDS"
-                android:textStyle="bold" />
+                android:text="Debt Records" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerDebts"

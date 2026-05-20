@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:name=".TadiwaPrintBuddyApp"
@@ -34,6 +35,11 @@
 
         <activity
             android:name=".AboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".ExpenseActivity"
             android:exported="false"
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
@@ -90,6 +96,16 @@
 
         <activity
             android:name=".ViewPhotoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".SecurityActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".InventoryActivity"
             android:exported="false"
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 

@@ -8,6 +8,14 @@
         app:iconTint="@color/brand_primary"
         app:showAsAction="always" />
     <item
+        android:id="@+id/action_expenses"
+        android:title="Expense Tracker"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_lock"
+        android:title="@string/lock_app"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_settings"
         android:title="Settings"
         app:showAsAction="never" />

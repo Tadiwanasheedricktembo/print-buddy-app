@@ -12,7 +12,8 @@ import java.util.Locale
 class DebtorCreditAdapter(
     private var debtorCredits: List<DebtorCredit>,
     private val onUpdateClicked: (DebtorCredit) -> Unit,
-    private val onItemClicked: (DebtorCredit) -> Unit
+    private val onItemClicked: (DebtorCredit) -> Unit,
+    private val onItemLongClicked: (DebtorCredit) -> Unit
 ) : RecyclerView.Adapter<DebtorCreditAdapter.ViewHolder>() {
 
     fun updateDebtorCredits(newDebtorCredits: List<DebtorCredit>) {
@@ -33,16 +34,30 @@ class DebtorCreditAdapter(
 
     inner class ViewHolder(private val binding: ItemDebtorCreditBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(debtorCredit: DebtorCredit) {
-            val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+            val context = binding.root.context
+            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+            val format = NumberFormat.getCurrencyInstance(locale)
 
             binding.textCustomerName.text = debtorCredit.customerName
+            
+            val sdf = java.text.SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+            binding.textLastUpdated.text = "Updated: ${sdf.format(java.util.Date(debtorCredit.lastUpdated))}"
 
             if (debtorCredit.amount > 0) {
-                binding.textAmount.text = "Owes: ${format.format(debtorCredit.amount)}"
-                binding.textAmount.setTextColor(Color.RED)
+                // Positive Balance = Customer owes shop
+                binding.textAmount.text = format.format(debtorCredit.amount)
+                binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_error))
+                binding.buttonUpdateAmount.text = "SETTLE"
+            } else if (debtorCredit.amount < 0) {
+                // Negative Balance = Shop owes customer (Credit)
+                binding.textAmount.text = format.format(java.lang.Math.abs(debtorCredit.amount))
+                binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_primary))
+                binding.buttonUpdateAmount.text = "ADD CREDIT"
             } else {
-                binding.textAmount.text = "Change Due: ${format.format(-debtorCredit.amount)}"
-                binding.textAmount.setTextColor(Color.GREEN)
+                // Zero Balance = Settled
+                binding.textAmount.text = "Settled"
+                binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_success))
+                binding.buttonUpdateAmount.text = "NEW ENTRY"
             }
 
             binding.buttonUpdateAmount.setOnClickListener {
@@ -51,6 +66,11 @@ class DebtorCreditAdapter(
 
             binding.root.setOnClickListener {
                 onItemClicked(debtorCredit)
+            }
+
+            binding.root.setOnLongClickListener {
+                onItemLongClicked(debtorCredit)
+                true
             }
         }
     }

@@ -34,7 +34,7 @@ class OrdersActivity : AppCompatActivity() {
     private lateinit var binding: ActivityOrdersBinding
     private lateinit var repository: PrintRepository
     private lateinit var adapter: OrdersAdapter
-    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
 
     private var currentFilterType = FilterType.ALL
     private var currentStart: Long? = null

@@ -66,7 +66,8 @@ class DebtorsActivity : AppCompatActivity() {
         val owesMe = summaries.filter { it.type == "OWES" }.sumOf { it.totalBalance }
         val changeDue = summaries.filter { it.type == "CHANGE" }.sumOf { it.totalBalance }
         
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
         binding.textTotalOwed.text = format.format(owesMe)
         // Optionally display changeDue somewhere if layout allows
     }

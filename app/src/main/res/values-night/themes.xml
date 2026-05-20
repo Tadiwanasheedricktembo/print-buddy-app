@@ -1,41 +1,21 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+<resources>
     <style name="Base.Theme.TadiwaPrintBuddy" parent="Theme.Material3.Dark.NoActionBar">
-        <!-- Re-use values from main themes.xml as it's already dark-first -->
+        <item name="isLightTheme">false</item>
+
+        <!-- Brand Colors -->
         <item name="colorPrimary">@color/brand_primary</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorOnPrimary">@color/white</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
         <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
 
-        <item name="colorSecondary">@color/brand_secondary</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
-        <item name="colorSecondaryContainer">@color/secondary_container</item>
-        <item name="colorOnSecondaryContainer">@color/on_secondary_container</item>
-
         <item name="android:colorBackground">@color/brand_background</item>
+        <item name="android:windowBackground">@color/brand_background</item>
         <item name="colorSurface">@color/brand_surface</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <item name="colorSurfaceVariant">@color/brand_surface</item>
-        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
-        <item name="colorOutline">@color/brand_outline</item>
-        <item name="colorOutlineVariant">@color/brand_divider</item>
-
-        <item name="colorError">@color/brand_error</item>
-        <item name="colorOnError">#FFFFFF</item>
-        <item name="colorErrorContainer">@color/error_container</item>
-        <item name="colorOnErrorContainer">@color/on_error_container</item>
-
-        <!-- Status & Navigation Bar -->
-        <item name="android:statusBarColor">@color/brand_background</item>
-        <item name="android:navigationBarColor">@color/brand_background</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
 
         <!-- Component Styles -->
         <item name="materialCardViewStyle">@style/Widget.App.Card</item>
         <item name="materialButtonStyle">@style/Widget.App.Button</item>
         <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
-
-        <item name="bottomNavigationStyle">@style/Widget.App.BottomNavigationView</item>
     </style>
 </resources>

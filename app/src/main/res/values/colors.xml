@@ -1,67 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- PREMIUM DARK DESIGN SYSTEM (CORE) -->
-    <color name="brand_background">#0B0F14</color>
-    <color name="brand_surface">#111827</color>
+    <!-- 2026 PROFESSIONAL FINTECH SYSTEM (ULTRA-CLEAN DARK/DEEP) -->
 
-    <!-- ACCENTS -->
-    <color name="brand_primary">#22C55E</color> <!-- Success/Money -->
-    <color name="brand_secondary">#3B82F6</color> <!-- Action/Nav -->
-    <color name="brand_error">#EF4444</color> <!-- Negative -->
-    <color name="brand_warning">#F59E0B</color> <!-- Caution -->
+    <!-- Core Backgrounds (Professional Slate/Indigo) -->
+    <color name="brand_background">#0B0E14</color> <!-- Deepest neutral -->
+    <color name="brand_surface">#141820</color>    <!-- Subtle elevation -->
+    <color name="brand_surface_variant">#1C222D</color> <!-- Input/Hover states -->
 
-    <!-- TEXT HIERARCHY -->
-    <color name="text_primary">#E5E7EB</color>
-    <color name="text_secondary">#9CA3AF</color>
-    <color name="text_muted">#6B7280</color>
+    <!-- Accents (Sophisticated & Restrained) -->
+    <color name="brand_primary">#6366F1</color> <!-- Indigo Accent -->
+    <color name="brand_primary_light">#818CF8</color>
+    <color name="brand_secondary">#94A3B8</color> <!-- Muted Slate -->
 
-    <!-- UTILITIES -->
-    <color name="brand_divider">#1AFFFFFF</color> <!-- 10% White -->
-    <color name="brand_outline">#1F2937</color>
+    <!-- Financial Semantics (Subtle Tones) -->
+    <color name="brand_success">#10B981</color> <!-- Balanced Emerald -->
+    <color name="brand_error">#F43F5E</color>   <!-- Balanced Rose -->
+    <color name="brand_warning">#F59E0B</color>
 
-    <!-- TINTED CONTAINERS -->
-    <color name="primary_container">#064E3B</color>
-    <color name="on_primary_container">#DCFCE7</color>
-    <color name="secondary_container">#1E3A8A</color>
-    <color name="on_secondary_container">#DBEAFE</color>
-    <color name="error_container">#450A0A</color>
-    <color name="on_error_container">#FEE2E2</color>
+    <color name="brand_primary_gradient_start">#6366F1</color>
+    <color name="brand_primary_gradient_end">#818CF8</color>
 
-    <!-- LEGACY/COMPAT MAPPING (To prevent immediate breaking) -->
-    <color name="bg_dark">#0B0F14</color>
-    <color name="surface_dark">#111827</color>
-    <color name="primary_dark">#22C55E</color>
-    <color name="secondary_dark">#3B82F6</color>
-    <color name="text_primary_dark">#E5E7EB</color>
-    <color name="text_secondary_dark">#9CA3AF</color>
 
-    <color name="bg_light">#0B0F14</color> <!-- Enforcing dark theme even in light mode for consistency if desired, or map to light equivalent -->
-    <color name="surface_light">#111827</color>
-    <color name="primary_light">#22C55E</color>
-    <color name="secondary_light">#3B82F6</color>
-    <color name="text_primary_light">#E5E7EB</color>
-    <color name="text_secondary_light">#9CA3AF</color>
+    <!-- Text Hierarchy -->
+    <color name="text_primary">#F8FAFC</color>   <!-- High legibility white -->
+    <color name="text_secondary">#94A3B8</color> <!-- Muted metadata -->
+    <color name="text_muted">#475569</color>      <!-- Subtle cues -->
 
-    <color name="on_primary_light">#FFFFFF</color>
-    <color name="on_secondary_light">#FFFFFF</color>
-    <color name="error_soft">#EF4444</color>
-    <color name="on_error">#FFFFFF</color>
+    <!-- Dividers & Outlines (Ultra-fine) -->
+    <color name="brand_divider">#1E293B</color>
+    <color name="brand_outline">#334155</color>
 
-    <color name="primary_container_light">#064E3B</color>
-    <color name="on_primary_container_light">#DCFCE7</color>
-    <color name="secondary_container_light">#1E3A8A</color>
-    <color name="on_secondary_container_light">#DBEAFE</color>
-    <color name="error_container_light">#450A0A</color>
-    <color name="on_error_container_light">#FEE2E2</color>
+    <!-- Semantic Containers (Tonal, not loud) -->
+    <color name="success_container">#064E3B</color>
+    <color name="on_success_container">#34D399</color>
 
-    <color name="surface_variant_light">#1F2937</color>
-    <color name="on_surface_variant_light">#9CA3AF</color>
-    <color name="outline_light">#1F2937</color>
-    <color name="outline_variant_light">#1AFFFFFF</color>
+    <color name="error_container">#4C0519</color>
+    <color name="on_error_container">#FB7185</color>
 
-    <color name="surface_variant_dark">#1F2937</color>
-    <color name="on_surface_variant_dark">#9CA3AF</color>
-    <color name="outline_dark">#1F2937</color>
-    <color name="outline_variant_dark">#1AFFFFFF</color>
+    <color name="primary_container">#1E1B4B</color>
+    <color name="on_primary_container">#A5B4FC</color>
+
+    <!-- Legacy / Utility -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="nav_active">#6366F1</color>
+    <color name="nav_inactive">#475569</color>
 
 </resources>

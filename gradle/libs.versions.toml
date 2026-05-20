@@ -18,6 +18,7 @@ recyclerview = "1.3.2"
 workRuntimeKtx = "2.10.0"
 coreSplashscreen = "1.0.1"
 gson = "2.11.0"
+biometric = "1.2.0-alpha05"
 
 [libraries]
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
@@ -26,6 +27,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -44,6 +46,7 @@ androidx-activity = { group = "androidx.activity", name = "activity", version.re
 androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

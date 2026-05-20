@@ -10,7 +10,7 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
+        android:background="@color/brand_background"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -18,9 +18,52 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="Settlement History"
+            app:title="Ledger History"
             app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_search_embedded"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    app:tint="@color/text_secondary" />
+
+                <EditText
+                    android:id="@+id/editSearch"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:hint="Search transactions..."
+                    android:imeOptions="actionSearch"
+                    android:inputType="textPersonName"
+                    android:paddingHorizontal="10dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    android:id="@+id/imageClearSearch"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:visibility="gone"
+                    app:tint="@color/text_muted" />
+            </LinearLayout>
+        </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.recyclerview.widget.RecyclerView
@@ -28,17 +71,30 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:padding="@dimen/screen_padding"
+        android:paddingTop="8dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        tools:listitem="@layout/item_settlement" />
+        tools:listitem="@layout/item_settlement_group" />
 
     <TextView
         android:id="@+id/textEmpty"
-        style="@style/TextAppearance.App.Label"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="No settlement history found"
+        android:layout_marginTop="100dp"
+        android:gravity="center"
+        android:text="No transaction history"
+        android:textColor="@color/text_muted"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/textNoResults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="100dp"
+        android:gravity="center"
+        android:text="No matches found"
+        android:textColor="@color/text_muted"
+        android:textSize="15sp"
         android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

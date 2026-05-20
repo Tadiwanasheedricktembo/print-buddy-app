@@ -1,91 +1,188 @@
 <resources>
-    <string name="app_name">Tadiwa Print Buddy</string>
-    <string name="about">About</string>
-    <string name="about_description">A high-performance business companion designed to help print shops manage orders, transactions, and customer relationships with absolute precision.</string>
-    <string name="developed_by">Created by Tadiwa E Tembo</string>
-    <string name="app_description">A high-performance business companion designed to help print shops manage orders, transactions, and customer relationships with absolute precision.</string>
 
-    <string name="hello_welcome">Hello, Welcome!</string>
-    <string name="what_would_you_like_to_print_today">What would you like to print today?</string>
+    <string name="app_name">Print Buddy</string>
+
+    <!-- About -->
+    <string name="about">About</string>
+    <string name="about_title">About</string>
+
+    <string name="about_description">
+        A personal print shop companion built to help me manage printing orders,
+        track payments, and stay organized every day.
+    </string>
+
+    <string name="developed_by">Built by Tadiwa E Tembo</string>
+
+    <string name="app_description">
+        Manage print jobs, customer balances, payments, and daily business activity
+        from one simple workspace.
+    </string>
+
+    <!-- Welcome -->
+    <string name="hello_welcome">Hi, Tadiwa!</string>
+    <string name="ready_for_order">Ready for a new order?</string>
+    <string name="what_would_you_like_to_print_today">
+        Capture your print jobs in seconds.
+    </string>
 
     <!-- Contact Info -->
     <string name="website_url">https://tadiwaedricktembo.blogspot.com</string>
     <string name="email_address">tadiwanasheedricktembo@gmail.com</string>
     <string name="github_url">https://github.com/Tadiwanasheedricktembo/</string>
 
-    <string name="website_label">Visit Blog</string>
-    <string name="email_label">Support Email</string>
-    <string name="github_label">GitHub Repository</string>
-    <string name="about_title">About</string>
+    <string name="website_label">My Blog</string>
+    <string name="email_label">Contact Me</string>
+    <string name="github_label">GitHub</string>
 
+    <!-- Orders -->
     <string name="line_total_format">Line Total: %1$s</string>
     <string name="cart_total_format">Total: ₹ %.2f</string>
+
     <string name="complete_order">Complete Order</string>
     <string name="go_to_cart">GO TO CART</string>
-    <string name="no_orders_yet">No orders found</string>
 
-    <string name="settings">Settings</string>
-    <string name="reminders">Reminders</string>
-    <string name="enable_reminders">Enable Daily Reminders</string>
-    <string name="reminder_time">Reminder Time</string>
-    <string name="frequency">Frequency</string>
-    <string name="interval_hours">Interval (Hours)</string>
-    <string name="reminder_message">Reminder Message</string>
-    <string name="test_notification">TEST NOTIFICATION</string>
-    <string name="save_settings">SAVE SETTINGS</string>
-    <string name="settings_saved">Settings saved successfully</string>
-    <string name="permission_denied">Notification permission denied</string>
-
-    <!-- UI Labels -->
-    <string name="appearance">Appearance</string>
-    <string name="app_theme">App Theme</string>
-    <string name="theme_description">Choose how Tadiwa Print Buddy looks</string>
-    <string name="light_mode">Light</string>
-    <string name="dark_mode">Dark</string>
-    <string name="system_default">System</string>
-    <string name="notifications">Notifications</string>
+    <string name="no_orders_yet">No orders yet</string>
 
     <string name="order_details_caps">ORDER DETAILS</string>
     <string name="estimated_total_caps">ESTIMATED TOTAL</string>
-    <string name="confirm_save_order">CONFIRM &amp; SAVE ORDER</string>
-    <string name="new_order">Order</string>
+    <string name="confirm_save_order">SAVE ORDER</string>
+
+    <string name="new_order">New Order</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Analytics</string>
 
     <string name="total_revenue">Total Revenue</string>
+    <string name="net_profit">Net Profit</string>
     <string name="total_orders">Total Orders</string>
     <string name="todays_revenue">Today\'s Revenue</string>
 
-    <string name="owed_to_me">Owed to Me</string>
-    <string name="total_i_owe">Total I Owe</string>
-    <string name="settle_update">Settle / Update</string>
-    <string name="add_new_entry">Add New Entry</string>
-    <string name="developer_support">DEVELOPER &amp; SUPPORT</string>
+    <string name="label_revenue">REVENUE</string>
+    <string name="label_orders">ORDERS</string>
+
+    <string name="revenue_by_service">Revenue by Service</string>
+    <string name="daily_revenue">Daily Revenue</string>
+    <string name="business_revenue">Total Business Revenue</string>
+    <string name="revenue_breakdown">Revenue Breakdown</string>
+    <string name="service_performance">Service performance analysis</string>
+
+    <!-- Balances -->
+    <string name="owed_to_me">People Who Owe Me</string>
+    <string name="total_i_owe">What I Owe</string>
+
+    <string name="settle_update">Update Balance</string>
+    <string name="add_new_entry">Add Entry</string>
 
     <string name="total_outstanding">TOTAL OUTSTANDING</string>
     <string name="customer_balances">CUSTOMER BALANCES</string>
 
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+
+    <string name="appearance">APPEARANCE</string>
+    <string name="app_theme">App Theme</string>
+
+    <string name="theme_description">
+        Choose how you want the app to look.
+    </string>
+
+    <string name="light_mode">Light</string>
+    <string name="dark_mode">Dark</string>
+    <string name="system_default">System</string>
+
+    <!-- Notifications -->
+    <string name="notifications">NOTIFICATIONS</string>
+
+    <string name="reminders">Reminders</string>
+    <string name="enable_reminders">Enable Reminders</string>
+
+    <string name="reminder_time">Reminder Time</string>
+    <string name="frequency">Frequency</string>
+
+    <string name="interval_hours">Interval (Hours)</string>
+
+    <string name="reminder_message">Reminder Message</string>
+
+    <string name="test_notification">Test Notification</string>
+    <string name="save_settings">Save All Settings</string>
+
+    <string name="settings_saved">Settings saved</string>
+    <string name="permission_denied">
+        Notification permission denied
+    </string>
+
+    <!-- Security -->
+    <string name="security">SECURITY</string>
+    <string name="biometric_lock">Biometric Lock</string>
+    <string name="biometric_description">
+        Require fingerprint, face or PIN to open the app and protect your financial data.
+    </string>
+    <string name="app_locked">App Locked</string>
+    <string name="authenticate_to_continue">Authenticate to continue</string>
+    <string name="auth_error_unavailable">Biometric authentication is not available or not set up on this device.</string>
+    <string name="lock_app">Lock App</string>
+    <string name="unlock_app">Unlock App</string>
+    <string name="inventory_title">Inventory &amp; Stock</string>
+    <string name="manage_inventory">Manage Inventory &amp; Stock</string>
+    <string name="low_stock_alert">Low Stock: %1$s</string>
+    <string name="add_stock_item">Add Stock Item</string>
+    <string name="edit_stock_item">Edit Stock Item</string>
+    <string name="item_name_hint">Item Name (e.g. A4 Paper)</string>
+    <string name="current_qty_hint">Current Qty</string>
+    <string name="unit_hint">Unit (sheets/pcs)</string>
+    <string name="threshold_hint">Low Stock Threshold</string>
+    <string name="remaining_format">%1$d %2$s remaining</string>
+
+    <!-- Support -->
+    <string name="developer_support">DEVELOPER &amp; SUPPORT</string>
+
     <!-- Payment QR -->
     <string name="scan_to_pay">Scan to Pay</string>
     <string name="open_in_upi_app">Open in UPI App</string>
+
     <string name="mark_as_paid">Mark as Paid</string>
     <string name="close">Close</string>
+
     <string name="payment_qr_code">Payment QR Code</string>
-    <string name="no_upi_app_found">No UPI app found on this device</string>
-    <string name="order_saved_successfully">Order saved successfully</string>
+
+    <string name="no_upi_app_found">
+        No UPI app found on this device
+    </string>
+
+    <string name="order_saved_successfully">
+        Order saved successfully
+    </string>
+
     <string name="show_qr_code">Show QR Code</string>
 
+    <!-- Checkout -->
+    <string name="checkout">Checkout</string>
+    <string name="choose_settle_method">Choose how you want to settle this order</string>
+    <string name="settle_now">Settle Now</string>
+    <string name="add_as_debt">Add as Debt</string>
+    <string name="select_method">SELECT METHOD</string>
+    <string name="confirm_and_print">Confirm and Print</string>
+
+    <!-- History -->
+    <string name="activity_history">Activity History</string>
+    <string name="search_customer">Search customer...</string>
+    <string name="no_history_found">No history found</string>
+    <string name="no_matches_found">No matches found</string>
+    <string name="outstanding">OUTSTANDING</string>
+    <string name="added">Added</string>
+    <string name="balance">Balance</string>
+
+    <!-- Payment -->
     <string name="payment_status">Payment Status</string>
     <string name="payment_method">Payment Method</string>
+
     <string name="status_paid">Paid</string>
     <string name="status_owes_me">Owes Me</string>
+
     <string name="method_cash">CASH</string>
     <string name="method_upi">UPI</string>
 
-    <!-- Dashboard -->
-    <string name="dashboard_title">Business Insights</string>
-    <string name="label_revenue">REVENUE</string>
-    <string name="label_orders">ORDERS</string>
-    <string name="revenue_by_service">Revenue by Service Type</string>
-
-    <!-- Content Descriptions -->
+    <!-- Accessibility -->
     <string name="desc_wallet">Wallet Shortcut</string>
+
 </resources>

@@ -2,6 +2,7 @@ package com.tadiwaprintbuddy.app.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
@@ -13,7 +14,8 @@ import androidx.room.PrimaryKey
             childColumns = ["orderId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["orderId"])]
 )
 data class OrderItem(
     @PrimaryKey(autoGenerate = true)

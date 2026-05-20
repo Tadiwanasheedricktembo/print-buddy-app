@@ -2,6 +2,7 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.App.Card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
@@ -15,18 +16,15 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content">
 
             <TextView
                 android:id="@+id/textCustomerName"
                 style="@style/TextAppearance.App.Title"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:textSize="16sp"
                 tools:text="John Doe" />
 
@@ -35,83 +33,111 @@
                 style="@style/TextAppearance.App.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_below="@id/textCustomerName"
+                android:layout_marginTop="2dp"
+                android:alpha="0.6"
+                android:textSize="11sp"
                 tools:text="Oct 24, 2023 10:30 AM" />
-        </LinearLayout>
+
+            <TextView
+                android:id="@+id/textType"
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/bg_badge_gray"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textAllCaps="true"
+                tools:text="PAYMENT" />
+        </RelativeLayout>
 
         <com.google.android.material.divider.MaterialDivider
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginVertical="12dp"
+            android:layout_marginVertical="16dp"
             app:dividerColor="@color/brand_divider" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-
                 <TextView
-                    android:id="@+id/labelPrevious"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Prev. Balance"
+                    android:text="Previous"
                     android:textSize="10sp"
-                    android:textStyle="bold" />
-
+                    android:alpha="0.7"/>
                 <TextView
                     android:id="@+id/textBalanceBefore"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     tools:text="₹ 1,000.00" />
             </LinearLayout>
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_arrow_forward"
+                android:alpha="0.3"
+                app:tint="@color/text_primary" />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_weight="1.2"
+                android:gravity="center"
                 android:orientation="vertical">
-
                 <TextView
                     android:id="@+id/labelTransAmount"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Added/Paid"
+                    android:text="Transaction"
                     android:textSize="10sp"
-                    android:textStyle="bold" />
-
+                    android:alpha="0.7"/>
                 <TextView
                     android:id="@+id/textTransAmount"
                     style="@style/TextAppearance.App.Value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="16sp"
-                    tools:text="₹ 500.00" />
+                    tools:text="- ₹ 500.00" />
             </LinearLayout>
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_arrow_forward"
+                android:alpha="0.3"
+                app:tint="@color/text_primary" />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:gravity="end"
                 android:orientation="vertical">
-
                 <TextView
-                    android:id="@+id/labelNew"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="New Balance"
                     android:textSize="10sp"
-                    android:textStyle="bold" />
-
+                    android:alpha="0.7"/>
                 <TextView
                     android:id="@+id/textBalanceAfter"
                     style="@style/TextAppearance.App.Label"
@@ -119,39 +145,24 @@
                     android:layout_height="wrap_content"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold"
+                    android:textSize="13sp"
                     tools:text="₹ 500.00" />
             </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/textNote"
+            style="@style/TextAppearance.App.Label"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
-
-            <TextView
-                android:id="@+id/textType"
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_badge_gray"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="2dp"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                tools:text="PAYMENT" />
-
-            <TextView
-                android:id="@+id/textNote"
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:textSize="11sp"
-                android:textStyle="italic"
-                tools:text="Note: Order Payment" />
-        </LinearLayout>
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_badge_gray"
+            android:backgroundTint="#0AFFFFFF"
+            android:padding="8dp"
+            android:textSize="11sp"
+            android:textStyle="italic"
+            android:alpha="0.8"
+            tools:text="Note: Payment via UPI - For Printing Order #1234" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

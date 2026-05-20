@@ -15,7 +15,9 @@ import androidx.lifecycle.lifecycleScope
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -40,8 +42,13 @@ class MainActivity : AppCompatActivity() {
         setupTextWatchers()
         calculateLineTotal()
         runEntranceAnimations()
+        observeMetrics()
         
         ReminderScheduler(this).scheduleReminder()
+    }
+
+    private fun observeMetrics() {
+        // Stats removed from UI
     }
 
     private fun runEntranceAnimations() {
@@ -61,7 +68,21 @@ class MainActivity : AppCompatActivity() {
             R.id.action_beauty_account -> {
                 val intent = Intent(this, BeautyAccountActivity::class.java)
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_right, R.anim.slide_out_left)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                }
+                true
+            }
+            R.id.action_expenses -> {
+                startActivity(Intent(this, ExpenseActivity::class.java))
+                true
+            }
+            R.id.action_lock -> {
+                SecurityManager.getInstance(this).lockApp()
+                recreate()
                 true
             }
             R.id.action_settings -> {
@@ -149,13 +170,37 @@ class MainActivity : AppCompatActivity() {
         val price = binding.editPrice.text.toString().toDoubleOrNull() ?: 0.0
         val total = quantity * price
 
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
         
-        if (binding.textLineTotal.text.toString() != format.format(total)) {
-            binding.textLineTotal.animate().alpha(0f).setDuration(100).withEndAction {
-                binding.textLineTotal.text = format.format(total)
-                binding.textLineTotal.animate().alpha(1f).setDuration(100).start()
-            }.start()
+        lifecycleScope.launch {
+            val customerName = binding.editCustomerName.text.toString()
+            val existingBalance = if (customerName.isNotBlank()) {
+                repository.getCustomerBalance(customerName)
+            } else 0.0
+
+            withContext(Dispatchers.Main) {
+                if (total > 0) {
+                    binding.layoutOrderBreakdown.visibility = View.VISIBLE
+                    binding.textOrderTotalRaw.text = format.format(total)
+
+                    if (existingBalance < 0) {
+                        // Customer has credit
+                        val creditAvailable = Math.abs(existingBalance)
+                        val creditUsed = Math.min(total, creditAvailable)
+                        val toPay = Math.max(0.0, total - creditUsed)
+
+                        binding.layoutCreditUsage.visibility = View.VISIBLE
+                        binding.textCreditUsed.text = "- ${format.format(creditUsed)}"
+                        binding.textLineTotal.text = format.format(toPay)
+                    } else {
+                        binding.layoutCreditUsage.visibility = View.GONE
+                        binding.textLineTotal.text = format.format(total)
+                    }
+                } else {
+                    binding.layoutOrderBreakdown.visibility = View.GONE
+                }
+            }
         }
 
         binding.btnCompleteOrder.isEnabled = quantity > 0 && price > 0
@@ -193,11 +238,19 @@ class MainActivity : AppCompatActivity() {
             // Using "General" as a fallback default service name to ensure database compatibility
             cartItems.add(CartItem("General", price, quantity))
 
-            if (paymentStatus == "Owes Me") {
-                repository.addOrUpdateDebtorCredit(customerName, lineTotal)
-            }
-
+            // Use orders as the source of truth for customer debt.
+            // Do NOT call addOrUpdateDebtorCredit here as it creates a
+            // settlement and summary entry in addition to the order
+            // which results in double-counting the same debt.
             repository.confirmOrder(customerName, cartItems, paymentMethod)
+
+            // Auto-deduct from stock if service name matches a stock item
+            for (item in cartItems) {
+                val stockItem = repository.getStockItemByName(item.serviceName)
+                if (stockItem != null) {
+                    repository.deductStockByName(item.serviceName, item.quantity)
+                }
+            }
 
             Toast.makeText(this@MainActivity, "Order saved successfully!", Toast.LENGTH_SHORT).show()
             cartItems.clear()

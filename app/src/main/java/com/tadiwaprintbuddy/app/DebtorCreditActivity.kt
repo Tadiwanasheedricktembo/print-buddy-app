@@ -75,9 +75,26 @@ class DebtorCreditActivity : AppCompatActivity() {
                 putExtra("EXTRA_CUSTOMER_NAME", debtorCredit.customerName)
             }
             startActivity(intent)
+        }, { debtorCredit ->
+            showDeleteCustomerDialog(debtorCredit)
         })
         binding.recyclerDebtorCredits.layoutManager = LinearLayoutManager(this)
         binding.recyclerDebtorCredits.adapter = adapter
+    }
+
+    private fun showDeleteCustomerDialog(debtorCredit: DebtorCredit) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Customer")
+            .setMessage("Are you sure you want to delete ${debtorCredit.customerName}? This will also delete all their orders and settlement history.")
+            .setPositiveButton("Delete") { _, _ ->
+                lifecycleScope.launch {
+                    repository.deleteCustomerCompletely(debtorCredit.customerId)
+                    loadDebtorCredits()
+                    Toast.makeText(this@DebtorCreditActivity, "Customer deleted", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun setupSearch() {
@@ -111,31 +128,26 @@ class DebtorCreditActivity : AppCompatActivity() {
     }
 
     private fun updateFilterUI() {
+        val activeAlpha = 1.0f
+        val inactiveAlpha = 0.4f
+
         when (currentFilter) {
             FilterMode.ALL -> {
-                binding.cardOwesMe.alpha = 1.0f
-                binding.cardIOwe.alpha = 1.0f
-                binding.cardOwesMe.strokeWidth = 0
-                binding.cardIOwe.strokeWidth = 0
+                binding.cardOwesMe.alpha = activeAlpha
+                binding.cardIOwe.alpha = activeAlpha
                 binding.textFilterLabel.visibility = View.GONE
             }
             FilterMode.OWES_ME -> {
-                binding.cardOwesMe.alpha = 1.0f
-                binding.cardIOwe.alpha = 0.5f
-                binding.cardOwesMe.strokeWidth = dpToPx(2)
-                binding.cardOwesMe.strokeColor = ContextCompat.getColor(this, R.color.brand_secondary)
-                binding.cardIOwe.strokeWidth = 0
+                binding.cardOwesMe.alpha = activeAlpha
+                binding.cardIOwe.alpha = inactiveAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
-                binding.textFilterLabel.text = "Showing customers who owe me"
+                binding.textFilterLabel.text = "Filtering: Owed to me"
             }
             FilterMode.I_OWE_CHANGE -> {
-                binding.cardOwesMe.alpha = 0.5f
-                binding.cardIOwe.alpha = 1.0f
-                binding.cardOwesMe.strokeWidth = 0
-                binding.cardIOwe.strokeWidth = dpToPx(2)
-                binding.cardIOwe.strokeColor = ContextCompat.getColor(this, R.color.brand_secondary)
+                binding.cardOwesMe.alpha = inactiveAlpha
+                binding.cardIOwe.alpha = activeAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
-                binding.textFilterLabel.text = "Showing customers I owe change"
+                binding.textFilterLabel.text = "Filtering: I owe change"
             }
         }
     }
@@ -252,7 +264,8 @@ class DebtorCreditActivity : AppCompatActivity() {
     private fun updateTotals(debtorCredits: List<DebtorCredit>) {
         val totalOwedToMe = debtorCredits.filter { it.amount > 0 }.sumOf { it.amount }
         val totalIOwe = debtorCredits.filter { it.amount < 0 }.sumOf { -it.amount }
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
 
         binding.textTotalOwedToMe.text = format.format(totalOwedToMe)
         binding.textTotalIOwe.text = format.format(totalIOwe)
@@ -275,17 +288,17 @@ class DebtorCreditActivity : AppCompatActivity() {
                 }
 
                 val currentAmount = debtorCredit.amount
-                val amountDelta = if (currentAmount > 0) -paymentAmount else paymentAmount
-                val remainingAfter = currentAmount + amountDelta
-
-                if ((currentAmount > 0 && remainingAfter < 0) || (currentAmount < 0 && remainingAfter > 0)) {
-                    Toast.makeText(this, "Amount exceeds remaining balance", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
+                // We always subtract the payment from the balance
+                // If balance is 50 and they pay 100, delta is -100, new balance is -50 (I owe them)
+                // If balance is -50 and they pay (return change) 50, delta is 50, new balance is 0
+                val amountDelta = if (currentAmount >= 0) -paymentAmount else paymentAmount
 
                 lifecycleScope.launch {
                     repository.addOrUpdateDebtorCredit(debtorCredit.customerName, amountDelta)
-                    loadDebtorCredits()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@DebtorCreditActivity, "Payment applied successfully", Toast.LENGTH_SHORT).show()
+                        loadDebtorCredits()
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)

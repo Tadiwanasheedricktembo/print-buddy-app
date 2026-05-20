@@ -56,12 +56,30 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
+    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_dashboard, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_inventory -> {
+                startActivity(Intent(this, InventoryActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     private fun observeInsights() {
-        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
 
         lifecycleScope.launch {
             repository.getTotalRevenueFlow().collectLatest { revenue ->
                 binding.textTotalRevenue.text = format.format(revenue ?: 0.0)
+                val netProfit = repository.getNetProfit()
+                binding.textNetProfit.text = format.format(netProfit)
             }
         }
 
@@ -72,12 +90,30 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
+            repository.getCashInHandFlow().collectLatest { cash ->
+                binding.textCashInHand.text = format.format(cash ?: 0.0)
+            }
+        }
+
+        lifecycleScope.launch {
             repository.getRevenueByCategoryFlow().collectLatest { data ->
                 if (data.isNotEmpty()) {
                     binding.categoryChart.visibility = View.VISIBLE
                     setupPieChart(binding.categoryChart, data)
                 } else {
                     binding.categoryChart.visibility = View.GONE
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repository.getLowStockItemsFlow().collectLatest { lowStock ->
+                if (lowStock.isNotEmpty()) {
+                    binding.cardLowStock.visibility = View.VISIBLE
+                    val names = lowStock.joinToString(", ") { it.name }
+                    binding.textLowStockAlert.text = getString(R.string.low_stock_alert, names)
+                } else {
+                    binding.cardLowStock.visibility = View.GONE
                 }
             }
         }

@@ -42,7 +42,7 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
         }
 
         binding.btnConfirmPayment.setOnClickListener {
-            val status = if (isPaidSelected) "Paid" else "Owes Me"
+            val status = if (isPaidSelected) "Paid" else "Credit"
             val method = if (isPaidSelected) {
                 if (binding.toggleGroupPaymentMethod.checkedButtonId == R.id.btnCash) "CASH" else "UPI"
             } else {

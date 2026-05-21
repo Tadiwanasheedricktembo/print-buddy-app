@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="Analytics"
+            app:title="ANALYTICS"
             app:titleCentered="true"
             app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
@@ -34,7 +34,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="20dp"
+            android:paddingHorizontal="16dp"
             android:paddingBottom="40dp">
 
             <!-- Primary Metrics Row -->
@@ -42,86 +42,86 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 android:layout_marginBottom="12dp">
 
                 <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.App.Card"
                     android:id="@+id/cardRevenue"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="110dp"
                     android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    app:cardBackgroundColor="@color/brand_primary"
-                    app:cardElevation="4dp"
+                    android:layout_marginEnd="8dp"
+                    app:cardBackgroundColor="@color/brand_success"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
                     app:strokeWidth="0dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
 
                         <TextView
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Revenue"
+                            android:text="REVENUE"
                             android:textColor="@color/white"
-                            android:alpha="0.8"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:textAllCaps="true" />
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/textTotalRevenue"
                             style="@style/TextAppearance.App.Value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="6dp"
                             android:textColor="@color/white"
-                            android:textSize="18sp"
-                            tools:text="₹15,250" />
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            tools:text="₹2,681.00" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.App.Card"
                     android:id="@+id/cardNetProfit"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="110dp"
                     android:layout_weight="1"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="8dp"
                     app:cardBackgroundColor="@color/brand_success"
-                    app:cardElevation="4dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp"
                     app:strokeWidth="0dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
 
                         <TextView
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Net Profit"
+                            android:text="NET PROFIT"
                             android:textColor="@color/white"
-                            android:alpha="0.8"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:textAllCaps="true" />
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/textNetProfit"
                             style="@style/TextAppearance.App.Value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="6dp"
                             android:textColor="@color/white"
-                            android:textSize="18sp"
-                            tools:text="₹12,400" />
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            tools:text="₹2,681.00" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -129,12 +129,12 @@
             <!-- Low Stock Alerts -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardLowStock"
-                style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:visibility="gone"
                 app:cardBackgroundColor="#FEF2F2"
+                app:cardCornerRadius="16dp"
                 app:strokeColor="@color/brand_error"
                 app:strokeWidth="1dp"
                 tools:visibility="visible">
@@ -171,86 +171,94 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:baselineAligned="false"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="24dp">
 
                 <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.App.Card"
                     android:id="@+id/cardOrders"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="90dp"
                     android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
+                    android:layout_marginEnd="8dp"
                     app:cardBackgroundColor="@color/brand_surface"
+                    app:cardCornerRadius="28dp"
                     app:strokeWidth="1dp"
                     app:strokeColor="@color/brand_divider">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
 
                         <TextView
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Orders"
+                            android:text="ORDERS"
+                            android:textColor="@color/text_secondary"
                             android:textStyle="bold"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
 
                         <TextView
                             android:id="@+id/textTotalOrders"
                             style="@style/TextAppearance.App.Title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textSize="18sp"
-                            tools:text="32" />
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            tools:text="21" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.App.Card"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="90dp"
                     android:layout_weight="1"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="8dp"
                     app:cardBackgroundColor="@color/brand_surface"
+                    app:cardCornerRadius="28dp"
                     app:strokeWidth="1dp"
                     app:strokeColor="@color/brand_divider">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:gravity="center_vertical"
+                        android:padding="20dp">
 
                         <TextView
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Cash"
+                            android:text="CASH"
+                            android:textColor="@color/text_secondary"
                             android:textStyle="bold"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
 
                         <TextView
                             android:id="@+id/textCashInHand"
                             style="@style/TextAppearance.App.Title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textSize="18sp"
-                            tools:text="₹2,450" />
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            tools:text="₹2,681.00" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
             <!-- Analytics Chart -->
             <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="@color/brand_surface"
+                app:cardCornerRadius="32dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="@color/brand_divider">
 
@@ -258,20 +266,22 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="24dp">
 
                     <TextView
                         style="@style/TextAppearance.App.Title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Revenue Breakdown"
+                        android:text="REVENUE BREAKDOWN"
+                        android:textColor="@color/text_secondary"
+                        android:textStyle="bold"
                         android:textSize="14sp" />
 
                     <com.github.mikephil.charting.charts.PieChart
                         android:id="@+id/categoryChart"
                         android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginTop="12dp" />
+                        android:layout_height="320dp"
+                        android:layout_marginTop="16dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

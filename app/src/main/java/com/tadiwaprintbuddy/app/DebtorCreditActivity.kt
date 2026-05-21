@@ -141,13 +141,13 @@ class DebtorCreditActivity : AppCompatActivity() {
                 binding.cardOwesMe.alpha = activeAlpha
                 binding.cardIOwe.alpha = inactiveAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
-                binding.textFilterLabel.text = "Filtering: Owed to me"
+                binding.textFilterLabel.text = "Filtering: OWES ME"
             }
             FilterMode.I_OWE_CHANGE -> {
                 binding.cardOwesMe.alpha = inactiveAlpha
                 binding.cardIOwe.alpha = activeAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
-                binding.textFilterLabel.text = "Filtering: I owe change"
+                binding.textFilterLabel.text = "Filtering: I OWE CHANGE"
             }
         }
     }

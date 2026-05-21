@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import com.tadiwaprintbuddy.app.data.BeautyTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import kotlinx.coroutines.launch
 
@@ -30,6 +31,12 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
             if (currentBalance != 0.0) {
                 repository.insertBeautyTransaction(-currentBalance, "RESET", "Balance reset to zero")
             }
+        }
+    }
+
+    fun deleteTransaction(transaction: BeautyTransaction) {
+        viewModelScope.launch {
+            repository.deleteBeautyTransaction(transaction)
         }
     }
 }

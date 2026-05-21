@@ -67,16 +67,22 @@ class PrintRepository(private val printDao: PrintDao) {
         }
     }
 
-    suspend fun confirmOrder(customerName: String, cartItems: List<CartItem>, paymentMethod: String = "CASH"): Int {
+    suspend fun confirmOrder(
+        customerName: String, 
+        cartItems: List<CartItem>, 
+        paymentMethod: String = "CASH",
+        appliedCredit: Double = 0.0
+    ): Int {
         if (cartItems.isEmpty()) return -1
 
         val customer = getOrCreateCustomer(customerName)
         val total = cartItems.sumOf { it.price * it.quantity }
         
-        val finalPaidAmount = if (paymentMethod == "OWES_ME") 0.0 else total
+        val amountAfterCredit = total - appliedCredit
+        
+        val finalPaidAmount = if (paymentMethod == "OWES_ME") 0.0 else amountAfterCredit
         val finalPaymentMethod = if (paymentMethod == "OWES_ME") "CASH" else paymentMethod
 
-        // Capture balance snapshots
         val previousBalance = getCustomerBalanceById(customer.id)
         val transactionAmount = total - finalPaidAmount
         val newBalance = previousBalance + transactionAmount
@@ -95,18 +101,24 @@ class PrintRepository(private val printDao: PrintDao) {
 
         val orderItems = cartItems.map { cartItem ->
             OrderItem(
-                orderId = 0, // Will be set by DAO
+                orderId = 0,
                 serviceName = cartItem.serviceName,
                 price = cartItem.price,
                 quantity = cartItem.quantity
             )
         }
         
-        // Use the new atomic DAO method
         val orderId = printDao.recordCommercialOrder(order, orderItems)
         
         if (finalPaymentMethod == "UPI" && finalPaidAmount > 0) {
             insertBeautyTransaction(finalPaidAmount, "ADD", "Direct Pay - ${customer.displayName}")
+        }
+
+        for (item in cartItems) {
+            val stockItem = printDao.getStockItemByName(item.serviceName)
+            if (stockItem != null) {
+                printDao.deductStockByName(item.serviceName, item.quantity)
+            }
         }
 
         return orderId
@@ -360,6 +372,27 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getBeautyBalance(): Double? = printDao.getBeautyBalance()
 
     suspend fun getCurrentBeautyBalance(): Double = printDao.getCurrentBeautyBalance()
+
+    suspend fun deleteBeautyTransaction(transaction: BeautyTransaction) {
+        // 1. Delete the transaction
+        printDao.deleteBeautyTransaction(transaction)
+
+        // 2. Rebuild subsequent transactions to keep balance correct
+        val after = printDao.getBeautyTransactionsAfter(transaction.timestamp, transaction.id)
+        var runningBalance = printDao.getBeautyBalanceBefore(transaction.timestamp, transaction.id) ?: 0.0
+
+        for (item in after) {
+            val previousBalance = runningBalance
+            val newBalance = if (item.type == "RESET") item.amount else previousBalance + item.transactionAmount
+            
+            val updated = item.copy(
+                previousBalance = previousBalance,
+                newBalance = newBalance
+            )
+            printDao.updateBeautyTransaction(updated)
+            runningBalance = newBalance
+        }
+    }
 
     // Compatibility methods for External Ledger
     suspend fun getExternalBalance(): Double? = getBeautyBalance()

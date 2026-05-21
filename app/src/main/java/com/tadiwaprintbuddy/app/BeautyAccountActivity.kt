@@ -1,5 +1,6 @@
 package com.tadiwaprintbuddy.app
 
+import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -30,17 +31,33 @@ class BeautyAccountActivity : AppCompatActivity() {
     private val viewModel: BeautyAccountViewModel by viewModels {
         BeautyAccountViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
     }
-    private val transactionAdapter = TransactionAdapter()
+    private lateinit var transactionAdapter: TransactionAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityBeautyAccountBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        transactionAdapter = TransactionAdapter { transaction ->
+            showDeleteConfirmDialog(transaction)
+        }
+
         setupToolbar()
         setupRecyclerView()
         setupClickListeners()
         observeViewModel()
+    }
+
+    private fun showDeleteConfirmDialog(transaction: BeautyTransaction) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Transaction?")
+            .setMessage("Are you sure you want to remove this transaction? The balance will be automatically recalculated.")
+            .setPositiveButton("Delete") { _, _ ->
+                viewModel.deleteTransaction(transaction)
+                Toast.makeText(this, "Transaction deleted", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun setupToolbar() {
@@ -75,7 +92,7 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle("Reset Totals?")
-            .setMessage("This will bring your balance to ₹0 by recording a reset entry. History will NOT be deleted.")
+            .setMessage("This will reset all totals. Are you sure?")
             .setPositiveButton("Reset") { _, _ ->
                 viewModel.resetBalance()
                 Toast.makeText(this, "Totals reset recorded", Toast.LENGTH_SHORT).show()
@@ -88,12 +105,19 @@ class BeautyAccountActivity : AppCompatActivity() {
         viewModel.balance.observe(this) { balance ->
             val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
             val format = NumberFormat.getCurrencyInstance(locale)
-            binding.textCurrentBalance.text = format.format(balance ?: 0.0)
+            val current = balance ?: 0.0
+            binding.textCurrentBalance.text = format.format(current)
+            if (current == 0.0) {
+                binding.textCurrentBalance.setTextColor(0xFFFF5252.toInt())
+            } else {
+                binding.textCurrentBalance.setTextColor(Color.WHITE)
+            }
         }
 
         viewModel.transactions.observe(this) { transactions ->
             val count = transactions?.size ?: 0
-            binding.textTransactionCount.text = if (count == 1) "1 transaction" else "$count transactions"
+            val countText = if (count == 1) "1 TRANSACTION" else "$count TRANSACTIONS"
+            binding.textTransactionCount.text = countText
             transactionAdapter.submitList(transactions ?: emptyList())
         }
     }
@@ -162,7 +186,7 @@ class BeautyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private class TransactionAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private class TransactionAdapter(private val onLongPress: (BeautyTransaction) -> Unit) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var originalTransactions = listOf<BeautyTransaction>()
         private var items = listOf<Any>()
         private val expandedHeaders = mutableSetOf<String>()
@@ -238,30 +262,30 @@ class BeautyAccountActivity : AppCompatActivity() {
                 val format = NumberFormat.getCurrencyInstance(locale)
                 val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
                 
-                holder.textNote.text = if (item.type == "RESET") "Totals Reset" else item.note ?: "Manual Entry"
-                holder.textTimestamp.text = dateFormat.format(Date(item.timestamp))
+                holder.textNote.text = (if (item.type == "RESET") "TOTALS RESET" else item.note ?: "MANUAL ENTRY").uppercase(Locale.getDefault())
+                holder.textTimestamp.text = dateFormat.format(Date(item.timestamp)).uppercase(Locale.getDefault())
 
                 when (item.type) {
                     "ADD" -> {
                         holder.textAmount.text = "+ ${format.format(item.amount)}"
-                        holder.textAmount.setTextColor(0xFF2E7D32.toInt())
-                        holder.imageTransactionType.setImageResource(android.R.drawable.ic_input_add)
-                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(0xFF2E7D32.toInt())
-                        holder.cardIcon.setCardBackgroundColor(0x1A2E7D32)
+                        holder.textAmount.setTextColor(0xFF00C853.toInt()) // primary_accent
+                        holder.imageTransactionType.setImageResource(R.drawable.ic_check)
+                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                        holder.cardIcon.setCardBackgroundColor(0xFF00C853.toInt())
                     }
                     "RETURN" -> {
                         holder.textAmount.text = "- ${format.format(item.amount)}"
-                        holder.textAmount.setTextColor(0xFFC62828.toInt())
-                        holder.imageTransactionType.setImageResource(android.R.drawable.ic_menu_revert)
-                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(0xFFC62828.toInt())
-                        holder.cardIcon.setCardBackgroundColor(0x1AC62828)
+                        holder.textAmount.setTextColor(0xFFFF5252.toInt()) // destructive
+                        holder.imageTransactionType.setImageResource(R.drawable.ic_history)
+                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                        holder.cardIcon.setCardBackgroundColor(0xFFFF5252.toInt())
                     }
                     "RESET" -> {
                         holder.textAmount.text = format.format(item.amount)
-                        holder.textAmount.setTextColor(0xFFFF9800.toInt())
+                        holder.textAmount.setTextColor(0xFFFFB300.toInt()) // warning
                         holder.imageTransactionType.setImageResource(android.R.drawable.ic_menu_delete)
-                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFF9800.toInt())
-                        holder.cardIcon.setCardBackgroundColor(0x1AFF9800)
+                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                        holder.cardIcon.setCardBackgroundColor(0xFFFFB300.toInt())
                     }
                 }
 
@@ -271,6 +295,11 @@ class BeautyAccountActivity : AppCompatActivity() {
                     holder.textBalanceFlow.text = "Balance: ${format.format(item.previousBalance)} → ${format.format(item.newBalance)}"
                 } else {
                     holder.layoutClarity.visibility = View.GONE
+                }
+
+                holder.itemView.setOnLongClickListener {
+                    onLongPress(item)
+                    true
                 }
             }
         }

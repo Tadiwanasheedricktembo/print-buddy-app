@@ -89,6 +89,10 @@ I started this printing business to make money doing what I'm good at. But track
 
 If you're in the printing game like me, this is your app too.
 
+## SCREENSHOTS OF THE APP
+<img width="720" height="1600" alt="Screenshot_20260522-024346" src="https://github.com/user-attachments/assets/a4922ee6-20b6-4e05-bdb4-fefdbc76ecfa" />
+
+
 **By:** Tadiwanashe E Tembo (@Querycubix)  
 **For My Print Shop** 🖨️
 

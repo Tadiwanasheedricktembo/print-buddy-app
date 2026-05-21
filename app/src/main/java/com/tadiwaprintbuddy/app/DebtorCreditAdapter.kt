@@ -38,26 +38,36 @@ class DebtorCreditAdapter(
             val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
             val format = NumberFormat.getCurrencyInstance(locale)
 
-            binding.textCustomerName.text = debtorCredit.customerName
+            binding.textCustomerName.text = debtorCredit.customerName.uppercase(Locale.getDefault())
             
             val sdf = java.text.SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
             binding.textLastUpdated.text = "Updated: ${sdf.format(java.util.Date(debtorCredit.lastUpdated))}"
 
             if (debtorCredit.amount > 0) {
-                // Positive Balance = Customer owes shop
+                // Customer owes shop
                 binding.textAmount.text = format.format(debtorCredit.amount)
                 binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_error))
-                binding.buttonUpdateAmount.text = "SETTLE"
+                binding.textLabelStatus.text = "AMOUNT OWED"
+                
+                val iconBg = if (bindingAdapterPosition % 2 == 0) R.color.icon_bg_purple else R.color.icon_bg_blue
+                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, iconBg))
+                binding.imageIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             } else if (debtorCredit.amount < 0) {
-                // Negative Balance = Shop owes customer (Credit)
-                binding.textAmount.text = format.format(java.lang.Math.abs(debtorCredit.amount))
-                binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_primary))
-                binding.buttonUpdateAmount.text = "ADD CREDIT"
+                // Shop owes customer
+                binding.textAmount.text = "-${format.format(java.lang.Math.abs(debtorCredit.amount))}"
+                binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.change_green))
+                binding.textLabelStatus.text = "CHANGE DUE"
+                
+                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.icon_bg_blue))
+                binding.imageIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             } else {
-                // Zero Balance = Settled
+                // Settled
                 binding.textAmount.text = "Settled"
                 binding.textAmount.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_success))
-                binding.buttonUpdateAmount.text = "NEW ENTRY"
+                binding.textLabelStatus.text = "BALANCE CLEAR"
+                
+                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_surface_variant))
+                binding.imageIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             }
 
             binding.buttonUpdateAmount.setOnClickListener {

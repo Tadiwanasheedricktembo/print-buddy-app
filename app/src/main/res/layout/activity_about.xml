@@ -4,12 +4,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/brand_background">
+    android:background="@color/primary_bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/brand_background"
+        android:background="@color/primary_bg"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -20,7 +20,7 @@
             app:navigationIconTint="@color/text_primary"
             app:title="About"
             app:titleCentered="true"
-            app:titleTextAppearance="@style/TextAppearance.App.Title"
+            app:titleTextAppearance="@style/TextAppearance.App.H2"
             app:titleTextColor="@color/text_primary" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -41,7 +41,7 @@
                 android:layout_width="160dp"
                 android:layout_height="160dp"
                 android:layout_marginTop="48dp"
-                app:cardBackgroundColor="@color/primary_container"
+                app:cardBackgroundColor="@color/surface_elevated"
                 app:cardCornerRadius="32dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="0dp">
@@ -51,11 +51,11 @@
                     android:layout_height="match_parent"
                     android:padding="32dp"
                     android:src="@drawable/ic_printer"
-                    app:tint="@color/brand_primary" />
+                    app:tint="@color/primary_accent" />
             </com.google.android.material.card.MaterialCardView>
 
             <TextView
-                style="@style/TextAppearance.App.Heading"
+                style="@style/TextAppearance.App.H1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
@@ -70,7 +70,7 @@
                 tools:text="Version 1.0.0" />
 
             <TextView
-                style="@style/TextAppearance.App.Label"
+                style="@style/TextAppearance.App.Body1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
@@ -88,11 +88,11 @@
                 android:textStyle="bold" />
 
             <TextView
-                style="@style/TextAppearance.App.Title"
+                style="@style/TextAppearance.App.H2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Querycubix" />
+                android:text="Tadiwa E Tembo" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -107,7 +107,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/website_label"
                     android:gravity="start|center_vertical"
-                    app:icon="@drawable/ic_dashboard" />
+                    app:icon="@drawable/ic_analytics" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnEmail"
@@ -133,14 +133,14 @@
                 android:layout_width="100dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="48dp"
-                app:dividerColor="@color/brand_divider" />
+                app:dividerColor="@color/border_divider" />
 
             <TextView
                 style="@style/TextAppearance.App.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="© 2026 Querycubix. All rights reserved."
+                android:text="© 2026 Tadiwa Print Buddy. All rights reserved."
                 android:textSize="10sp" />
 
         </LinearLayout>

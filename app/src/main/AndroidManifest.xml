@@ -95,6 +95,16 @@
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <activity
+            android:name=".DebtorsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
+            android:name=".DebtActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
+
+        <activity
             android:name=".ViewPhotoActivity"
             android:exported="false"
             android:theme="@style/Theme.TadiwaPrintBuddy" />

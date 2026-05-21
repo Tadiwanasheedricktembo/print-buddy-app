@@ -31,18 +31,26 @@ class DebtorsAdapter(
 
     inner class ViewHolder(private val binding: ItemDebtorBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(debtor: DebtorSummary) {
+            val context = binding.root.context
             val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
             val format = NumberFormat.getCurrencyInstance(locale)
 
-            binding.textCustomerName.text = debtor.customerName
-            binding.textAmountOwed.text = format.format(debtor.totalBalance)
+            binding.textCustomerName.text = debtor.customerName.uppercase(Locale.getDefault())
 
             if (debtor.type == "CHANGE") {
-                binding.textAmountOwed.setTextColor(0xFF2E7D32.toInt()) // Green
-                binding.textLabelOwed.text = "Change Due"
+                val absBalance = Math.abs(debtor.totalBalance)
+                val amountText = "-${format.format(absBalance)}"
+                binding.textAmountOwed.text = amountText
+                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.change_green))
+                binding.textLabelOwed.text = "CHANGE DUE"
+                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.icon_bg_blue))
             } else {
-                binding.textAmountOwed.setTextColor(0xFFC62828.toInt()) // Red
-                binding.textLabelOwed.text = "Amount Owed"
+                binding.textAmountOwed.text = format.format(debtor.totalBalance)
+                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_error))
+                binding.textLabelOwed.text = "AMOUNT OWED"
+                
+                val iconBg = if (bindingAdapterPosition % 2 == 0) R.color.icon_bg_purple else R.color.icon_bg_blue
+                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, iconBg))
             }
 
             binding.buttonReceivePayment.setOnClickListener {

@@ -1,6 +1,6 @@
 <resources>
 
-    <string name="app_name">Print Buddy</string>
+    <string name="app_name">Tadiwa Print Buddy</string>
 
     <!-- About -->
     <string name="about">About</string>
@@ -177,12 +177,19 @@
     <string name="payment_method">Payment Method</string>
 
     <string name="status_paid">Paid</string>
-    <string name="status_owes_me">Owes Me</string>
+    <string name="status_owes_me">Credit</string>
 
     <string name="method_cash">CASH</string>
     <string name="method_upi">UPI</string>
 
     <!-- Accessibility -->
     <string name="desc_wallet">Wallet Shortcut</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_history">History</string>
+    <string name="nav_insights">Insights</string>
+    <string name="nav_account">Account</string>
+    <string name="nav_create_order">Create Order</string>
 
 </resources>

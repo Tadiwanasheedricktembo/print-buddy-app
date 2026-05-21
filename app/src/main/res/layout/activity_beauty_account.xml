@@ -4,22 +4,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/brand_background"
+    android:background="@color/primary_bg"
     tools:context=".BeautyAccountActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
+        android:background="@color/primary_bg"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="?attr/homeAsUpIndicator"
+            app:navigationIcon="@drawable/ic_expand_more"
             app:title="Beauty Account"
-            app:titleTextAppearance="@style/TextAppearance.App.Title" />
+            app:titleTextAppearance="@style/TextAppearance.App.H2" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -32,118 +32,127 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/screen_padding">
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="40dp">
 
-            <!-- Balance Display -->
+            <!-- Subtitle -->
+            <TextView
+                android:id="@+id/textLastUpdated"
+                style="@style/TextAppearance.App.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last updated: Just now"
+                android:layout_marginTop="-4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Balance Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="@color/secondary_container"
+                app:cardCornerRadius="@dimen/radius_card"
+                app:cardElevation="0dp"
                 app:strokeWidth="0dp">
 
-                <LinearLayout
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="32dp">
+                    android:background="@drawable/bg_beauty_gradient">
 
-                    <TextView
-                        style="@style/TextAppearance.App.Label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="CURRENT BALANCE"
-                        android:textColor="@color/on_secondary_container"
-                        android:textStyle="bold" />
+                    <!-- Top Green Accent (3dp) -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="3dp"
+                        android:background="@color/primary_accent" />
 
-                    <TextView
-                        android:id="@+id/textCurrentBalance"
-                        style="@style/TextAppearance.App.Value"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:textColor="@color/on_secondary_container"
-                        android:textSize="36sp"
-                        tools:text="₹4,500.00" />
-                </LinearLayout>
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="32dp">
+
+                        <TextView
+                            style="@style/TextAppearance.App.Label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CURRENT BALANCE"
+                            android:textColor="@color/text_secondary"
+                            android:alpha="0.6" />
+
+                        <TextView
+                            android:id="@+id/textCurrentBalance"
+                            style="@style/TextAppearance.App.H1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textSize="48sp"
+                            android:textColor="@color/white"
+                            tools:text="₹4,500.00" />
+                    </LinearLayout>
+                </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Quick Actions -->
+            <!-- Quick Actions (50/50) -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="52dp"
                 android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:layout_marginBottom="24dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAddMoney"
-                    style="@style/Widget.App.Button.Primary"
+                    style="@style/Widget.App.Button.CTA"
                     android:layout_width="0dp"
-                    android:layout_height="60dp"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="6dp"
                     android:text="Add Money"
-                    app:icon="@android:drawable/ic_input_add" />
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_check" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnReturnMoney"
                     style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="0dp"
-                    android:layout_height="60dp"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
                     android:text="Return"
-                    android:textColor="@color/text_primary"
-                    app:backgroundTint="@color/brand_surface"
-                    app:strokeColor="@color/brand_divider"
-                    app:strokeWidth="1dp"
-                    app:icon="@android:drawable/ic_menu_revert"
-                    app:iconTint="@color/text_primary" />
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    app:backgroundTint="@color/surface_elevated"
+                    app:cornerRadius="12dp"
+                    app:icon="@drawable/ic_history"
+                    app:iconTint="@color/white" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnResetBalance"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                android:text="Reset Totals"
-                android:textColor="#FF9800"
-                app:icon="@android:drawable/ic_menu_delete"
-                app:iconTint="#FF9800" />
-
-            <com.google.android.material.divider.MaterialDivider
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                app:dividerColor="@color/brand_divider" />
-
-            <!-- Transaction History -->
+            <!-- Transaction History Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:layout_marginStart="4dp"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
 
                 <TextView
-                    style="@style/TextAppearance.App.Label"
-                    android:layout_width="0dp"
+                    style="@style/TextAppearance.App.H2"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="TRANSACTION HISTORY"
-                    android:textStyle="bold" />
+                    android:text="Transaction History" />
 
                 <TextView
                     android:id="@+id/textTransactionCount"
-                    style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_secondary"
+                    android:layout_marginStart="12dp"
+                    android:background="@drawable/bg_count_badge"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="2dp"
+                    android:textColor="@color/text_primary"
                     android:textSize="12sp"
-                    tools:text="12 transactions" />
+                    android:textStyle="bold"
+                    tools:text="48" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -151,7 +160,20 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                tools:listitem="@android:layout/simple_list_item_2" />
+                tools:listitem="@layout/item_beauty_transaction" />
+
+            <!-- Reset Button at bottom -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetBalance"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="32dp"
+                android:text="Reset Totals"
+                android:textColor="@color/destructive"
+                app:icon="@drawable/ic_history"
+                app:iconTint="@color/destructive" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

@@ -75,6 +75,11 @@ class PrinterReferenceActivity : AppCompatActivity() {
         binding = ActivityPrinterReferenceBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setSupportActionBar(binding.toolbar)
+        binding.toolbar.setNavigationOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+
         val database = AppDatabase.getDatabase(this)
         repository = PrintRepository(database.printDao())
 

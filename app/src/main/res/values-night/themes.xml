@@ -1,21 +1,4 @@
 <resources>
-    <style name="Base.Theme.TadiwaPrintBuddy" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="isLightTheme">false</item>
-
-        <!-- Brand Colors -->
-        <item name="colorPrimary">@color/brand_primary</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorPrimaryContainer">@color/primary_container</item>
-        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
-
-        <item name="android:colorBackground">@color/brand_background</item>
-        <item name="android:windowBackground">@color/brand_background</item>
-        <item name="colorSurface">@color/brand_surface</item>
-        <item name="colorOnSurface">@color/text_primary</item>
-
-        <!-- Component Styles -->
-        <item name="materialCardViewStyle">@style/Widget.App.Card</item>
-        <item name="materialButtonStyle">@style/Widget.App.Button</item>
-        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
-    </style>
+    <!-- Use the same theme for night mode as we want a fixed dark theme -->
+    <style name="Theme.TadiwaPrintBuddy" parent="Base.Theme.TadiwaPrintBuddy" />
 </resources>

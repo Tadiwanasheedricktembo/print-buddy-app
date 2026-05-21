@@ -270,6 +270,18 @@ interface PrintDao {
     @Query("SELECT IFNULL((SELECT newBalance FROM beauty_transactions ORDER BY timestamp DESC, id DESC LIMIT 1), 0.0)")
     suspend fun getCurrentBeautyBalance(): Double
 
+    @Delete
+    suspend fun deleteBeautyTransaction(transaction: BeautyTransaction)
+
+    @Query("SELECT * FROM beauty_transactions WHERE timestamp > :timestamp OR (timestamp = :timestamp AND id > :id) ORDER BY timestamp ASC, id ASC")
+    suspend fun getBeautyTransactionsAfter(timestamp: Long, id: Int): List<BeautyTransaction>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun updateBeautyTransaction(transaction: BeautyTransaction)
+
+    @Query("SELECT newBalance FROM beauty_transactions WHERE timestamp < :timestamp OR (timestamp = :timestamp AND id < :id) ORDER BY timestamp DESC, id DESC LIMIT 1")
+    suspend fun getBeautyBalanceBefore(timestamp: Long, id: Int): Double?
+
     // Expenses
     @Insert
     suspend fun insertExpense(expense: Expense)

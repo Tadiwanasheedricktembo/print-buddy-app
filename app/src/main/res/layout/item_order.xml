@@ -52,7 +52,7 @@
                     style="@style/TextAppearance.App.Title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="15sp"
+                    android:textSize="17sp"
                     tools:text="Order #128 • John Doe" />
 
                 <TextView
@@ -61,7 +61,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:textSize="11sp"
+                    android:textSize="13sp"
                     android:alpha="0.7"
                     tools:text="Today, 10:30 AM" />
             </LinearLayout>
@@ -72,7 +72,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@color/text_primary"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 tools:text="₹ 250.00" />
         </LinearLayout>
 
@@ -99,13 +99,13 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Previous Balance"
-                    android:textSize="10sp"/>
+                    android:textSize="12sp"/>
                 <TextView
                     android:id="@+id/textPrevBalance"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="10sp"
+                    android:textSize="12sp"
                     android:textColor="@color/text_primary"
                     tools:text="₹ 100.00"/>
             </LinearLayout>
@@ -122,13 +122,13 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Unpaid Amount"
-                    android:textSize="10sp"/>
+                    android:textSize="12sp"/>
                 <TextView
                     android:id="@+id/textTransAmount"
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="10sp"
+                    android:textSize="12sp"
                     android:textStyle="bold"
                     android:textColor="@color/brand_error"
                     tools:text="+ ₹ 150.00"/>
@@ -150,14 +150,14 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="New Balance"
-                    android:textSize="11sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"/>
                 <TextView
                     android:id="@+id/textNewBalance"
                     style="@style/TextAppearance.App.Value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="12sp"
+                    android:textSize="14sp"
                     android:textColor="@color/text_primary"
                     tools:text="₹ 250.00"/>
             </LinearLayout>

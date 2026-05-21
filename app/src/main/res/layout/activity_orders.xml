@@ -111,6 +111,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Showing All Orders"
+                android:textSize="22sp"
                 android:textColor="@color/text_secondary" />
 
             <TextView
@@ -119,6 +120,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
+                android:textSize="16sp"
                 android:textColor="@color/brand_primary"
                 tools:text="₹0.00 (0 orders)" />
         </LinearLayout>

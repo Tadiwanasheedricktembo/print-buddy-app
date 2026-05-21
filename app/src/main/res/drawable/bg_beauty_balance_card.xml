@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Main Gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:endColor="@color/beauty_gradient_end"
+                android:startColor="@color/beauty_gradient_start"
+                android:type="linear" />
+            <corners android:radius="@dimen/radius_card" />
+        </shape>
+    </item>
+    <!-- Top Green Border (3dp) -->
+    <item android:bottom="117dp"> <!-- assuming card height around 120dp, adjustment needed -->
+        <shape android:shape="rectangle">
+            <solid android:color="@color/primary_accent" />
+            <corners
+                android:topLeftRadius="@dimen/radius_card"
+                android:topRightRadius="@dimen/radius_card"
+                android:bottomLeftRadius="0dp"
+                android:bottomRightRadius="0dp" />
+        </shape>
+    </item>
+</layer-list>

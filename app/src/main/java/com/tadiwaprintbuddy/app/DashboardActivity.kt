@@ -124,18 +124,16 @@ class DashboardActivity : AppCompatActivity() {
 
         val dataSet = PieDataSet(entries, "")
         
-        // Apply Design System Chart Palette
+        // Apply screenshot specific palette
         val chartColors = listOf(
             Color.parseColor("#22C55E"), // Success Green
             Color.parseColor("#3B82F6"), // Primary Blue
             Color.parseColor("#F59E0B"), // Warning Amber
-            Color.parseColor("#EF4444"), // Error Red
-            Color.parseColor("#8B5CF6"), // Purple
-            Color.parseColor("#EC4899")  // Pink
+            Color.parseColor("#8B5CF6")  // Purple
         )
         
         dataSet.colors = chartColors
-        dataSet.sliceSpace = 4f
+        dataSet.sliceSpace = 2f
         dataSet.valueTextSize = 13f
         dataSet.valueTextColor = Color.WHITE
         dataSet.valueTypeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -147,24 +145,27 @@ class DashboardActivity : AppCompatActivity() {
             this.data = pieData
             description.isEnabled = false
             setUsePercentValues(true)
+            setDrawEntryLabels(true)
             
-            // Modern Styling
-            holeRadius = 60f
-            transparentCircleRadius = 65f
-            setHoleColor(Color.parseColor("#111827")) // brand_surface
+            // Exact Donut Styling from screenshot
+            holeRadius = 68f
+            transparentCircleRadius = 0f
+            setHoleColor(Color.parseColor("#020814")) // Actual app background
             
             setEntryLabelColor(Color.WHITE)
             setEntryLabelTextSize(11f)
             setEntryLabelTypeface(android.graphics.Typeface.DEFAULT_BOLD)
             
-            animateY(1200, com.github.mikephil.charting.animation.Easing.EaseInOutCubic)
+            animateY(1000, com.github.mikephil.charting.animation.Easing.EaseInOutCubic)
             
             legend.apply {
                 isEnabled = true
-                textColor = Color.parseColor("#9CA3AF") // text_secondary
+                textColor = Color.parseColor("#94A3B8") // text_secondary
                 textSize = 12f
-                formSize = 12f
-                xEntrySpace = dpToPx(16f)
+                form = com.github.mikephil.charting.components.Legend.LegendForm.SQUARE
+                formSize = 10f
+                xEntrySpace = 20f
+                yEntrySpace = 10f
                 verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.BOTTOM
                 horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.CENTER
                 orientation = com.github.mikephil.charting.components.Legend.LegendOrientation.HORIZONTAL
@@ -173,9 +174,5 @@ class DashboardActivity : AppCompatActivity() {
             
             invalidate()
         }
-    }
-
-    private fun dpToPx(dp: Float): Float {
-        return dp * resources.displayMetrics.density
     }
 }

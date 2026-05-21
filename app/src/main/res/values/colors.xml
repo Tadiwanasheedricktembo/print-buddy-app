@@ -1,49 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 2026 PROFESSIONAL FINTECH SYSTEM (ULTRA-CLEAN DARK/DEEP) -->
+    <!-- REDESIGN SYSTEM COLORS -->
+    <color name="primary_bg">#0D0D0D</color>
+    <color name="surface_card">#1A1A1A</color>
+    <color name="surface_elevated">#242424</color>
+    <color name="primary_accent">#00C853</color>
+    <color name="destructive">#FF5252</color>
+    <color name="warning">#FFB300</color>
 
-    <!-- Core Backgrounds (Professional Slate/Indigo) -->
-    <color name="brand_background">#0B0E14</color> <!-- Deepest neutral -->
-    <color name="brand_surface">#141820</color>    <!-- Subtle elevation -->
-    <color name="brand_surface_variant">#1C222D</color> <!-- Input/Hover states -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9E9E9E</color>
+    <color name="text_disabled">#4A4A4A</color>
 
-    <!-- Accents (Sophisticated & Restrained) -->
-    <color name="brand_primary">#6366F1</color> <!-- Indigo Accent -->
-    <color name="brand_primary_light">#818CF8</color>
-    <color name="brand_secondary">#94A3B8</color> <!-- Muted Slate -->
+    <color name="border_divider">#2C2C2C</color>
+    <color name="text_muted">@color/text_disabled</color>
+    <color name="brand_secondary">#3B82F6</color>
+    <color name="brand_success_legacy">#22C55E</color>
 
-    <!-- Financial Semantics (Subtle Tones) -->
-    <color name="brand_success">#10B981</color> <!-- Balanced Emerald -->
-    <color name="brand_error">#F43F5E</color>   <!-- Balanced Rose -->
-    <color name="brand_warning">#F59E0B</color>
+    <!-- NAVIGATION -->
+    <color name="nav_bg">#111111</color>
+    <color name="nav_border">#1E1E1E</color>
+    <color name="nav_active_pill">#1A2E1A</color>
+    <color name="nav_inactive">#4A4A4A</color>
 
-    <color name="brand_primary_gradient_start">#6366F1</color>
-    <color name="brand_primary_gradient_end">#818CF8</color>
+    <!-- GRADIENTS -->
+    <color name="beauty_gradient_start">#1A237E</color>
+    <color name="beauty_gradient_end">#283593</color>
 
-
-    <!-- Text Hierarchy -->
-    <color name="text_primary">#F8FAFC</color>   <!-- High legibility white -->
-    <color name="text_secondary">#94A3B8</color> <!-- Muted metadata -->
-    <color name="text_muted">#475569</color>      <!-- Subtle cues -->
-
-    <!-- Dividers & Outlines (Ultra-fine) -->
-    <color name="brand_divider">#1E293B</color>
-    <color name="brand_outline">#334155</color>
-
-    <!-- Semantic Containers (Tonal, not loud) -->
-    <color name="success_container">#064E3B</color>
-    <color name="on_success_container">#34D399</color>
-
-    <color name="error_container">#4C0519</color>
-    <color name="on_error_container">#FB7185</color>
-
-    <color name="primary_container">#1E1B4B</color>
-    <color name="on_primary_container">#A5B4FC</color>
-
-    <!-- Legacy / Utility -->
+    <!-- LEGACY (keeping common ones for compatibility during transition) -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="nav_active">#6366F1</color>
-    <color name="nav_inactive">#475569</color>
 
+    <!-- Temporary assignments to avoid immediate build breaks -->
+    <color name="brand_background">@color/primary_bg</color>
+    <color name="brand_surface">@color/surface_card</color>
+    <color name="brand_surface_variant">@color/surface_elevated</color>
+    <color name="brand_primary">@color/primary_accent</color>
+    <color name="brand_primary_dark">#121212</color>
+    <color name="brand_primary_translucent">#3300C853</color>
+    <color name="brand_primary_gradient_start">@color/beauty_gradient_start</color>
+    <color name="brand_primary_gradient_end">@color/beauty_gradient_end</color>
+    <color name="brand_success">@color/primary_accent</color>
+    <color name="brand_error">@color/destructive</color>
+    <color name="brand_divider">@color/border_divider</color>
+    <color name="brand_border">@color/border_divider</color>
+    <color name="header_red">@color/destructive</color>
+    <color name="icon_bg_blue">@color/beauty_gradient_start</color>
+    <color name="item_card_bg">@color/surface_card</color>
+    <color name="btn_receive_bg">@color/surface_elevated</color>
+    <color name="change_green">@color/primary_accent</color>
+    <color name="icon_bg_purple">@color/beauty_gradient_end</color>
+    <color name="primary_container">@color/surface_elevated</color>
+    <color name="secondary_container">@color/surface_elevated</color>
+    <color name="on_primary_container">@color/text_primary</color>
+    <color name="on_secondary_container">@color/text_secondary</color>
 </resources>

@@ -7,13 +7,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.TypeConverters
 import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class],
-    version = 19,
+    version = 24,
     exportSchema = false
 )
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun printDao(): PrintDao
@@ -28,7 +30,11 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "print_database"
-                ).addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+                ).addMigrations(
+                    MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, 
+                    MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
+                    MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24
+                )
 
                 if (BuildConfig.DEBUG) {
                     builder.fallbackToDestructiveMigration()
@@ -37,6 +43,13 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        private val MIGRATION_19_24 = object : Migration(19, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Handle version jump and adding title to expenses
+                db.execSQL("ALTER TABLE expenses ADD COLUMN title TEXT NOT NULL DEFAULT 'Manual Expense'")
             }
         }
 

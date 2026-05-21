@@ -70,11 +70,16 @@ class DebtorCreditActivity : AppCompatActivity() {
         adapter = DebtorCreditAdapter(emptyList(), { debtorCredit ->
             showSettlePaymentDialog(debtorCredit)
         }, { debtorCredit ->
-            val intent = Intent(this, SettlementHistoryActivity::class.java).apply {
-                putExtra("EXTRA_CUSTOMER_ID", debtorCredit.customerId)
-                putExtra("EXTRA_CUSTOMER_NAME", debtorCredit.customerName)
+            try {
+                val intent = Intent(this, SettlementHistoryActivity::class.java).apply {
+                    putExtra("EXTRA_CUSTOMER_ID", debtorCredit.customerId)
+                    putExtra("EXTRA_CUSTOMER_NAME", debtorCredit.customerName)
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this, "Error opening history", Toast.LENGTH_SHORT).show()
             }
-            startActivity(intent)
         }, { debtorCredit ->
             showDeleteCustomerDialog(debtorCredit)
         })
@@ -141,13 +146,13 @@ class DebtorCreditActivity : AppCompatActivity() {
                 binding.cardOwesMe.alpha = activeAlpha
                 binding.cardIOwe.alpha = inactiveAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
-                binding.textFilterLabel.text = "Filtering: OWES ME"
+                binding.textFilterLabel.text = "Filtering: CUSTOMER OWES"
             }
             FilterMode.I_OWE_CHANGE -> {
                 binding.cardOwesMe.alpha = inactiveAlpha
                 binding.cardIOwe.alpha = activeAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
-                binding.textFilterLabel.text = "Filtering: I OWE CHANGE"
+                binding.textFilterLabel.text = "Filtering: CHANGE DUE"
             }
         }
     }

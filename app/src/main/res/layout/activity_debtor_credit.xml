@@ -38,12 +38,12 @@
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardOwesMe"
                     android:layout_width="0dp"
-                    android:layout_height="120dp"
+                    android:layout_height="100dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
                     app:cardBackgroundColor="@color/header_red"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="4dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
                     app:strokeWidth="0dp"
                     android:clickable="true"
                     android:focusable="true">
@@ -51,7 +51,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:padding="20dp"
+                        android:padding="16dp"
                         android:gravity="center_vertical">
                         <TextView
                             style="@style/TextAppearance.App.Label"
@@ -59,16 +59,16 @@
                             android:layout_height="wrap_content"
                             android:text="OWES ME"
                             android:textColor="@color/white"
-                            android:textSize="12sp"
-                            android:alpha="0.9" />
+                            android:textSize="11sp"
+                            android:alpha="0.8" />
                         <TextView
                             android:id="@+id/textTotalOwedToMe"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="2dp"
                             android:text="₹ 0.00"
                             android:textColor="@color/white"
-                            android:textSize="22sp"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -76,12 +76,12 @@
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardIOwe"
                     android:layout_width="0dp"
-                    android:layout_height="120dp"
+                    android:layout_height="100dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    app:cardBackgroundColor="@color/icon_bg_blue"
-                    app:cardCornerRadius="24dp"
-                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/header_amber"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
                     app:strokeWidth="0dp"
                     android:clickable="true"
                     android:focusable="true">
@@ -89,7 +89,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:padding="20dp"
+                        android:padding="16dp"
                         android:gravity="center_vertical">
                         <TextView
                             style="@style/TextAppearance.App.Label"
@@ -98,15 +98,15 @@
                             android:text="I OWE CHANGE"
                             android:textColor="@color/white"
                             android:textSize="11sp"
-                            android:alpha="0.9" />
+                            android:alpha="0.8" />
                         <TextView
                             android:id="@+id/textTotalIOwe"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="2dp"
                             android:text="₹ 0.00"
                             android:textColor="@color/white"
-                            android:textSize="22sp"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

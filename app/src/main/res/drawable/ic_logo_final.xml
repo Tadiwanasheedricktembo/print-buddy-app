@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Perfect background circle (filled) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,50m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0" />
+
+    <!-- Printer icon as negative space cutout -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M72,48.6c0,-2.5 -2.1,-4.6 -4.6,-4.6h-2.8V35.4c0,-1.3 -1,-2.4 -2.4,-2.4H37.8c-1.3,0 -2.4,1 -2.4,2.4V44H32.6c-2.5,0 -4.6,2.1 -4.6,4.6v15.7c0,1.3 1,2.4 2.4,2.4H35v6.5c0,1.3 1,2.4 2.4,2.4h25.2c1.3,0 2.4,-1 2.4,-2.4V67.1h4.6c1.3,0 2.4,-1 2.4,-2.4V48.6zM39.6,37.2h20.8v6.8H39.6V37.2zM60.4,70h-20.8v-10h20.8V70z" />
+
+    <!-- Intentional status dot (10px relative equivalent) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M68,52.4c-1.4,0 -2.5,-1.1 -2.5,-2.5s1.1,-2.5 2.5,-2.5s2.5,1.1 2.5,2.5S69.4,52.4 68,52.4z" />
+
+</vector>

@@ -44,12 +44,22 @@
     <color name="brand_error">@color/destructive</color>
     <color name="brand_divider">@color/border_divider</color>
     <color name="brand_border">@color/border_divider</color>
-    <color name="header_red">@color/destructive</color>
-    <color name="icon_bg_blue">@color/beauty_gradient_start</color>
-    <color name="item_card_bg">@color/surface_card</color>
-    <color name="btn_receive_bg">@color/surface_elevated</color>
-    <color name="change_green">@color/primary_accent</color>
-    <color name="icon_bg_purple">@color/beauty_gradient_end</color>
+    <color name="header_red">#B71C1C</color>
+    <color name="header_amber">#FFB300</color>
+    <color name="item_card_bg">#121212</color>
+    <color name="btn_receive_bg">#2A2A2D</color>
+    <color name="change_green">#00C853</color>
+    <color name="icon_bg_purple">#5E35B1</color>
+    <color name="icon_bg_blue">#1976D2</color>
+
+    <!-- PAYMENT BADGES -->
+    <color name="badge_cash_bg">#1B5E20</color>
+    <color name="badge_upi_bg">#0D47A1</color>
+    <color name="badge_credit_bg">#4A1500</color>
+    <color name="badge_cash_text">#00C853</color>
+    <color name="badge_upi_text">#448AFF</color>
+    <color name="badge_credit_text">#FF5252</color>
+
     <color name="primary_container">@color/surface_elevated</color>
     <color name="secondary_container">@color/surface_elevated</color>
     <color name="on_primary_container">@color/text_primary</color>

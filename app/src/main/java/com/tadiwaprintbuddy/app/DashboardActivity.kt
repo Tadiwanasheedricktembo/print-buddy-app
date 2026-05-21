@@ -1,178 +1,280 @@
 package com.tadiwaprintbuddy.app
 
-import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.TextView
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.github.mikephil.charting.charts.HorizontalBarChart
+import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
-import com.github.mikephil.charting.data.PieData
-import com.github.mikephil.charting.data.PieDataSet
-import com.github.mikephil.charting.data.PieEntry
-import com.github.mikephil.charting.formatter.PercentFormatter
-import com.tadiwaprintbuddy.app.data.AppDatabase
-import com.tadiwaprintbuddy.app.data.CategoryRevenue
-import com.tadiwaprintbuddy.app.data.PrintRepository
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.*
+import com.tadiwaprintbuddy.app.data.*
 import com.tadiwaprintbuddy.app.databinding.ActivityDashboardBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDashboardBinding
-    private lateinit var repository: PrintRepository
+    private val viewModel: DashboardViewModel by viewModels {
+        DashboardViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
+    }
+    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val database = AppDatabase.getDatabase(this)
-        repository = PrintRepository(database.printDao())
-
         setupToolbar()
+        setupFilters()
         setupClickListeners()
-        observeInsights()
+        observeViewModel()
     }
 
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
+    private fun setupFilters() {
+        binding.chipGroupTimeFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            val period = when (checkedId) {
+                R.id.chipToday -> "Today"
+                R.id.chipThisWeek -> "This Week"
+                R.id.chipThisMonth -> "This Month"
+                R.id.chipAllTime -> "All Time"
+                else -> "Today"
+            }
+            viewModel.setPeriod(period)
+        }
+    }
+
     private fun setupClickListeners() {
-        binding.cardRevenue.setOnClickListener {
-            val intent = Intent(this, OrdersActivity::class.java)
-            intent.putExtra("filter", "MONTH")
-            startActivity(intent)
+        binding.btnAddExpense.setOnClickListener {
+            showAddExpenseSheet()
         }
-
-        binding.cardOrders.setOnClickListener {
-            val intent = Intent(this, OrdersActivity::class.java)
-            intent.putExtra("fromInsights", true)
-            startActivity(intent)
+        binding.bannerZeroExpense.setOnClickListener {
+            showAddExpenseSheet()
         }
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_dashboard, menu)
-        return true
+    private fun showAddExpenseSheet() {
+        val bottomSheet = AddExpenseBottomSheet()
+        bottomSheet.show(supportFragmentManager, "AddExpense")
     }
 
-    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_inventory -> {
-                startActivity(Intent(this, InventoryActivity::class.java))
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun observeInsights() {
-        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
-        val format = NumberFormat.getCurrencyInstance(locale)
-
+    private fun observeViewModel() {
         lifecycleScope.launch {
-            repository.getTotalRevenueFlow().collectLatest { revenue ->
-                binding.textTotalRevenue.text = format.format(revenue ?: 0.0)
-                val netProfit = repository.getNetProfit()
-                binding.textNetProfit.text = format.format(netProfit)
-            }
-        }
-
-        lifecycleScope.launch {
-            repository.getTotalOrdersFlow().collectLatest { count ->
-                binding.textTotalOrders.text = count.toString()
-            }
-        }
-
-        lifecycleScope.launch {
-            repository.getCashInHandFlow().collectLatest { cash ->
-                binding.textCashInHand.text = format.format(cash ?: 0.0)
-            }
-        }
-
-        lifecycleScope.launch {
-            repository.getRevenueByCategoryFlow().collectLatest { data ->
-                if (data.isNotEmpty()) {
-                    binding.categoryChart.visibility = View.VISIBLE
-                    setupPieChart(binding.categoryChart, data)
-                } else {
-                    binding.categoryChart.visibility = View.GONE
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            repository.getLowStockItemsFlow().collectLatest { lowStock ->
-                if (lowStock.isNotEmpty()) {
-                    binding.cardLowStock.visibility = View.VISIBLE
-                    val names = lowStock.joinToString(", ") { it.name }
-                    binding.textLowStockAlert.text = getString(R.string.low_stock_alert, names)
-                } else {
-                    binding.cardLowStock.visibility = View.GONE
-                }
+            viewModel.uiState.collectLatest { state ->
+                updateMetrics(state.metrics)
+                updateCharts(state)
+                updateInsights(state.insights)
+                binding.bannerZeroExpense.visibility = if (state.showZeroExpenseWarning) View.VISIBLE else View.GONE
             }
         }
     }
 
-    private fun setupPieChart(pieChart: PieChart, data: List<CategoryRevenue>) {
-        val entries = data.map { PieEntry(it.total.toFloat(), it.category) }
-
-        val dataSet = PieDataSet(entries, "")
+    private fun updateMetrics(metrics: PeriodMetrics?) {
+        if (metrics == null) return
+        binding.textTotalRevenue.text = currencyFormat.format(metrics.revenue)
+        binding.textNetProfit.text = currencyFormat.format(metrics.netProfit)
+        binding.textTotalExpenses.text = currencyFormat.format(metrics.expenses)
+        binding.textOrdersCount.text = metrics.ordersCount.toString()
         
-        // Apply screenshot specific palette
-        val chartColors = listOf(
-            Color.parseColor("#22C55E"), // Success Green
-            Color.parseColor("#3B82F6"), // Primary Blue
-            Color.parseColor("#F59E0B"), // Warning Amber
-            Color.parseColor("#8B5CF6")  // Purple
-        )
+        binding.textProfitMarginPercent.text = String.format(Locale.ENGLISH, "%.0f%%", metrics.profitMargin)
+        binding.progressProfitMargin.progress = metrics.profitMargin.toInt()
+
+        // Trend badges
+        updateTrendBadge(binding.badgeRevenue, metrics.revenue, metrics.previousRevenue)
+        updateTrendBadge(binding.badgeExpenses, metrics.expenses, metrics.previousExpenses, isInverted = true)
+        updateTrendBadge(binding.badgeNetProfit, metrics.netProfit, metrics.previousNetProfit)
+        updateTrendBadge(binding.badgeOrders, metrics.ordersCount.toDouble(), metrics.previousOrdersCount.toDouble(), showPercent = false)
+    }
+
+    private fun updateTrendBadge(textView: TextView, current: Double, previous: Double, isInverted: Boolean = false, showPercent: Boolean = true) {
+        if (previous == 0.0) {
+            textView.visibility = View.GONE
+            return
+        }
+        textView.visibility = View.VISIBLE
+        val diff = current - previous
+        val isUp = diff >= 0
         
-        dataSet.colors = chartColors
-        dataSet.sliceSpace = 2f
-        dataSet.valueTextSize = 13f
-        dataSet.valueTextColor = Color.WHITE
-        dataSet.valueTypeface = android.graphics.Typeface.DEFAULT_BOLD
+        if (showPercent) {
+            val percent = (Math.abs(diff) / previous) * 100
+            val sign = if (isUp) "▲" else "▼"
+            textView.text = String.format(Locale.ENGLISH, "%s %.0f%%", sign, percent)
+        } else {
+            val sign = if (isUp) "+" else "-"
+            textView.text = String.format(Locale.ENGLISH, "%s %.0f", sign, Math.abs(diff))
+        }
 
-        val pieData = PieData(dataSet)
-        pieData.setValueFormatter(PercentFormatter(pieChart))
+        textView.setBackgroundResource(if (isUp != isInverted) R.drawable.bg_badge_trend_up else R.drawable.bg_badge_trend_down)
+    }
 
-        pieChart.apply {
-            this.data = pieData
+    private fun updateCharts(state: DashboardUiState) {
+        setupRevenueTrendChart(state.revenueTrend)
+        setupPaymentBreakdownChart(state.paymentBreakdown)
+        setupServiceBreakdownChart(state.serviceBreakdown, state.metrics?.ordersCount ?: 0)
+    }
+
+    private fun setupRevenueTrendChart(data: List<TrendPoint>) {
+        val chart = binding.chartRevenueTrend
+        if (data.isEmpty()) {
+            chart.clear()
+            return
+        }
+
+        val entries = data.map { Entry(it.timestamp.toFloat(), it.amount.toFloat()) }
+        val dataSet = LineDataSet(entries, "Current Period")
+        dataSet.apply {
+            color = Color.parseColor("#00C853")
+            lineWidth = 2f
+            setDrawCircles(true)
+            setCircleColor(Color.WHITE)
+            circleRadius = 4f
+            setCircleColor(Color.parseColor("#00C853"))
+            setDrawFilled(true)
+            fillAlpha = 20
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+            setDrawValues(false)
+        }
+
+        chart.apply {
+            this.data = LineData(dataSet)
             description.isEnabled = false
-            setUsePercentValues(true)
-            setDrawEntryLabels(true)
-            
-            // Exact Donut Styling from screenshot
-            holeRadius = 68f
-            transparentCircleRadius = 0f
-            setHoleColor(Color.parseColor("#020814")) // Actual app background
-            
-            setEntryLabelColor(Color.WHITE)
-            setEntryLabelTextSize(11f)
-            setEntryLabelTypeface(android.graphics.Typeface.DEFAULT_BOLD)
-            
-            animateY(1000, com.github.mikephil.charting.animation.Easing.EaseInOutCubic)
-            
-            legend.apply {
-                isEnabled = true
-                textColor = Color.parseColor("#94A3B8") // text_secondary
-                textSize = 12f
-                form = com.github.mikephil.charting.components.Legend.LegendForm.SQUARE
-                formSize = 10f
-                xEntrySpace = 20f
-                yEntrySpace = 10f
-                verticalAlignment = com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.BOTTOM
-                horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.CENTER
-                orientation = com.github.mikephil.charting.components.Legend.LegendOrientation.HORIZONTAL
-                setDrawInside(false)
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                textColor = Color.parseColor("#9E9E9E")
+                setDrawGridLines(false)
+                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(value.toLong()))
+                    }
+                }
             }
-            
+            axisLeft.apply {
+                textColor = Color.parseColor("#9E9E9E")
+                gridColor = Color.parseColor("#1E1E1E")
+                enableGridDashedLine(10f, 10f, 0f)
+                setDrawAxisLine(false)
+            }
+            axisRight.isEnabled = false
+            legend.isEnabled = false
             invalidate()
+        }
+    }
+
+    private fun setupPaymentBreakdownChart(data: List<PaymentBreakdown>) {
+        val chart = binding.chartPaymentBreakdown
+        if (data.isEmpty()) {
+            chart.clear()
+            return
+        }
+
+        val entries = data.mapIndexed { index, item -> BarEntry(index.toFloat(), item.total.toFloat()) }
+        val dataSet = BarDataSet(entries, "")
+        dataSet.apply {
+            colors = listOf(
+                Color.parseColor("#00C853"), // CASH
+                Color.parseColor("#448AFF"), // UPI
+                Color.parseColor("#FFB300")  // CREDIT
+            )
+            setDrawValues(true)
+            valueTextColor = Color.WHITE
+            valueTextSize = 10f
+            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return currencyFormat.format(value)
+                }
+            }
+        }
+
+        chart.apply {
+            this.data = BarData(dataSet)
+            description.isEnabled = false
+            setDrawGridBackground(false)
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                textColor = Color.WHITE
+                setDrawGridLines(false)
+                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return data.getOrNull(value.toInt())?.type ?: ""
+                    }
+                }
+            }
+            axisLeft.isEnabled = false
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+            invalidate()
+        }
+    }
+
+    private fun setupServiceBreakdownChart(data: List<CategoryRevenue>, totalJobs: Int) {
+        val chart = binding.chartServiceBreakdown
+        if (data.isEmpty()) {
+            chart.clear()
+            return
+        }
+
+        val entries = data.map { PieEntry(it.total.toFloat(), it.category) }
+        val dataSet = PieDataSet(entries, "")
+        dataSet.apply {
+            colors = listOf(
+                Color.parseColor("#00C853"),
+                Color.parseColor("#FF6D00"),
+                Color.parseColor("#448AFF"),
+                Color.parseColor("#AA00FF"),
+                Color.parseColor("#FFB300")
+            )
+            sliceSpace = 3f
+            setDrawValues(false)
+        }
+
+        chart.apply {
+            this.data = PieData(dataSet)
+            description.isEnabled = false
+            isDrawHoleEnabled = true
+            setHoleColor(Color.TRANSPARENT)
+            setCenterText("Total Jobs\n$totalJobs")
+            setCenterTextColor(Color.WHITE)
+            setCenterTextSize(16f)
+            holeRadius = 70f
+            legend.isEnabled = false
+            invalidate()
+        }
+
+        // Custom Legend
+        binding.chipGroupServiceLegend.removeAllViews()
+        data.forEachIndexed { index, item ->
+            val chip = com.google.android.material.chip.Chip(this)
+            chip.text = "${item.category}: ${currencyFormat.format(item.total)}"
+            chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(Color.parseColor("#1A1A1A"))
+            chip.setTextColor(Color.WHITE)
+            chip.chipStrokeWidth = 1f
+            chip.chipStrokeColor = android.content.res.ColorStateList.valueOf(dataSet.colors[index % dataSet.colors.size])
+            binding.chipGroupServiceLegend.addView(chip)
+        }
+    }
+
+    private fun updateInsights(insights: List<BusinessInsight>) {
+        binding.layoutInsightsStrip.removeAllViews()
+        insights.forEach { insight ->
+            val view = layoutInflater.inflate(R.layout.item_insight_card, binding.layoutInsightsStrip, false)
+            view.findViewById<TextView>(R.id.textInsightIconTitle).text = insight.title
+            view.findViewById<TextView>(R.id.textInsightValue).text = insight.value
+            view.findViewById<TextView>(R.id.textInsightDescription).text = insight.description
+            binding.layoutInsightsStrip.addView(view)
         }
     }
 }

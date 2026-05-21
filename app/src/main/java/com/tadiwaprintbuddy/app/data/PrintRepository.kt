@@ -168,6 +168,18 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
 
+    suspend fun getRevenueBetween(start: Long, end: Long): Double? = printDao.getRevenueBetween(start, end)
+
+    suspend fun getOrdersCountBetween(start: Long, end: Long): Int = printDao.getOrdersCountBetween(start, end)
+
+    suspend fun getExpensesBetween(start: Long, end: Long): Double? = printDao.getExpensesBetween(start, end)
+
+    suspend fun getRevenueTrend(start: Long, end: Long): List<TrendPoint> = printDao.getRevenueTrend(start, end)
+
+    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = printDao.getPaymentBreakdownBetween(start, end)
+
+    suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = printDao.getServiceBreakdownBetween(start, end)
+
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
     // --- Debt & Settlements ---
@@ -400,13 +412,24 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // --- Expenses ---
 
-    suspend fun addExpense(amount: Double, category: String, note: String?, paymentMethod: String = "CASH") {
-        printDao.insertExpense(Expense(amount = amount, category = category, note = note, paymentMethod = paymentMethod))
+    suspend fun insertExpense(expense: Expense) {
+        printDao.insertExpense(expense)
         
         // If paid via UPI, record it in Beauty account as a RETURN (money leaving the UPI account)
-        if (paymentMethod == "UPI") {
-            insertBeautyTransaction(amount, "RETURN", "Expense: $category${if (note != null) " - $note" else ""}")
+        if (expense.paymentMethod == "UPI") {
+            insertBeautyTransaction(expense.amount, "RETURN", "Expense: ${expense.category}")
         }
+    }
+
+    suspend fun addExpense(amount: Double, category: String, note: String?, paymentMethod: String = "CASH") {
+        val cat = when(category) {
+            "Paper" -> ExpenseCategory.PAPER
+            "Ink" -> ExpenseCategory.INK
+            "Electricity" -> ExpenseCategory.ELECTRICITY
+            "Maintenance" -> ExpenseCategory.MAINTENANCE
+            else -> ExpenseCategory.MISCELLANEOUS
+        }
+        insertExpense(Expense(amount = amount, category = cat, title = category, note = note, paymentMethod = paymentMethod))
     }
 
     fun getAllExpensesFlow(): Flow<List<Expense>> = printDao.getAllExpensesFlow()

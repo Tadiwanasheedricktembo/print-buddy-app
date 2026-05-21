@@ -90,7 +90,16 @@ I started this printing business to make money doing what I'm good at. But track
 If you're in the printing game like me, this is your app too.
 
 ## SCREENSHOTS OF THE APP
-<img width="720" height="1600" alt="Screenshot_20260522-024346" src="https://github.com/user-attachments/assets/a4922ee6-20b6-4e05-bdb4-fefdbc76ecfa" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5f462579-0bde-4e51-a5f3-12f5673ff237" width="220"/>
+  <img src="https://github.com/user-attachments/assets/e7fd1c59-89a7-43f6-aa0d-894026e87bf3" width="220"/>
+  <img src="https://github.com/user-attachments/assets/38134c5e-70ae-4c52-9146-bd0d7f85bc5a" width="220"/>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/64a031db-a0ff-4e68-9afa-212843c29a5b" width="220"/>
+  <img src="https://github.com/user-attachments/assets/a4922ee6-20b6-4e05-bdb4-fefdbc76ecfa" width="220"/>
+</p>
 
 
 **By:** Tadiwanashe E Tembo (@Querycubix)  

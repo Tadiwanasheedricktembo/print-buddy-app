@@ -192,4 +192,12 @@
     <string name="nav_account">Account</string>
     <string name="nav_create_order">Create Order</string>
 
+    <!-- Splash Screen -->
+    <string name="splash_tagline">Smart printing. Simple business.</string>
+    <string name="splash_logo_description">Tadiwa Print Buddy Logo</string>
+
+    <string name="order_count_format">%1$d Orders</string>
+    <string name="zero_orders">0 Orders</string>
+    <string name="credit_orders">Credit Orders</string>
+
 </resources>

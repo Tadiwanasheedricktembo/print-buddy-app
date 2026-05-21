@@ -37,8 +37,8 @@ class ExpenseAdapter(
             val format = NumberFormat.getCurrencyInstance(locale)
             val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
 
-            binding.textCategory.text = expense.category
-            binding.textNote.text = expense.note ?: ""
+            binding.textCategory.text = expense.category.name
+            binding.textNote.text = expense.title // Use title as primary info
             binding.textAmount.text = format.format(expense.amount)
             binding.textDate.text = dateFormat.format(Date(expense.timestamp))
             binding.textPaymentMethod.text = expense.paymentMethod

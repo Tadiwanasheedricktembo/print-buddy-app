@@ -37,8 +37,10 @@ class OrdersActivity : AppCompatActivity() {
     private val currencyFormat = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
 
     private var currentFilterType = FilterType.ALL
+    private var currentSearchQuery = ""
     private var currentStart: Long? = null
     private var currentEnd: Long? = null
+    private var allOrders: List<Order> = emptyList()
     private var currentOrders: List<Order> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,14 +54,36 @@ class OrdersActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupFilters()
+        setupSearch()
 
         val initialFilter = intent.getStringExtra("filter")
         if (initialFilter == "MONTH") {
-            loadOrders(FilterType.MONTH)
-            // Sync UI chip state
             binding.chipMonth.isChecked = true
+            loadOrders(FilterType.MONTH)
         } else {
             loadOrders(FilterType.ALL)
+        }
+
+        binding.btnClearFilters.setOnClickListener {
+            binding.chipAll.isChecked = true
+            binding.editSearchOrders.text.clear()
+            loadOrders(FilterType.ALL)
+        }
+    }
+
+    private fun setupSearch() {
+        binding.editSearchOrders.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                currentSearchQuery = s?.toString() ?: ""
+                binding.btnClearSearch.visibility = if (currentSearchQuery.isEmpty()) View.GONE else View.VISIBLE
+                applyAllFilters()
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        binding.btnClearSearch.setOnClickListener {
+            binding.editSearchOrders.text.clear()
         }
     }
 
@@ -100,19 +124,17 @@ class OrdersActivity : AppCompatActivity() {
         binding.chipGroupFilters.setOnCheckedStateChangeListener { group, _ ->
             when (group.checkedChipId) {
                 R.id.chipAll -> loadOrders(FilterType.ALL)
+                R.id.chipCreditOnly -> loadOrders(FilterType.CREDIT_ONLY)
                 R.id.chipToday -> loadOrders(FilterType.TODAY)
                 R.id.chipWeek -> loadOrders(FilterType.WEEK)
                 R.id.chipMonth -> loadOrders(FilterType.MONTH)
-                R.id.chipLastMonth -> loadOrders(FilterType.LAST_MONTH)
-                R.id.chipLast3Months -> loadOrders(FilterType.LAST_3_MONTHS)
-                R.id.chipYear -> loadOrders(FilterType.YEAR)
                 R.id.chipCustom -> showCustomDatePicker()
             }
         }
     }
 
     private enum class FilterType {
-        ALL, TODAY, WEEK, MONTH, LAST_MONTH, LAST_3_MONTHS, YEAR, CUSTOM
+        ALL, CREDIT_ONLY, TODAY, WEEK, MONTH, LAST_MONTH, LAST_3_MONTHS, YEAR, CUSTOM
     }
 
     private fun loadOrders(filter: FilterType, customStart: Long? = null, customEnd: Long? = null) {
@@ -123,8 +145,12 @@ class OrdersActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val orders = when (filter) {
                 FilterType.ALL -> {
-                    updateSummary("Showing All Orders")
+                    updateSummary("All Time")
                     repository.getAllOrders()
+                }
+                FilterType.CREDIT_ONLY -> {
+                    updateSummary(getString(R.string.credit_orders))
+                    repository.getAllOrders().filter { it.paymentMethod == "OWES_ME" }
                 }
                 FilterType.CUSTOM -> {
                     if (customStart != null && customEnd != null) {
@@ -142,38 +168,52 @@ class OrdersActivity : AppCompatActivity() {
                     repository.getOrdersBetween(range.first, range.second)
                 }
             }
-            currentOrders = orders
-            updateUI(orders)
+            allOrders = orders
+            applyAllFilters()
         }
     }
 
+    private fun applyAllFilters() {
+        var filtered = allOrders
+        
+        if (currentSearchQuery.isNotEmpty()) {
+            filtered = filtered.filter { 
+                it.customerName.contains(currentSearchQuery, ignoreCase = true) ||
+                it.id.toString().contains(currentSearchQuery)
+            }
+        }
+
+        updateUI(filtered)
+    }
+
     private fun updateUI(orders: List<Order>) {
+        currentOrders = orders
         if (orders.isEmpty()) {
             binding.layoutEmptyState.visibility = View.VISIBLE
             binding.recyclerOrders.visibility = View.GONE
-            binding.textTimelineStats.text = currencyFormat.format(0.0) + " (0 orders)"
+            binding.textOrderCount.text = getString(R.string.zero_orders)
+            binding.textTotalRevenue.text = currencyFormat.format(0.0).replace(" ", "")
         } else {
             binding.layoutEmptyState.visibility = View.GONE
             binding.recyclerOrders.visibility = View.VISIBLE
             adapter.updateOrders(orders)
             
             val totalRevenue = orders.sumOf { it.totalAmount }
-            binding.textTimelineStats.text = "${currencyFormat.format(totalRevenue)} (${orders.size} orders)"
+            binding.textOrderCount.text = getString(R.string.order_count_format, orders.size)
+            binding.textTotalRevenue.text = currencyFormat.format(totalRevenue).replace(" ", "")
         }
     }
 
     private fun updateSummary(text: String) {
-        binding.textFilterSummary.text = text
+        binding.textFilterLabel.text = text
     }
 
     private fun getFilterName(filter: FilterType): String = when (filter) {
-        FilterType.TODAY -> "Today's Orders"
+        FilterType.TODAY -> "Today"
         FilterType.WEEK -> "This Week"
         FilterType.MONTH -> "This Month"
-        FilterType.LAST_MONTH -> "Last Month"
-        FilterType.LAST_3_MONTHS -> "Last 3 Months"
-        FilterType.YEAR -> "This Year"
-        else -> "Orders"
+        FilterType.CREDIT_ONLY -> "Credit Only"
+        else -> "All Time"
     }
 
     private fun getDateRange(filter: FilterType): Pair<Long, Long> {

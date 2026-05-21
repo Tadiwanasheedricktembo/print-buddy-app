@@ -35,6 +35,38 @@ interface PrintDao {
     @Query("SELECT SUM(totalAmount) FROM `orders` WHERE date BETWEEN :start AND :end")
     suspend fun getRevenueBetween(start: Long, end: Long): Double?
 
+    @Query("SELECT COUNT(*) FROM `orders` WHERE date BETWEEN :start AND :end")
+    suspend fun getOrdersCountBetween(start: Long, end: Long): Int
+
+    @Query("SELECT SUM(amount) FROM expenses WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getExpensesBetween(start: Long, end: Long): Double?
+
+    @Query("""
+    SELECT MIN(date) as timestamp, SUM(totalAmount) as amount 
+    FROM orders 
+    WHERE date BETWEEN :start AND :end 
+    GROUP BY date / 86400000 
+    ORDER BY date ASC
+    """)
+    suspend fun getRevenueTrend(start: Long, end: Long): List<TrendPoint>
+
+    @Query("""
+    SELECT paymentMethod as type, SUM(totalAmount) as total 
+    FROM orders 
+    WHERE date BETWEEN :start AND :end 
+    GROUP BY paymentMethod
+    """)
+    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
+
+    @Query("""
+    SELECT oi.serviceName as category, SUM(oi.price * oi.quantity) as total 
+    FROM OrderItem oi
+    JOIN orders o ON oi.orderId = o.id
+    WHERE o.date BETWEEN :start AND :end
+    GROUP BY oi.serviceName
+    """)
+    suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
+
     @Query("""
     SELECT serviceName as category, SUM(price * quantity) as total 
     FROM OrderItem 

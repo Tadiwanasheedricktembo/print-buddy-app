@@ -4,13 +4,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/brand_background"
+    android:background="@color/primary_bg"
     tools:context=".OrdersActivity">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/brand_background"
+        android:background="@color/primary_bg"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -19,14 +20,97 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
             app:title="Order History"
-            app:titleTextAppearance="@style/TextAppearance.App.Title" />
+            app:titleTextAppearance="@style/TextAppearance.App.H2" />
 
+        <!-- SUMMARY STRIP -->
+        <LinearLayout
+            android:id="@+id/layoutSummaryStrip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="bottom">
+
+                <TextView
+                    android:id="@+id/textOrderCount"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="34 Orders"
+                    android:textColor="#9E9E9E"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/textTotalRevenue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₹2,787.00"
+                    android:textColor="#00C853"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textFilterLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="All Time"
+                android:textColor="#4A4A4A"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- SEARCH BAR -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="20dp"
+            android:background="@drawable/bg_search_input"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_search"
+                app:tint="#9E9E9E" />
+
+            <EditText
+                android:id="@+id/editSearchOrders"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="Search by name or order #"
+                android:paddingHorizontal="10dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_disabled"
+                android:textSize="14sp"
+                android:inputType="text" />
+
+            <ImageView
+                android:id="@+id/btnClearSearch"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:visibility="gone"
+                app:tint="#9E9E9E" />
+        </LinearLayout>
+
+        <!-- FILTER CHIPS -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="none"
             android:paddingHorizontal="16dp"
-            android:paddingBottom="8dp">
+            android:paddingTop="16dp"
+            android:paddingBottom="12dp">
 
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chipGroupFilters"
@@ -39,91 +123,47 @@
                     android:id="@+id/chipAll"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:text="All"
                     android:checked="true" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipCreditOnly"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Credit Only" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipToday"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:text="Today" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipWeek"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:text="This Week" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipMonth"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:text="This Month" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipLastMonth"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Last Month" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipLast3Months"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Last 3 Months" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipYear"
-                    style="@style/Widget.Material3.Chip.Filter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="This Year" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipCustom"
                     style="@style/Widget.Material3.Chip.Filter"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:text="Custom Range" />
 
             </com.google.android.material.chip.ChipGroup>
         </HorizontalScrollView>
-
-        <LinearLayout
-            android:id="@+id/layoutSummary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="12dp"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/textFilterSummary"
-                style="@style/TextAppearance.App.SectionHeader"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Showing All Orders"
-                android:textSize="22sp"
-                android:textColor="@color/text_secondary" />
-
-            <TextView
-                android:id="@+id/textTimelineStats"
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:textColor="@color/brand_primary"
-                tools:text="₹0.00 (0 orders)" />
-        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -137,6 +177,7 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:listitem="@layout/item_order" />
 
+    <!-- EMPTY STATE -->
     <LinearLayout
         android:id="@+id/layout_empty_state"
         android:layout_width="wrap_content"
@@ -151,17 +192,33 @@
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:alpha="0.2"
-            android:src="@android:drawable/ic_menu_agenda"
-            app:tint="@color/text_muted"
+            android:src="@drawable/ic_analytics"
+            app:tint="@color/text_disabled"
             android:contentDescription="No orders illustration" />
 
         <TextView
-            android:id="@+id/text_no_orders"
-            style="@style/TextAppearance.App.Label"
+            style="@style/TextAppearance.App.H2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/no_orders_yet" />
+            android:text="No orders found" />
+
+        <TextView
+            style="@style/TextAppearance.App.Body2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Try a different filter or date range" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClearFilters"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Clear Filters"
+            android:textColor="@color/primary_accent"
+            app:strokeColor="@color/primary_accent" />
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

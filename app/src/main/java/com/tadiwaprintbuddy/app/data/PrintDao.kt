@@ -35,20 +35,43 @@ interface PrintDao {
     @Query("SELECT SUM(totalAmount) FROM `orders` WHERE date BETWEEN :start AND :end")
     suspend fun getRevenueBetween(start: Long, end: Long): Double?
 
+    // --- Analytics Filtered Queries ---
+
+    @Query("SELECT IFNULL(SUM(totalAmount), 0.0) FROM `orders` WHERE date BETWEEN :start AND :end AND paymentMethod IN ('CASH', 'UPI')")
+    suspend fun getSalesRevenueBetween(start: Long, end: Long): Double
+
+    @Query("SELECT IFNULL(SUM(settledAmount), 0.0) FROM `settlement_history` WHERE timestamp BETWEEN :start AND :end AND type = 'PAYMENT' AND originId IS NULL")
+    suspend fun getSettledDebtRevenueBetween(start: Long, end: Long): Double
+
+    @Query("SELECT IFNULL(SUM(totalAmount), 0.0) FROM `orders` WHERE date BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double
+
+    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM expenses WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getExpensesBetween(start: Long, end: Long): Double
+
+    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM expenses WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): Double
+
     @Query("SELECT COUNT(*) FROM `orders` WHERE date BETWEEN :start AND :end")
     suspend fun getOrdersCountBetween(start: Long, end: Long): Int
 
-    @Query("SELECT SUM(amount) FROM expenses WHERE timestamp BETWEEN :start AND :end")
-    suspend fun getExpensesBetween(start: Long, end: Long): Double?
+    @Query("SELECT COUNT(*) FROM `orders` WHERE date BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int
+
+    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM debtor_credits WHERE amount > 0")
+    suspend fun getTotalReceivables(): Double
+
+    @Query("SELECT COUNT(*) FROM debtor_credits WHERE amount > 0")
+    suspend fun getDebtorsCount(): Int
 
     @Query("""
     SELECT MIN(date) as timestamp, SUM(totalAmount) as amount 
     FROM orders 
-    WHERE date BETWEEN :start AND :end 
+    WHERE date BETWEEN :start AND :end AND paymentMethod = :method
     GROUP BY date / 86400000 
     ORDER BY date ASC
     """)
-    suspend fun getRevenueTrend(start: Long, end: Long): List<TrendPoint>
+    suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
 
     @Query("""
     SELECT paymentMethod as type, SUM(totalAmount) as total 
@@ -66,6 +89,28 @@ interface PrintDao {
     GROUP BY oi.serviceName
     """)
     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
+
+    @Query("""
+    SELECT category as category, SUM(amount) as total 
+    FROM expenses 
+    WHERE timestamp BETWEEN :start AND :end
+    GROUP BY category
+    """)
+    suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
+
+    // --- Beauty Account Filtered ---
+
+    @Query("SELECT * FROM beauty_transactions WHERE timestamp BETWEEN :start AND :end AND type != 'RESET' ORDER BY timestamp DESC")
+    fun getFilteredBeautyTransactions(start: Long, end: Long): Flow<List<BeautyTransaction>>
+
+    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM beauty_transactions WHERE timestamp BETWEEN :start AND :end AND type = 'ADD'")
+    suspend fun getBeautyReceivedBetween(start: Long, end: Long): Double
+
+    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM beauty_transactions WHERE timestamp BETWEEN :start AND :end AND type = 'RETURN'")
+    suspend fun getBeautyReturnedBetween(start: Long, end: Long): Double
+
+    @Query("SELECT COUNT(*) FROM beauty_transactions WHERE timestamp BETWEEN :start AND :end AND type != 'RESET'")
+    suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int
 
     @Query("""
     SELECT serviceName as category, SUM(price * quantity) as total 

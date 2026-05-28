@@ -49,12 +49,26 @@ class DashboardActivity : AppCompatActivity() {
             val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
             val period = when (checkedId) {
                 R.id.chipToday -> "Today"
+                R.id.chipYesterday -> "Yesterday"
                 R.id.chipThisWeek -> "This Week"
                 R.id.chipThisMonth -> "This Month"
+                R.id.chipLast30Days -> "Last 30 Days"
                 R.id.chipAllTime -> "All Time"
                 else -> "Today"
             }
             viewModel.setPeriod(period)
+        }
+
+        binding.chipGroupPaymentFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            val method = when (checkedId) {
+                R.id.chipAllMethods -> "All"
+                R.id.chipCashOnly -> "Cash"
+                R.id.chipUpiOnly -> "UPI"
+                R.id.chipCreditOnly -> "Credit"
+                else -> "All"
+            }
+            viewModel.setPaymentMethod(method)
         }
     }
 
@@ -65,6 +79,8 @@ class DashboardActivity : AppCompatActivity() {
         binding.bannerZeroExpense.setOnClickListener {
             showAddExpenseSheet()
         }
+
+        // Add today's summary card clicks if needed
     }
 
     private fun showAddExpenseSheet() {
@@ -78,6 +94,7 @@ class DashboardActivity : AppCompatActivity() {
                 updateMetrics(state.metrics)
                 updateCharts(state)
                 updateInsights(state.insights)
+                binding.textUpiWalletBalanceCallout.text = currencyFormat.format(state.upiWalletBalance)
                 binding.bannerZeroExpense.visibility = if (state.showZeroExpenseWarning) View.VISIBLE else View.GONE
             }
         }

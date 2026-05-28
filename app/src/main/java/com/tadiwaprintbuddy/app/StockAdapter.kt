@@ -30,10 +30,10 @@ class StockAdapter(private val onItemClick: (StockItem) -> Unit) :
             binding.textStockStatus.text = binding.root.context.getString(R.string.remaining_format, item.currentQuantity, item.unit)
 
             if (item.currentQuantity <= item.lowStockThreshold) {
-                binding.textQuantity.setTextColor(ContextCompat.getColor(binding.root.context, R.color.brand_error))
-                binding.textStockStatus.setTextColor(ContextCompat.getColor(binding.root.context, R.color.brand_error))
+                binding.textQuantity.setTextColor(ContextCompat.getColor(binding.root.context, R.color.destructive))
+                binding.textStockStatus.setTextColor(ContextCompat.getColor(binding.root.context, R.color.destructive))
             } else {
-                binding.textQuantity.setTextColor(ContextCompat.getColor(binding.root.context, R.color.brand_primary))
+                binding.textQuantity.setTextColor(ContextCompat.getColor(binding.root.context, R.color.primary_accent))
                 binding.textStockStatus.setTextColor(ContextCompat.getColor(binding.root.context, R.color.text_secondary))
             }
 

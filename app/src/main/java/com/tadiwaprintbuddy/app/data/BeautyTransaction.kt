@@ -1,9 +1,13 @@
 package com.tadiwaprintbuddy.app.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "beauty_transactions")
+@Entity(
+    tableName = "beauty_transactions",
+    indices = [Index(value = ["timestamp"], name = "idx_beauty_timestamp")]
+)
 data class BeautyTransaction(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

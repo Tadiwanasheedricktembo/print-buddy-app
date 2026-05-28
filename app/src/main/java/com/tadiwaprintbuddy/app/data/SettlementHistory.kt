@@ -10,7 +10,8 @@ import androidx.room.PrimaryKey
     indices = [
         Index("customerId"),
         Index("originId"),
-        Index(value = ["originId", "ledgerEntryType"], unique = true)
+        Index(value = ["originId", "ledgerEntryType"], unique = true),
+        Index(value = ["timestamp"], name = "idx_settlement_timestamp")
     ]
 )
 data class SettlementHistory(

@@ -53,7 +53,8 @@ class DebtorCreditAdapter(
                 binding.buttonUpdateAmount.text = "Receive Payment"
                 binding.buttonUpdateAmount.setIconResource(R.drawable.ic_wallet)
                 
-                val iconBg = if (bindingAdapterPosition % 2 == 0) R.color.icon_bg_purple else R.color.icon_bg_blue
+                val pos = if (bindingAdapterPosition != RecyclerView.NO_POSITION) bindingAdapterPosition else position
+                val iconBg = if (pos % 2 == 0) R.color.icon_bg_purple else R.color.icon_bg_blue
                 binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, iconBg))
                 binding.imageIcon.setImageResource(R.drawable.ic_person)
                 binding.imageIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)

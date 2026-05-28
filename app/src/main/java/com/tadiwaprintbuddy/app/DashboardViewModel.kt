@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.*
 
 data class BusinessInsight(
@@ -19,11 +20,16 @@ data class BusinessInsight(
 
 data class DashboardUiState(
     val period: String = "Today",
+    val paymentMethod: String = "All",
     val metrics: PeriodMetrics? = null,
     val revenueTrend: List<TrendPoint> = emptyList(),
     val paymentBreakdown: List<PaymentBreakdown> = emptyList(),
     val serviceBreakdown: List<CategoryRevenue> = emptyList(),
+    val expenseBreakdown: List<CategoryRevenue> = emptyList(),
     val insights: List<BusinessInsight> = emptyList(),
+    val upiWalletBalance: Double = 0.0,
+    val totalReceivables: Double = 0.0,
+    val debtorsCount: Int = 0,
     val isLoading: Boolean = true,
     val showZeroExpenseWarning: Boolean = false
 )
@@ -34,27 +40,70 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        loadData("Today")
+        loadData()
     }
 
     fun setPeriod(period: String) {
         _uiState.update { it.copy(period = period, isLoading = true) }
-        loadData(period)
+        loadData()
     }
 
-    private fun loadData(period: String) {
-        viewModelScope.launch {
-            val (start, end) = getRange(period)
-            val (prevStart, prevEnd) = getPreviousRange(period, start)
+    fun setPaymentMethod(method: String) {
+        _uiState.update { it.copy(paymentMethod = method, isLoading = true) }
+        loadData()
+    }
 
-            // Basic Metrics
-            val revenue = repository.getRevenueBetween(start, end) ?: 0.0
-            val expenses = repository.getExpensesBetween(start, end) ?: 0.0
-            val ordersCount = repository.getOrdersCountBetween(start, end)
+    private fun loadData() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val (start, end) = getRange(state.period)
+            val (prevStart, prevEnd) = getPreviousRange(state.period, start)
+
+            // Dimension 1: Revenue
+            val revenue: Double
+            val prevRevenue: Double
             
-            val prevRevenue = repository.getRevenueBetween(prevStart, prevEnd) ?: 0.0
-            val prevExpenses = repository.getExpensesBetween(prevStart, prevEnd) ?: 0.0
-            val prevOrdersCount = repository.getOrdersCountBetween(prevStart, prevEnd)
+            if (state.paymentMethod == "All") {
+                val sales = repository.getSalesRevenueBetween(start, end)
+                val settled = repository.getSettledDebtRevenueBetween(start, end)
+                revenue = sales + settled
+                
+                val prevSales = repository.getSalesRevenueBetween(prevStart, prevEnd)
+                val prevSettled = repository.getSettledDebtRevenueBetween(prevStart, prevEnd)
+                prevRevenue = prevSales + prevSettled
+            } else {
+                // If specific method, use direct query
+                revenue = repository.getRevenueByMethodBetween(start, end, state.paymentMethod.uppercase())
+                prevRevenue = repository.getRevenueByMethodBetween(prevStart, prevEnd, state.paymentMethod.uppercase())
+            }
+
+            // Dimension 4: Expenses
+            val expenses: Double
+            val prevExpenses: Double
+            val cashExpenses: Double
+            if (state.paymentMethod == "All") {
+                expenses = repository.getExpensesBetween(start, end)
+                prevExpenses = repository.getExpensesBetween(prevStart, prevEnd)
+                cashExpenses = repository.getExpensesByMethodBetween(start, end, "CASH")
+            } else {
+                expenses = repository.getExpensesByMethodBetween(start, end, state.paymentMethod.uppercase())
+                prevExpenses = repository.getExpensesByMethodBetween(prevStart, prevEnd, state.paymentMethod.uppercase())
+                cashExpenses = if (state.paymentMethod == "Cash") expenses else 0.0
+            }
+
+            // Orders
+            val ordersCount: Int
+            val prevOrdersCount: Int
+            val cashSales: Double
+            if (state.paymentMethod == "All") {
+                ordersCount = repository.getOrdersCountBetween(start, end)
+                prevOrdersCount = repository.getOrdersCountBetween(prevStart, prevEnd)
+                cashSales = repository.getRevenueByMethodBetween(start, end, "CASH")
+            } else {
+                ordersCount = repository.getOrdersCountByMethodBetween(start, end, state.paymentMethod.uppercase())
+                prevOrdersCount = repository.getOrdersCountByMethodBetween(prevStart, prevEnd, state.paymentMethod.uppercase())
+                cashSales = if (state.paymentMethod == "Cash") revenue else 0.0
+            }
 
             val netProfit = revenue - expenses
             val prevNetProfit = prevRevenue - prevExpenses
@@ -72,13 +121,20 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 previousOrdersCount = prevOrdersCount
             )
 
+            // Snapshot Metrics (Dimension 2 & 3)
+            val upiWallet = repository.getCurrentBeautyBalance()
+            val totalReceivables = repository.getTotalReceivables()
+            val debtorsCount = repository.getDebtorsCount()
+            val cashInHand = cashSales - cashExpenses
+
             // Charts
-            val trend = repository.getRevenueTrend(start, end)
+            val trend = repository.getRevenueTrendByMethod(start, end, if (state.paymentMethod == "All") "CASH" else state.paymentMethod.uppercase()) 
             val payments = repository.getPaymentBreakdownBetween(start, end)
             val services = repository.getServiceBreakdownBetween(start, end)
+            val expenseBreakdown = repository.getExpenseBreakdownBetween(start, end)
 
             // Insights
-            val insights = calculateInsights(revenue, ordersCount, services, payments)
+            val insights = calculateInsights(revenue, ordersCount, upiWallet, totalReceivables, debtorsCount, cashInHand, trend)
 
             _uiState.update {
                 it.copy(
@@ -86,7 +142,11 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                     revenueTrend = trend,
                     paymentBreakdown = payments,
                     serviceBreakdown = services,
+                    expenseBreakdown = expenseBreakdown,
                     insights = insights,
+                    upiWalletBalance = upiWallet,
+                    totalReceivables = totalReceivables,
+                    debtorsCount = debtorsCount,
                     isLoading = false,
                     showZeroExpenseWarning = expenses == 0.0 && revenue > 0
                 )
@@ -97,27 +157,30 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     private fun calculateInsights(
         revenue: Double,
         ordersCount: Int,
-        services: List<CategoryRevenue>,
-        payments: List<PaymentBreakdown>
+        upiWallet: Double,
+        totalReceivables: Double,
+        debtorsCount: Int,
+        cashInHand: Double,
+        trend: List<TrendPoint>
     ): List<BusinessInsight> {
         val list = mutableListOf<BusinessInsight>()
         
-        // Best Service
-        services.maxByOrNull { it.total }?.let {
-            val percent = if (revenue > 0) (it.total / revenue) * 100 else 0.0
-            list.add(BusinessInsight("🏆 Best Service", it.category, "${String.format(Locale.ENGLISH, "%.0f", percent)}% of revenue"))
-        }
+        list.add(BusinessInsight("💵 Cash in Hand", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "from cash orders"))
+        list.add(BusinessInsight("📱 UPI Wallet", "₹${String.format(Locale.ENGLISH, "%.2f", upiWallet)}", "Beauty Account"))
+        list.add(BusinessInsight("⏳ Credit Owed", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables)}", "$debtorsCount customers"))
 
-        // Top Payment
-        payments.maxByOrNull { it.total }?.let {
-            val percent = if (revenue > 0) (it.total / revenue) * 100 else 0.0
-            list.add(BusinessInsight("💳 Top Payment", it.type, "${String.format(Locale.ENGLISH, "%.0f", percent)}% of sales"))
-        }
-
-        // Avg Order
         if (ordersCount > 0) {
             val avg = revenue / ordersCount
             list.add(BusinessInsight("📊 Avg Order", "₹${String.format(Locale.ENGLISH, "%.2f", avg)}", "per transaction"))
+        }
+
+        // Peak Day
+        if (trend.isNotEmpty()) {
+            val peak = trend.maxByOrNull { it.amount }
+            if (peak != null) {
+                val day = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(peak.timestamp))
+                list.add(BusinessInsight("📅 Peak Day", day, "₹${String.format(Locale.ENGLISH, "%.0f", peak.amount)} peak"))
+            }
         }
 
         return list
@@ -131,14 +194,34 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 cal.set(Calendar.HOUR_OF_DAY, 0)
                 cal.set(Calendar.MINUTE, 0)
                 cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+            }
+            "Yesterday" -> {
+                cal.add(Calendar.DAY_OF_YEAR, -1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                val start = cal.timeInMillis
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                return Pair(start, cal.timeInMillis)
             }
             "This Week" -> {
-                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
                 cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
             }
             "This Month" -> {
                 cal.set(Calendar.DAY_OF_MONTH, 1)
                 cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+            }
+            "Last 30 Days" -> {
+                cal.add(Calendar.DAY_OF_YEAR, -30)
             }
             "All Time" -> return Pair(0L, end)
         }
@@ -151,9 +234,10 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
         cal.timeInMillis = currentStart
         val end = currentStart
         when (period) {
-            "Today" -> cal.add(Calendar.DAY_OF_YEAR, -1)
+            "Today", "Yesterday" -> cal.add(Calendar.DAY_OF_YEAR, -1)
             "This Week" -> cal.add(Calendar.WEEK_OF_YEAR, -1)
             "This Month" -> cal.add(Calendar.MONTH, -1)
+            "Last 30 Days" -> cal.add(Calendar.DAY_OF_YEAR, -30)
         }
         return Pair(cal.timeInMillis, end)
     }

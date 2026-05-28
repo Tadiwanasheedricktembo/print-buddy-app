@@ -1,6 +1,7 @@
 package com.tadiwaprintbuddy.app.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 enum class ExpenseCategory {
@@ -11,7 +12,10 @@ enum class ExpenseCategory {
     MISCELLANEOUS
 }
 
-@Entity(tableName = "expenses")
+@Entity(
+    tableName = "expenses",
+    indices = [Index(value = ["timestamp"], name = "idx_expenses_timestamp")]
+)
 data class Expense(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

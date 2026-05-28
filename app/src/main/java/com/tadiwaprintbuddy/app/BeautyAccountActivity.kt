@@ -44,8 +44,23 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         setupToolbar()
         setupRecyclerView()
+        setupFilters()
         setupClickListeners()
         observeViewModel()
+    }
+
+    private fun setupFilters() {
+        binding.chipGroupTimeFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            val period = when (checkedId) {
+                R.id.chipToday -> "Today"
+                R.id.chipThisWeek -> "This Week"
+                R.id.chipThisMonth -> "This Month"
+                R.id.chipAllTime -> "All Time"
+                else -> "Today"
+            }
+            viewModel.setPeriod(period)
+        }
     }
 
     private fun showDeleteConfirmDialog(transaction: BeautyTransaction) {
@@ -102,23 +117,38 @@ class BeautyAccountActivity : AppCompatActivity() {
     }
 
     private fun observeViewModel() {
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
+
         viewModel.balance.observe(this) { balance ->
-            val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
-            val format = NumberFormat.getCurrencyInstance(locale)
             val current = balance ?: 0.0
-            binding.textCurrentBalance.text = format.format(current)
+            
             if (current == 0.0) {
-                binding.textCurrentBalance.setTextColor(0xFFFF5252.toInt())
+                binding.textCurrentBalance.text = "Balance Empty"
+                binding.textCurrentBalance.setTextColor(Color.parseColor("#FF5252"))
+                binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 32f)
             } else {
+                binding.textCurrentBalance.text = format.format(kotlin.math.abs(current))
                 binding.textCurrentBalance.setTextColor(Color.WHITE)
+                binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 48f)
             }
         }
 
         viewModel.transactions.observe(this) { transactions ->
-            val count = transactions?.size ?: 0
-            val countText = if (count == 1) "1 TRANSACTION" else "$count TRANSACTIONS"
-            binding.textTransactionCount.text = countText
             transactionAdapter.submitList(transactions ?: emptyList())
+        }
+
+        viewModel.periodSummary.observe(this) { summary ->
+            binding.textSummaryPeriodName.text = viewModel.filterPeriod.value?.uppercase()
+            binding.textSummaryReceived.text = format.format(kotlin.math.abs(summary.received))
+            binding.textSummaryReturned.text = format.format(kotlin.math.abs(summary.returned))
+            
+            val netFlow = summary.netFlow
+            binding.textSummaryNetFlow.text = format.format(kotlin.math.abs(netFlow))
+            binding.textSummaryNetFlow.setTextColor(if (netFlow >= 0) Color.parseColor("#00C853") else Color.parseColor("#FF5252"))
+            
+            binding.textSummaryCount.text = summary.count.toString()
+            binding.textTransactionCount.text = "${summary.count} TRANSACTIONS"
         }
     }
 
@@ -162,7 +192,7 @@ class BeautyAccountActivity : AppCompatActivity() {
                 val amount = input.text.toString().toDoubleOrNull()
                 if (amount != null && amount > 0) {
                     if (amount > currentBalance) {
-                        Toast.makeText(this, "Cannot return more than balance", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Insufficient Beauty Balance", Toast.LENGTH_SHORT).show()
                     } else {
                         viewModel.returnMoney(amount, "Manual Return")
                     }
@@ -267,21 +297,21 @@ class BeautyAccountActivity : AppCompatActivity() {
 
                 when (item.type) {
                     "ADD" -> {
-                        holder.textAmount.text = "+ ${format.format(item.amount)}"
+                        holder.textAmount.text = format.format(kotlin.math.abs(item.amount))
                         holder.textAmount.setTextColor(0xFF00C853.toInt()) // primary_accent
                         holder.imageTransactionType.setImageResource(R.drawable.ic_check)
                         holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
                         holder.cardIcon.setCardBackgroundColor(0xFF00C853.toInt())
                     }
                     "RETURN" -> {
-                        holder.textAmount.text = "- ${format.format(item.amount)}"
+                        holder.textAmount.text = format.format(kotlin.math.abs(item.amount))
                         holder.textAmount.setTextColor(0xFFFF5252.toInt()) // destructive
                         holder.imageTransactionType.setImageResource(R.drawable.ic_history)
                         holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
                         holder.cardIcon.setCardBackgroundColor(0xFFFF5252.toInt())
                     }
                     "RESET" -> {
-                        holder.textAmount.text = format.format(item.amount)
+                        holder.textAmount.text = format.format(kotlin.math.abs(item.amount))
                         holder.textAmount.setTextColor(0xFFFFB300.toInt()) // warning
                         holder.imageTransactionType.setImageResource(android.R.drawable.ic_menu_delete)
                         holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
@@ -292,7 +322,8 @@ class BeautyAccountActivity : AppCompatActivity() {
                 // Balance Clarity
                 if (item.newBalance != 0.0 || item.previousBalance != 0.0) {
                     holder.layoutClarity.visibility = View.VISIBLE
-                    holder.textBalanceFlow.text = "Balance: ${format.format(item.previousBalance)} → ${format.format(item.newBalance)}"
+                    val flowText = "Balance: ${format.format(kotlin.math.abs(item.previousBalance))} → ${format.format(kotlin.math.abs(item.newBalance))}"
+                    holder.textBalanceFlow.text = flowText
                 } else {
                     holder.layoutClarity.visibility = View.GONE
                 }

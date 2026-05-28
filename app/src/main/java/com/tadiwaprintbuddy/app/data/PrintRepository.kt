@@ -170,15 +170,53 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getRevenueBetween(start: Long, end: Long): Double? = printDao.getRevenueBetween(start, end)
 
-    suspend fun getOrdersCountBetween(start: Long, end: Long): Int = printDao.getOrdersCountBetween(start, end)
+    suspend fun getExpensesBetween(start: Long, end: Long): Double = printDao.getExpensesBetween(start, end)
 
-    suspend fun getExpensesBetween(start: Long, end: Long): Double? = printDao.getExpensesBetween(start, end)
+    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): Double = 
+        printDao.getExpensesByMethodBetween(start, end, method)
 
-    suspend fun getRevenueTrend(start: Long, end: Long): List<TrendPoint> = printDao.getRevenueTrend(start, end)
+    suspend fun getSalesRevenueBetween(start: Long, end: Long): Double = 
+        printDao.getSalesRevenueBetween(start, end)
 
-    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = printDao.getPaymentBreakdownBetween(start, end)
+    suspend fun getSettledDebtRevenueBetween(start: Long, end: Long): Double = 
+        printDao.getSettledDebtRevenueBetween(start, end)
 
-    suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = printDao.getServiceBreakdownBetween(start, end)
+    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double = 
+        printDao.getRevenueByMethodBetween(start, end, method)
+
+    suspend fun getOrdersCountBetween(start: Long, end: Long): Int = 
+        printDao.getOrdersCountBetween(start, end)
+
+    suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int = 
+        printDao.getOrdersCountByMethodBetween(start, end, method)
+
+    suspend fun getTotalReceivables(): Double = printDao.getTotalReceivables()
+
+    suspend fun getDebtorsCount(): Int = printDao.getDebtorsCount()
+
+    suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint> = 
+        printDao.getRevenueTrendByMethod(start, end, method)
+
+    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = 
+        printDao.getPaymentBreakdownBetween(start, end)
+
+    suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
+        printDao.getServiceBreakdownBetween(start, end)
+
+    suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
+        printDao.getExpenseBreakdownBetween(start, end)
+
+    fun getFilteredBeautyTransactions(start: Long, end: Long) = 
+        printDao.getFilteredBeautyTransactions(start, end)
+
+    suspend fun getBeautyReceivedBetween(start: Long, end: Long): Double = 
+        printDao.getBeautyReceivedBetween(start, end)
+
+    suspend fun getBeautyReturnedBetween(start: Long, end: Long): Double = 
+        printDao.getBeautyReturnedBetween(start, end)
+
+    suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int = 
+        printDao.getBeautyTransactionCountBetween(start, end)
 
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
@@ -357,11 +395,15 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun insertBeautyTransaction(amount: Double, type: String, note: String? = null) {
         val previousBalance = getCurrentBeautyBalance()
         val transactionAmount = when (type) {
-            "ADD", "RESET" -> amount
+            "ADD" -> amount
             "RETURN" -> -amount
+            "RESET" -> -previousBalance
             else -> amount
         }
-        val newBalance = if (type == "RESET") amount else previousBalance + transactionAmount
+        val newBalance = when (type) {
+            "RESET" -> 0.0
+            else -> previousBalance + transactionAmount
+        }
 
         printDao.insertBeautyTransaction(
             BeautyTransaction(
@@ -395,10 +437,36 @@ class PrintRepository(private val printDao: PrintDao) {
 
         for (item in after) {
             val previousBalance = runningBalance
-            val newBalance = if (item.type == "RESET") item.amount else previousBalance + item.transactionAmount
+            val transactionAmount = if (item.type == "RESET") -previousBalance else item.transactionAmount
+            val newBalance = if (item.type == "RESET") 0.0 else previousBalance + transactionAmount
             
             val updated = item.copy(
                 previousBalance = previousBalance,
+                transactionAmount = transactionAmount,
+                newBalance = newBalance
+            )
+            printDao.updateBeautyTransaction(updated)
+            runningBalance = newBalance
+        }
+    }
+
+    suspend fun reconcileBeautyAccount() {
+        val all = printDao.getAllBeautyTransactions().sortedBy { it.timestamp }
+        var runningBalance = 0.0
+
+        for (item in all) {
+            val previousBalance = runningBalance
+            val transactionAmount = when (item.type) {
+                "ADD" -> item.amount
+                "RETURN" -> -item.amount
+                "RESET" -> -previousBalance
+                else -> item.transactionAmount
+            }
+            val newBalance = if (item.type == "RESET") 0.0 else previousBalance + transactionAmount
+
+            val updated = item.copy(
+                previousBalance = previousBalance,
+                transactionAmount = transactionAmount,
                 newBalance = newBalance
             )
             printDao.updateBeautyTransaction(updated)

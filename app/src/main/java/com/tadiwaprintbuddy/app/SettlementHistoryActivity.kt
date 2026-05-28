@@ -217,10 +217,14 @@ class SettlementHistoryActivity : AppCompatActivity() {
                             val sortedTrans = trans.sortedByDescending { it.timestamp }
                             val name = sortedTrans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
                             
+                            val latestBalance = sortedTrans.firstOrNull()?.let { 
+                                if (it.newBalance != 0.0 || it.transactionAmount != 0.0) it.newBalance else it.balanceAfter 
+                            } ?: 0.0
+
                             GroupedSettlement(
                                 customerId = id,
                                 customerName = name,
-                                totalOwed = sortedTrans.firstOrNull()?.balanceAfter ?: 0.0,
+                                totalOwed = latestBalance,
                                 transactions = sortedTrans,
                                 isExpanded = id == targetCustomerId || (targetCustomerName != null && name.equals(targetCustomerName, ignoreCase = true))
                             )
@@ -365,36 +369,34 @@ class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
         if (balance > 0) {
             // Customer Owes
             holder.binding.textTotalOwed.text = format.format(balance)
-            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
             holder.binding.textBalanceLabel.text = "PENDING"
-            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
-            holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.brand_surface_variant))
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
         } else if (balance < 0) {
             // Customer Credit
             holder.binding.textTotalOwed.text = format.format(Math.abs(balance))
-            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
             holder.binding.textBalanceLabel.text = "CREDIT AVAILABLE"
-            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
-            holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.brand_surface_variant))
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
         } else {
             // Settled
             holder.binding.textTotalOwed.text = "Settled"
-            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
             holder.binding.textBalanceLabel.text = "NO BALANCE"
-            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
-            holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.brand_surface_variant))
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
         }
+        holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.surface_elevated))
 
         // Summary Calculations
         val totalDebt = group.transactions.filter { 
-            val delta = it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore)
+            val delta = if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore)
             delta > 0 
-        }.sumOf { it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore) }
+        }.sumOf { if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore) }
         
         val totalPaid = group.transactions.filter { 
-            val delta = it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore)
+            val delta = if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore)
             delta < 0 
-        }.sumOf { Math.abs(it.transactionAmount.takeIf { d -> d != 0.0 } ?: (it.balanceAfter - it.balanceBefore)) }
+        }.sumOf { Math.abs(if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore)) }
 
         holder.binding.textTotalDebt.text = "+ ${format.format(totalDebt)}"
         holder.binding.textTotalPaid.text = "- ${format.format(totalPaid)}"
@@ -406,7 +408,7 @@ class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
 
         holder.binding.layoutHeader.setOnClickListener {
             group.isExpanded = !group.isExpanded
-            notifyItemChanged(position)
+            notifyItemChanged(holder.bindingAdapterPosition)
         }
 
         if (group.isExpanded) {
@@ -448,7 +450,7 @@ class TransactionAdapter(private val historyList: List<SettlementHistory>) :
                     lastDate = dateStr
                 }
 
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
                 val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
 
                 val item = when {
@@ -499,12 +501,12 @@ class TransactionAdapter(private val historyList: List<SettlementHistory>) :
             }
             is DebtAddedViewHolder -> {
                 val history = (item as LedgerItem.DebtAdded).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
                 val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
                 
                 holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
                 holder.binding.textAmount.text = "+ ${format.format(delta)}"
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
                 holder.binding.textLabel.text = "Debt Added"
                 holder.binding.textNote.text = history.note.ifEmpty { "Transaction for ${history.customerName}" }
                 holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
@@ -513,12 +515,12 @@ class TransactionAdapter(private val historyList: List<SettlementHistory>) :
             }
             is PaymentViewHolder -> {
                 val history = (item as LedgerItem.PaymentReceived).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
                 val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
                 
                 holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
                 holder.binding.textAmount.text = "− ${format.format(Math.abs(delta))}"
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
                 holder.binding.textLabel.text = "Payment Received"
                 holder.binding.textNote.text = history.note.ifEmpty { "Payment from ${history.customerName}" }
                 holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
@@ -527,12 +529,12 @@ class TransactionAdapter(private val historyList: List<SettlementHistory>) :
             }
             is CreditCreatedViewHolder -> {
                 val history = (item as LedgerItem.CreditCreated).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
                 val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
                 
                 holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
                 holder.binding.textAmount.text = format.format(Math.abs(delta))
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.warning))
                 holder.binding.textLabel.text = "Credit Created"
                 holder.binding.textNote.text = "Excess payment converted to credit"
                 holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
@@ -541,13 +543,13 @@ class TransactionAdapter(private val historyList: List<SettlementHistory>) :
             }
             is AdjustmentViewHolder -> {
                 val history = (item as LedgerItem.Adjustment).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.balanceAfter - history.balanceBefore)
+                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
                 val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
                 
                 holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
                 val prefix = if (delta >= 0) "± " else "- "
                 holder.binding.textAmount.text = "$prefix${format.format(Math.abs(delta))}"
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_secondary))
+                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.text_secondary))
                 holder.binding.textLabel.text = "Adjustment"
                 holder.binding.textNote.text = history.note.ifEmpty { "Manual Correction" }
                 holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"

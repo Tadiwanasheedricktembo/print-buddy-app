@@ -1,29 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- PREMIUM DARK DESIGN SYSTEM (CORE) -->
-    <color name="brand_background">#0B0F14</color>
-    <color name="brand_surface">#111827</color>
+    <!-- Use the same color tokens for night mode to enforce the master dark design -->
+    <color name="primary_bg">#0D0D0D</color>
+    <color name="surface_card">#1A1A1A</color>
+    <color name="surface_elevated">#242424</color>
+    <color name="primary_accent">#00C853</color>
+    <color name="destructive">#FF5252</color>
+    <color name="warning">#FFB300</color>
 
-    <!-- ACCENTS -->
-    <color name="brand_primary">#22C55E</color>
-    <color name="brand_secondary">#3B82F6</color>
-    <color name="brand_error">#EF4444</color>
-    <color name="brand_warning">#F59E0B</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9E9E9E</color>
+    <color name="text_disabled">#4A4A4A</color>
 
-    <!-- TEXT HIERARCHY -->
-    <color name="text_primary">#E5E7EB</color>
-    <color name="text_secondary">#9CA3AF</color>
-    <color name="text_muted">#6B7280</color>
+    <color name="border_divider">#2C2C2C</color>
 
-    <!-- UTILITIES -->
-    <color name="brand_divider">#1AFFFFFF</color>
-    <color name="brand_outline">#1F2937</color>
+    <!-- NAVIGATION -->
+    <color name="nav_bg">#111111</color>
+    <color name="nav_border">#1E1E1E</color>
+    <color name="nav_active_pill">#1A2E1A</color>
+    <color name="nav_inactive">#4A4A4A</color>
 
-    <!-- TINTED CONTAINERS -->
-    <color name="primary_container">#064E3B</color>
-    <color name="on_primary_container">#DCFCE7</color>
-    <color name="secondary_container">#1E3A8A</color>
-    <color name="on_secondary_container">#DBEAFE</color>
-    <color name="error_container">#450A0A</color>
-    <color name="on_error_container">#FEE2E2</color>
+    <color name="brand_background">@color/primary_bg</color>
+    <color name="brand_surface">@color/surface_card</color>
+    <color name="brand_primary">@color/primary_accent</color>
+    <color name="brand_error">@color/destructive</color>
+    <color name="error_container">#410002</color>
+    <color name="on_error_container">#FFDAD6</color>
+    <color name="brand_divider">@color/border_divider</color>
+    <color name="brand_outline">@color/border_divider</color>
 </resources>

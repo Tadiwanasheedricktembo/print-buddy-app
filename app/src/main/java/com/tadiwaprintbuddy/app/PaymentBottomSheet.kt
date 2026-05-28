@@ -54,9 +54,9 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
     }
 
     private fun updateSelectionUi() {
-        val primary = ContextCompat.getColor(requireContext(), R.color.brand_primary)
-        val divider = ContextCompat.getColor(requireContext(), R.color.brand_divider)
-        val surface = ContextCompat.getColor(requireContext(), R.color.brand_surface)
+        val primary = ContextCompat.getColor(requireContext(), R.color.primary_accent)
+        val divider = ContextCompat.getColor(requireContext(), R.color.border_divider)
+        val surface = ContextCompat.getColor(requireContext(), R.color.surface_card)
         val container = ContextCompat.getColor(requireContext(), R.color.primary_container)
         val textSecondary = ContextCompat.getColor(requireContext(), R.color.text_secondary)
 

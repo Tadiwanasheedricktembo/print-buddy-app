@@ -1,9 +1,16 @@
 package com.tadiwaprintbuddy.app.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "orders")
+@Entity(
+    tableName = "orders",
+    indices = [
+        Index(value = ["date"], name = "idx_orders_date"),
+        Index(value = ["paymentMethod"], name = "idx_orders_payment_method")
+    ]
+)
 data class Order(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

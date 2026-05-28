@@ -147,18 +147,16 @@ class DebtorCreditActivity : AppCompatActivity() {
                 binding.cardIOwe.alpha = inactiveAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
                 binding.textFilterLabel.text = "Filtering: CUSTOMER OWES"
+                binding.textFilterLabel.setTextColor(ContextCompat.getColor(this, R.color.destructive))
             }
             FilterMode.I_OWE_CHANGE -> {
                 binding.cardOwesMe.alpha = inactiveAlpha
                 binding.cardIOwe.alpha = activeAlpha
                 binding.textFilterLabel.visibility = View.VISIBLE
                 binding.textFilterLabel.text = "Filtering: CHANGE DUE"
+                binding.textFilterLabel.setTextColor(ContextCompat.getColor(this, R.color.warning))
             }
         }
-    }
-
-    private fun dpToPx(dp: Int): Int {
-        return (dp * resources.displayMetrics.density).toInt()
     }
 
     private fun applyFilters() {
@@ -293,9 +291,6 @@ class DebtorCreditActivity : AppCompatActivity() {
                 }
 
                 val currentAmount = debtorCredit.amount
-                // We always subtract the payment from the balance
-                // If balance is 50 and they pay 100, delta is -100, new balance is -50 (I owe them)
-                // If balance is -50 and they pay (return change) 50, delta is 50, new balance is 0
                 val amountDelta = if (currentAmount >= 0) -paymentAmount else paymentAmount
 
                 lifecycleScope.launch {

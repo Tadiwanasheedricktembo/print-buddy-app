@@ -199,5 +199,7 @@
     <string name="order_count_format">%1$d Orders</string>
     <string name="zero_orders">0 Orders</string>
     <string name="credit_orders">Credit Orders</string>
+    <string name="upi_wallet_balance">💳 UPI WALLET BALANCE</string>
+    <string name="upi_wallet_subtitle">Updated live from digital transactions</string>
 
 </resources>

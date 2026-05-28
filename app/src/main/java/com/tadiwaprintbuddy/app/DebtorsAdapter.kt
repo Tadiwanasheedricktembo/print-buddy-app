@@ -41,12 +41,12 @@ class DebtorsAdapter(
                 val absBalance = Math.abs(debtor.totalBalance)
                 val amountText = "-${format.format(absBalance)}"
                 binding.textAmountOwed.text = amountText
-                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.change_green))
+                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.primary_accent))
                 binding.textLabelOwed.text = "CHANGE DUE"
                 binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.icon_bg_blue))
             } else {
                 binding.textAmountOwed.text = format.format(debtor.totalBalance)
-                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.brand_error))
+                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.destructive))
                 binding.textLabelOwed.text = "AMOUNT OWED"
                 
                 val iconBg = if (bindingAdapterPosition % 2 == 0) R.color.icon_bg_purple else R.color.icon_bg_blue

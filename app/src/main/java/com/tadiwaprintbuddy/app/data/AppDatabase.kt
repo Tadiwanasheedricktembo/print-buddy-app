@@ -12,7 +12,7 @@ import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class],
-    version = 24,
+    version = 26,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -33,7 +33,8 @@ abstract class AppDatabase : RoomDatabase() {
                 ).addMigrations(
                     MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, 
                     MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
-                    MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24
+                    MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
+                    MIGRATION_24_25, MIGRATION_25_26
                 )
 
                 if (BuildConfig.DEBUG) {
@@ -43,6 +44,50 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Rebuild orders table to match Room expectations (No defaults, Correct indices)
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS orders_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        totalAmount REAL NOT NULL,
+                        date INTEGER NOT NULL,
+                        customerName TEXT NOT NULL,
+                        paidAmount REAL NOT NULL,
+                        paymentMethod TEXT NOT NULL,
+                        customerId INTEGER NOT NULL,
+                        previousBalance REAL NOT NULL,
+                        transactionAmount REAL NOT NULL,
+                        newBalance REAL NOT NULL
+                    )
+                """.trimIndent())
+                
+                db.execSQL("""
+                    INSERT INTO orders_new (id, totalAmount, date, customerName, paidAmount, paymentMethod, customerId, previousBalance, transactionAmount, newBalance)
+                    SELECT id, totalAmount, date, customerName, paidAmount, paymentMethod, customerId, previousBalance, transactionAmount, newBalance FROM orders
+                """.trimIndent())
+                
+                db.execSQL("DROP TABLE orders")
+                db.execSQL("ALTER TABLE orders_new RENAME TO orders")
+                
+                // Recreate Indices
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_orders_payment_method ON orders(paymentMethod)")
+            }
+        }
+
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // PART 2 - DATABASE LAYER: Add Indexes
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_orders_payment_method ON orders(paymentMethod)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_beauty_timestamp ON beauty_transactions(timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_expenses_timestamp ON expenses(timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_debtor_updated ON debtor_credits(lastUpdated)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_settlement_timestamp ON settlement_history(timestamp)")
             }
         }
 

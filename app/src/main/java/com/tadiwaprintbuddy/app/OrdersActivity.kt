@@ -198,7 +198,7 @@ class OrdersActivity : AppCompatActivity() {
                 when (currentPaymentFilter) {
                     PaymentFilter.CASH -> it.paymentMethod == "CASH"
                     PaymentFilter.UPI -> it.paymentMethod == "UPI"
-                    PaymentFilter.CREDIT -> it.totalAmount > it.paidAmount
+                    PaymentFilter.CREDIT -> it.paymentStatus != "PAID"
                     else -> true
                 }
             }
@@ -225,12 +225,11 @@ class OrdersActivity : AppCompatActivity() {
             binding.layoutEmptyState.visibility = View.GONE
             binding.recyclerOrders.visibility = View.VISIBLE
             
-            // Re-bind on main thread safely
             binding.recyclerOrders.post {
                 adapter.updateOrders(orders)
             }
             
-            val totalRevenue = orders.sumOf { it.totalAmount }
+            val totalRevenue = orders.filter { it.orderStatus == "ACTIVE" }.sumOf { it.paidAmount }
             binding.textOrderCount.text = getString(R.string.order_count_format, orders.size)
             binding.textTotalRevenue.text = currencyFormat.format(totalRevenue).replace(" ", "")
         }

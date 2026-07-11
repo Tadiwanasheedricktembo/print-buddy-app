@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
+import com.tadiwaprintbuddy.app.data.OrderResult
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityCartBinding
 import kotlinx.coroutines.launch
@@ -74,36 +75,47 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
         binding.buttonCompleteOrder.isEnabled = false
         lifecycleScope.launch {
             val total = adapter.getTotal()
-            // Save initially as unpaid so we can record the actual payment transaction later
-            val orderId = repository.confirmOrder(customerName, cartItems, "OWES_ME")
+            // Save initially as unpaid (Credit/OWES_ME)
+            val result = repository.confirmOrder(customerName, cartItems, "OWES_ME")
             
-            if (orderId != -1) {
-                Toast.makeText(this@CartActivity, R.string.order_saved_successfully, Toast.LENGTH_SHORT).show()
-                
-                val paymentDialog = PaymentDialogFragment.newInstance(total, orderId)
-                paymentDialog.setOnPaymentConfirmedListener {
-                    lifecycleScope.launch {
-                        // Mark as paid via UPI since this is the QR dialog
-                        repository.updatePayment(orderId, total, "UPI")
-                        Toast.makeText(this@CartActivity, "Payment marked as complete", Toast.LENGTH_SHORT).show()
-                        finish()
-                    }
-                }
-                
-                paymentDialog.show(supportFragmentManager, "payment_qr")
-                
-                // If the user dismisses the dialog without marking as paid, 
-                // we still finish this activity as the order is already saved as a debt.
-                supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
-                    override fun onFragmentDestroyed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
-                        if (f is PaymentDialogFragment) {
+            when (result) {
+                is OrderResult.Success -> {
+                    val orderId = result.orderId
+                    Toast.makeText(this@CartActivity, R.string.order_saved_successfully, Toast.LENGTH_SHORT).show()
+                    
+                    val paymentDialog = PaymentDialogFragment.newInstance(total, orderId)
+                    paymentDialog.setOnPaymentConfirmedListener {
+                        lifecycleScope.launch {
+                            // Mark as paid via UPI since this is the QR dialog
+                            repository.updatePayment(orderId, total, "UPI")
+                            Toast.makeText(this@CartActivity, "Payment marked as complete", Toast.LENGTH_SHORT).show()
                             finish()
-                            supportFragmentManager.unregisterFragmentLifecycleCallbacks(this)
                         }
                     }
-                }, false)
-            } else {
-                binding.buttonCompleteOrder.isEnabled = true
+                    
+                    paymentDialog.show(supportFragmentManager, "payment_qr")
+                    
+                    supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                        override fun onFragmentDestroyed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+                            if (f is PaymentDialogFragment) {
+                                finish()
+                                supportFragmentManager.unregisterFragmentLifecycleCallbacks(this)
+                            }
+                        }
+                    }, false)
+                }
+                is OrderResult.InsufficientStock -> {
+                    Toast.makeText(this@CartActivity, "Insufficient stock for ${result.itemName}. Available: ${result.available}", Toast.LENGTH_LONG).show()
+                    binding.buttonCompleteOrder.isEnabled = true
+                }
+                is OrderResult.ValidationError -> {
+                    Toast.makeText(this@CartActivity, result.message, Toast.LENGTH_SHORT).show()
+                    binding.buttonCompleteOrder.isEnabled = true
+                }
+                is OrderResult.Error -> {
+                    Toast.makeText(this@CartActivity, result.message, Toast.LENGTH_SHORT).show()
+                    binding.buttonCompleteOrder.isEnabled = true
+                }
             }
         }
     }

@@ -46,12 +46,13 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
             val range = getRange(period)
             val received = repository.getBeautyReceivedBetween(range.first, range.second)
             val returned = repository.getBeautyReturnedBetween(range.first, range.second)
+            val netFlow = repository.getBeautyNetFlowBetween(range.first, range.second)
             val count = repository.getBeautyTransactionCountBetween(range.first, range.second)
             
             _periodSummary.value = BeautyPeriodSummary(
                 received = received,
                 returned = returned,
-                netFlow = received - returned,
+                netFlow = netFlow,
                 count = count
             )
         }

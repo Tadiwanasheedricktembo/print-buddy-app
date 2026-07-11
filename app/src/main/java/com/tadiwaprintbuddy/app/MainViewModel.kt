@@ -3,6 +3,7 @@ package com.tadiwaprintbuddy.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.tadiwaprintbuddy.app.data.OrderResult
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,6 +84,8 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
 
     fun completeOrder(paymentStatus: String, paymentMethod: String) {
         val current = _uiState.value
+        if (current.isLoading) return
+        
         if (paymentStatus == "Credit" && current.customerName.isBlank()) {
             viewModelScope.launch { _events.emit(MainEvent.ShowError("Customer name is required for Credit orders")) }
             return
@@ -94,15 +97,28 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
                 val cartItems = listOf(CartItem("General", current.price, current.quantity))
                 val internalPaymentMethod = if (paymentStatus == "Credit") "OWES_ME" else paymentMethod
                 
-                repository.confirmOrder(
+                val result = repository.confirmOrder(
                     current.customerName,
                     cartItems,
                     internalPaymentMethod,
                     current.creditUsed
                 )
                 
-                resetForm()
-                _events.emit(MainEvent.OrderCompleted)
+                when (result) {
+                    is OrderResult.Success -> {
+                        resetForm()
+                        _events.emit(MainEvent.OrderCompleted)
+                    }
+                    is OrderResult.InsufficientStock -> {
+                        _events.emit(MainEvent.ShowError("Insufficient stock for ${result.itemName}. Available: ${result.available}"))
+                    }
+                    is OrderResult.ValidationError -> {
+                        _events.emit(MainEvent.ShowError(result.message))
+                    }
+                    is OrderResult.Error -> {
+                        _events.emit(MainEvent.ShowError(result.message))
+                    }
+                }
             } catch (e: Exception) {
                 _events.emit(MainEvent.ShowError("Failed to save order: ${e.message}"))
             } finally {

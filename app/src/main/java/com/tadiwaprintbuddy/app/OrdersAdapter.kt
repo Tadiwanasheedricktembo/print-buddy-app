@@ -64,17 +64,30 @@ class OrdersAdapter(
             }
 
             binding.textOrderId.text = "Order #${order.id}"
-            // Format currency without space: ₹500.00
             val amountStr = currencyFormat.format(order.totalAmount).replace(" ", "")
             binding.textAmount.text = amountStr
             binding.textDate.text = dateFormat.format(order.date)
 
+            // Order Status Overlay
+            if (order.orderStatus == "CANCELLED") {
+                binding.root.alpha = 0.5f
+            } else {
+                binding.root.alpha = 1.0f
+            }
+
             // Dynamic Icons and Badges
+            val methodDisplay = when (order.paymentMethod) {
+                "CASH" -> "CASH"
+                "UPI" -> "UPI"
+                "MIXED" -> "MIXED"
+                "NONE" -> "CREDIT"
+                else -> order.paymentMethod
+            }
+
             when (order.paymentMethod) {
                 "CASH" -> {
                     binding.imagePaymentIcon.setImageResource(R.drawable.ic_wallet)
                     binding.cardIcon.setCardBackgroundColor(Color.parseColor("#1B5E20"))
-                    binding.badgePaymentMethod.text = "CASH"
                     binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#1B5E20"))
                     binding.badgePaymentMethod.setTextColor(Color.parseColor("#00C853"))
                     binding.tagCreditHeader.visibility = View.GONE
@@ -82,19 +95,32 @@ class OrdersAdapter(
                 "UPI" -> {
                     binding.imagePaymentIcon.setImageResource(R.drawable.ic_qr_code)
                     binding.cardIcon.setCardBackgroundColor(Color.parseColor("#0D47A1"))
-                    binding.badgePaymentMethod.text = "UPI"
                     binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#0D47A1"))
                     binding.badgePaymentMethod.setTextColor(Color.parseColor("#448AFF"))
                     binding.tagCreditHeader.visibility = View.GONE
                 }
-                else -> { // CREDIT / OWES_ME
+                "MIXED" -> {
+                    binding.imagePaymentIcon.setImageResource(R.drawable.ic_check)
+                    binding.cardIcon.setCardBackgroundColor(Color.parseColor("#4527A0"))
+                    binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4527A0"))
+                    binding.badgePaymentMethod.setTextColor(Color.parseColor("#B39DDB"))
+                    binding.tagCreditHeader.visibility = View.GONE
+                }
+                else -> { // NONE / CREDIT
                     binding.imagePaymentIcon.setImageResource(R.drawable.ic_history)
                     binding.cardIcon.setCardBackgroundColor(Color.parseColor("#4A1500"))
-                    binding.badgePaymentMethod.text = "CREDIT"
                     binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4A1500"))
                     binding.badgePaymentMethod.setTextColor(Color.parseColor("#FF5252"))
                     binding.tagCreditHeader.visibility = View.VISIBLE
                 }
+            }
+
+            if (order.orderStatus == "CANCELLED") {
+                binding.badgePaymentMethod.text = "CANCELLED"
+                binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.DKGRAY)
+                binding.badgePaymentMethod.setTextColor(Color.WHITE)
+            } else {
+                binding.badgePaymentMethod.text = methodDisplay
             }
 
             // Balance Clarity Logic

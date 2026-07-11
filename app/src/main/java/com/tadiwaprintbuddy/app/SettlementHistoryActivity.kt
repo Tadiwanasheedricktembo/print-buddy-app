@@ -18,6 +18,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +31,7 @@ import com.tadiwaprintbuddy.app.databinding.ActivitySettlementHistoryBinding
 import com.tadiwaprintbuddy.app.databinding.ItemSettlementBinding
 import com.tadiwaprintbuddy.app.databinding.ItemSettlementGroupBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -45,9 +47,11 @@ class SettlementHistoryActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettlementHistoryBinding
     private lateinit var repository: PrintRepository
+    private val viewModel: SettlementHistoryViewModel by viewModels {
+        SettlementHistoryViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
+    }
     private lateinit var adapter: GroupedSettlementAdapter
     private var allSettlements: List<SettlementHistory> = emptyList()
-    private var allGroups: List<GroupedSettlement> = emptyList()
 
     private val restorePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -69,45 +73,59 @@ class SettlementHistoryActivity : AppCompatActivity() {
         val database = AppDatabase.getDatabase(this)
         repository = PrintRepository(database.printDao())
 
-        adapter = GroupedSettlementAdapter(emptyList())
+        adapter = GroupedSettlementAdapter(emptyList()) { customerId ->
+            viewModel.toggleExpansion(customerId)
+        }
         binding.recyclerSettlements.layoutManager = LinearLayoutManager(this)
         binding.recyclerSettlements.adapter = adapter
 
         setupSearch()
-        loadSettlements()
+        setupSorting()
+        observeViewModel()
+        
+        val targetCustomerId = intent.getLongExtra("EXTRA_CUSTOMER_ID", -1L)
+        viewModel.setInitialExpansion(targetCustomerId)
+        viewModel.loadSettlements()
+    }
+
+    private fun setupSorting() {
+        binding.chipGroupSort.setOnCheckedStateChangeListener { _, checkedIds ->
+            when (checkedIds.firstOrNull()) {
+                R.id.chipSortNewest -> viewModel.setSortOrder(TransactionSortOrder.NEWEST_FIRST)
+                R.id.chipSortOldest -> viewModel.setSortOrder(TransactionSortOrder.OLDEST_FIRST)
+            }
+        }
+    }
+
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            viewModel.groupedSettlements.collectLatest { groups ->
+                if (groups.isEmpty()) {
+                    binding.textEmpty.visibility = View.VISIBLE
+                    binding.recyclerSettlements.visibility = View.GONE
+                } else {
+                    binding.textEmpty.visibility = View.GONE
+                    binding.recyclerSettlements.visibility = View.VISIBLE
+                    adapter.updateGroups(groups)
+                }
+            }
+        }
+        
+        lifecycleScope.launch {
+            repository.getAllSettlements().let {
+                allSettlements = it
+            }
+        }
     }
 
     private fun setupSearch() {
         binding.editSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                applySearch(s?.toString() ?: "")
+                viewModel.setSearchQuery(s?.toString() ?: "")
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
-    }
-
-    private fun applySearch(query: String) {
-        if (query.isBlank()) {
-            adapter.updateGroups(allGroups)
-            binding.textNoResults.visibility = View.GONE
-            binding.recyclerSettlements.visibility = if (allGroups.isEmpty()) View.GONE else View.VISIBLE
-            return
-        }
-
-        val filteredGroups = allGroups.filter {
-            it.customerName.contains(query, ignoreCase = true)
-        }
-
-        adapter.updateGroups(filteredGroups)
-
-        if (filteredGroups.isEmpty()) {
-            binding.textNoResults.visibility = View.VISIBLE
-            binding.recyclerSettlements.visibility = View.GONE
-        } else {
-            binding.textNoResults.visibility = View.GONE
-            binding.recyclerSettlements.visibility = View.VISIBLE
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -188,7 +206,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@SettlementHistoryActivity, "Data restored successfully!", Toast.LENGTH_SHORT).show()
-                    loadSettlements()
+                    viewModel.loadSettlements()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -198,58 +216,24 @@ class SettlementHistoryActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadSettlements() {
-        val targetCustomerName = intent.getStringExtra("EXTRA_CUSTOMER_NAME")
-        val targetCustomerId = intent.getLongExtra("EXTRA_CUSTOMER_ID", -1L)
-        
+    private fun shareFile(context: Context, file: File, mimeType: String, chooserTitle: String) {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_SEND)
+        intent.type = mimeType
+        intent.putExtra(Intent.EXTRA_STREAM, uri)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        context.startActivity(Intent.createChooser(intent, chooserTitle))
+    }
+
+    private fun loadFlatSettlements() {
         lifecycleScope.launch {
-            try {
-                allSettlements = repository.getAllSettlements()
-                if (allSettlements.isEmpty()) {
-                    binding.textEmpty.visibility = View.VISIBLE
-                    binding.recyclerSettlements.visibility = View.GONE
-                } else {
-                    binding.textEmpty.visibility = View.GONE
-                    binding.recyclerSettlements.visibility = View.VISIBLE
-                    
-                    val grouped = allSettlements.groupBy { it.customerId }
-                        .map { (id, trans) ->
-                            val sortedTrans = trans.sortedByDescending { it.timestamp }
-                            val name = sortedTrans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
-                            
-                            val latestBalance = sortedTrans.firstOrNull()?.let { 
-                                if (it.newBalance != 0.0 || it.transactionAmount != 0.0) it.newBalance else it.balanceAfter 
-                            } ?: 0.0
-
-                            GroupedSettlement(
-                                customerId = id,
-                                customerName = name,
-                                totalOwed = latestBalance,
-                                transactions = sortedTrans,
-                                isExpanded = id == targetCustomerId || (targetCustomerName != null && name.equals(targetCustomerName, ignoreCase = true))
-                            )
-                        }.sortedBy { it.customerName }
-                    
-                    allGroups = grouped
-                    applySearch(binding.editSearch.text.toString())
-
-                    // Scroll to the targeted customer if found
-                    if (targetCustomerId != -1L || targetCustomerName != null) {
-                        val index = grouped.indexOfFirst { 
-                            it.customerId == targetCustomerId || (targetCustomerName != null && it.customerName.equals(targetCustomerName, ignoreCase = true)) 
-                        }
-                        if (index != -1) {
-                            binding.recyclerSettlements.post {
-                                binding.recyclerSettlements.scrollToPosition(index)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // PHASE 4: Fallback to flat list if grouping fails
-                android.util.Log.e("SettlementHistory", "Grouping failed, falling back", e)
-                loadFlatSettlements()
-            }
+            // Unused
         }
     }
 
@@ -306,38 +290,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
             }
         }
     }
-
-    private fun shareFile(context: Context, file: File, mimeType: String, chooserTitle: String) {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file
-        )
-
-        val intent = Intent(Intent.ACTION_SEND)
-        intent.type = mimeType
-        intent.putExtra(Intent.EXTRA_STREAM, uri)
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-        context.startActivity(Intent.createChooser(intent, chooserTitle))
-    }
-
-    private fun loadFlatSettlements() {
-        lifecycleScope.launch {
-            val settlements = repository.getAllSettlements()
-            // We'd need a different adapter type or make GroupedSettlementAdapter handle flat data
-            // For now, let's keep it robust within the main loader
-        }
-    }
 }
-
-data class GroupedSettlement(
-    val customerId: Long,
-    val customerName: String,
-    val totalOwed: Double,
-    val transactions: List<SettlementHistory>,
-    var isExpanded: Boolean = false
-)
 
 sealed class LedgerItem {
     data class DateHeader(val date: String) : LedgerItem()
@@ -347,8 +300,10 @@ sealed class LedgerItem {
     data class Adjustment(val history: SettlementHistory) : LedgerItem()
 }
 
-class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
-    RecyclerView.Adapter<GroupedSettlementAdapter.GroupViewHolder>() {
+class GroupedSettlementAdapter(
+    private var groups: List<GroupedSettlement>,
+    private val onHeaderClick: (Long) -> Unit
+) : RecyclerView.Adapter<GroupedSettlementAdapter.GroupViewHolder>() {
 
     class GroupViewHolder(val binding: ItemSettlementGroupBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -367,36 +322,25 @@ class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
         
         val balance = group.totalOwed
         if (balance > 0) {
-            // Customer Owes
             holder.binding.textTotalOwed.text = format.format(balance)
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
             holder.binding.textBalanceLabel.text = "PENDING"
             holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
         } else if (balance < 0) {
-            // Customer Credit
             holder.binding.textTotalOwed.text = format.format(Math.abs(balance))
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
             holder.binding.textBalanceLabel.text = "CREDIT AVAILABLE"
             holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
         } else {
-            // Settled
             holder.binding.textTotalOwed.text = "Settled"
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
             holder.binding.textBalanceLabel.text = "NO BALANCE"
             holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
         }
-        holder.binding.imageAvatar.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(holder.itemView.context, R.color.surface_elevated))
 
-        // Summary Calculations
-        val totalDebt = group.transactions.filter { 
-            val delta = if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore)
-            delta > 0 
-        }.sumOf { if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore) }
-        
-        val totalPaid = group.transactions.filter { 
-            val delta = if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore)
-            delta < 0 
-        }.sumOf { Math.abs(if (it.transactionAmount != 0.0) it.transactionAmount else (it.newBalance - it.balanceBefore)) }
+        // Summary Calculations (Authoritative from ViewModel's provided transactions)
+        val totalDebt = group.transactions.sumOf { it.transactionAmount.coerceAtLeast(0.0) }
+        val totalPaid = group.transactions.sumOf { (-it.transactionAmount).coerceAtLeast(0.0) }
 
         holder.binding.textTotalDebt.text = "+ ${format.format(totalDebt)}"
         holder.binding.textTotalPaid.text = "- ${format.format(totalPaid)}"
@@ -407,8 +351,7 @@ class GroupedSettlementAdapter(private var groups: List<GroupedSettlement>) :
         holder.binding.imageExpand.rotation = if (group.isExpanded) 180f else 0f
 
         holder.binding.layoutHeader.setOnClickListener {
-            group.isExpanded = !group.isExpanded
-            notifyItemChanged(holder.bindingAdapterPosition)
+            onHeaderClick(group.customerId)
         }
 
         if (group.isExpanded) {
@@ -437,7 +380,6 @@ class TransactionAdapter(private val historyList: List<SettlementHistory>) :
     }
 
     private val ledgerItems: List<LedgerItem> = historyList
-        .sortedByDescending { it.timestamp }
         .let { sortedList ->
             val items = mutableListOf<LedgerItem>()
             var lastDate = ""

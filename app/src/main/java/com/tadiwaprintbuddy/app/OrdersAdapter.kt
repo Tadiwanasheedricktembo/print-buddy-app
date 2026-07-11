@@ -19,7 +19,9 @@ class OrdersAdapter(
 ) : RecyclerView.Adapter<OrdersAdapter.ViewHolder>() {
 
     private val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+    private val currencyFormat: NumberFormat by lazy {
+        NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+    }
 
     fun updateOrders(newOrders: List<Order>) {
         orders = newOrders

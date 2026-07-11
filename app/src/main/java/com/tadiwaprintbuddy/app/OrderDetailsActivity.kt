@@ -110,8 +110,11 @@ class OrderDetailsActivity : AppCompatActivity() {
         val paymentDialog = PaymentDialogFragment.newInstance(amount, orderId)
         paymentDialog.setOnPaymentConfirmedListener {
             lifecycleScope.launch {
-                // When UPI payment is confirmed via QR dialog
-                repository.applyPaymentToCustomer(viewModel.order.value?.customerName ?: "", amount, "UPI")
+                val currentOrder = viewModel.order.value
+                if (currentOrder != null) {
+                    // Pass the NEW total paid amount
+                    repository.updatePayment(orderId, currentOrder.paidAmount + amount, "UPI")
+                }
                 finish() 
                 startActivity(intent)
             }

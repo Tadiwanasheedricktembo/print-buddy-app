@@ -86,8 +86,24 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
         val current = _uiState.value
         if (current.isLoading) return
         
+        // --- Authority Validation ---
+        if (current.total <= 0.0) {
+            viewModelScope.launch { _events.emit(MainEvent.ShowError("Enter a valid amount greater than ₹0")) }
+            return
+        }
+        
+        if (current.quantity <= 0) {
+            viewModelScope.launch { _events.emit(MainEvent.ShowError("Quantity must be greater than zero")) }
+            return
+        }
+
         if (paymentStatus == "Credit" && current.customerName.isBlank()) {
             viewModelScope.launch { _events.emit(MainEvent.ShowError("Customer name is required for Credit orders")) }
+            return
+        }
+        
+        // Prevent UPI status change without confirmed payment
+        if (paymentMethod == "UPI" && paymentStatus != "Paid") {
             return
         }
 

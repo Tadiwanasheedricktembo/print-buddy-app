@@ -51,7 +51,16 @@ class PrintRepository(private val printDao: PrintDao) {
         paymentMethod: String = "CASH",
         appliedCredit: Double = 0.0
     ): OrderResult {
-        if (cartItems.isEmpty()) return OrderResult.ValidationError("Cart is empty")
+        // Authoritative Repository Validation
+        if (cartItems.isEmpty()) return OrderResult.ValidationError("Add at least one item")
+        
+        val total = cartItems.sumOf { it.price * it.quantity }
+        if (total <= 0.0) return OrderResult.ValidationError("Enter a valid amount greater than ₹0")
+
+        for (item in cartItems) {
+            if (item.quantity <= 0) return OrderResult.ValidationError("Invalid quantity for ${item.serviceName}")
+            if (item.price < 0) return OrderResult.ValidationError("Invalid price for ${item.serviceName}")
+        }
 
         // 1. Stock Pre-Check
         for (item in cartItems) {
@@ -62,7 +71,6 @@ class PrintRepository(private val printDao: PrintDao) {
         }
 
         val customer = getOrCreateCustomer(customerName)
-        val total = cartItems.sumOf { it.price * it.quantity }
         val amountAfterCredit = total - appliedCredit
         
         // Logical Mapping

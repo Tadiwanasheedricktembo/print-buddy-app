@@ -119,7 +119,12 @@ class MainActivity : AppCompatActivity() {
         binding.layoutOrderBreakdown.visibility = if (state.total > 0) View.VISIBLE else View.GONE
         binding.textLineTotal.text = currencyFormat.format(state.balanceToPay)
         
-        binding.btnCompleteOrder.isEnabled = state.isCompleteEnabled
+        // Authority Submission Guard
+        binding.btnCompleteOrder.isEnabled = state.isCompleteEnabled && !state.isLoading
+        binding.btnCash.isEnabled = !state.isLoading
+        binding.btnUpi.isEnabled = !state.isLoading
+        binding.btnCredit.isEnabled = !state.isLoading
+
         binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
     }
 

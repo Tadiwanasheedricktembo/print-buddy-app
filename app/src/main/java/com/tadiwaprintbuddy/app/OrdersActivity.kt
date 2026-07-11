@@ -34,14 +34,21 @@ class OrdersActivity : AppCompatActivity() {
     private lateinit var binding: ActivityOrdersBinding
     private lateinit var repository: PrintRepository
     private lateinit var adapter: OrdersAdapter
-    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
+    private val currencyFormat: NumberFormat by lazy {
+        NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
+    }
 
     private var currentFilterType = FilterType.ALL
+    private var currentPaymentFilter = PaymentFilter.ALL
     private var currentSearchQuery = ""
     private var currentStart: Long? = null
     private var currentEnd: Long? = null
     private var allOrders: List<Order> = emptyList()
     private var currentOrders: List<Order> = emptyList()
+
+    private enum class PaymentFilter {
+        ALL, CASH, UPI, CREDIT
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,7 +73,9 @@ class OrdersActivity : AppCompatActivity() {
 
         binding.btnClearFilters.setOnClickListener {
             binding.chipAll.isChecked = true
+            binding.chipPaymentAll.isChecked = true
             binding.editSearchOrders.text.clear()
+            currentPaymentFilter = PaymentFilter.ALL
             loadOrders(FilterType.ALL)
         }
     }
@@ -124,17 +133,28 @@ class OrdersActivity : AppCompatActivity() {
         binding.chipGroupFilters.setOnCheckedStateChangeListener { group, _ ->
             when (group.checkedChipId) {
                 R.id.chipAll -> loadOrders(FilterType.ALL)
-                R.id.chipCreditOnly -> loadOrders(FilterType.CREDIT_ONLY)
                 R.id.chipToday -> loadOrders(FilterType.TODAY)
                 R.id.chipWeek -> loadOrders(FilterType.WEEK)
                 R.id.chipMonth -> loadOrders(FilterType.MONTH)
                 R.id.chipCustom -> showCustomDatePicker()
             }
         }
+
+        binding.chipGroupPaymentFilters.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: R.id.chipPaymentAll
+            currentPaymentFilter = when (checkedId) {
+                R.id.chipPaymentAll -> PaymentFilter.ALL
+                R.id.chipPaymentCash -> PaymentFilter.CASH
+                R.id.chipPaymentUpi -> PaymentFilter.UPI
+                R.id.chipPaymentCredit -> PaymentFilter.CREDIT
+                else -> PaymentFilter.ALL
+            }
+            applyAllFilters()
+        }
     }
 
     private enum class FilterType {
-        ALL, CREDIT_ONLY, TODAY, WEEK, MONTH, LAST_MONTH, LAST_3_MONTHS, YEAR, CUSTOM
+        ALL, TODAY, WEEK, MONTH, LAST_MONTH, LAST_3_MONTHS, YEAR, CUSTOM
     }
 
     private fun loadOrders(filter: FilterType, customStart: Long? = null, customEnd: Long? = null) {
@@ -147,10 +167,6 @@ class OrdersActivity : AppCompatActivity() {
                 FilterType.ALL -> {
                     updateSummary("All Time")
                     repository.getAllOrders()
-                }
-                FilterType.CREDIT_ONLY -> {
-                    updateSummary(getString(R.string.credit_orders))
-                    repository.getAllOrders().filter { it.paymentMethod == "OWES_ME" }
                 }
                 FilterType.CUSTOM -> {
                     if (customStart != null && customEnd != null) {
@@ -176,6 +192,18 @@ class OrdersActivity : AppCompatActivity() {
     private fun applyAllFilters() {
         var filtered = allOrders
         
+        // Apply Payment Filter
+        if (currentPaymentFilter != PaymentFilter.ALL) {
+            filtered = filtered.filter { 
+                when (currentPaymentFilter) {
+                    PaymentFilter.CASH -> it.paymentMethod == "CASH"
+                    PaymentFilter.UPI -> it.paymentMethod == "UPI"
+                    PaymentFilter.CREDIT -> it.totalAmount > it.paidAmount
+                    else -> true
+                }
+            }
+        }
+
         if (currentSearchQuery.isNotEmpty()) {
             filtered = filtered.filter { 
                 it.customerName.contains(currentSearchQuery, ignoreCase = true) ||
@@ -196,7 +224,11 @@ class OrdersActivity : AppCompatActivity() {
         } else {
             binding.layoutEmptyState.visibility = View.GONE
             binding.recyclerOrders.visibility = View.VISIBLE
-            adapter.updateOrders(orders)
+            
+            // Re-bind on main thread safely
+            binding.recyclerOrders.post {
+                adapter.updateOrders(orders)
+            }
             
             val totalRevenue = orders.sumOf { it.totalAmount }
             binding.textOrderCount.text = getString(R.string.order_count_format, orders.size)
@@ -212,7 +244,6 @@ class OrdersActivity : AppCompatActivity() {
         FilterType.TODAY -> "Today"
         FilterType.WEEK -> "This Week"
         FilterType.MONTH -> "This Month"
-        FilterType.CREDIT_ONLY -> "Credit Only"
         else -> "All Time"
     }
 

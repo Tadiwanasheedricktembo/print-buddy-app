@@ -17,85 +17,72 @@ I run a small printing hustle and needed a system that could:
 
 - Track customer debt accurately
 - Record orders quickly at the counter
-- Monitor daily earnings
+- Monitor daily earnings and true net profit
 - Handle partial payments and settlements
 - Keep customer history organized
 - Work fully offline
 
-Instead of adapting generic apps to my workflow, I built my own.
+Instead of adapting generic apps to my workflow, I built my own tailored system.
 
 ---
 
 # Core Features
 
 ## Order Management
-- Quick order entry system
-- Support for CASH, UPI, and CREDIT payments
-- Order timeline with timestamps
-- Photo attachments for print references
-- Automatic revenue tracking
+- **Quick order entry**: Validated system preventing zero-value or empty orders.
+- **Payment support**: Full lifecycle for CASH, UPI, and CREDIT payments.
+- **Order Status Tracking**: Distinguish between ACTIVE and CANCELLED orders with full financial reversal (stock restoration and debt reduction).
+- **Atomic Operations**: Single-transaction database writes ensuring no partial data corruption.
 
-## Earnings Dashboard
-- Total revenue tracking
-- Daily earnings overview
-- Order statistics
-- Cash-only balance tracking
-- Customer debt monitoring
-- Revenue visualization charts
+## Earnings & Analytics
+- **Financial Dashboard**: Real-time revenue tracking based on actual cash collected.
+- **Net Profit Analysis**: Automatically subtracts expenses and stock costs from earnings.
+- **Revenue Visualization**: Trend charts and payment method breakdowns.
+- **Beauty Account**: Specialized digital ledger for UPI wallet tracking with auto-reconciliation.
 
 ## Customer Ledger System
-- Smart customer normalization
-  - "Desmond", " desmond ", and "DESMOND" become one customer
-- Tracks:
-  - Customers who owe me
-  - Customers I owe change to
-- Full settlement and transaction history
-- Automatic oldest-debt-first settlement logic
-- CSV export for debtor records
+- **Smart customer normalization**: Handles variations in name casing and spacing.
+- **Debt & Change Tracking**: Clear visibility into who owes money and where change is due.
+- **Deterministic Transaction Sorting**: View history sorted by "Newest First" or "Oldest First" with ID-based tie-breaking.
+- **Authoritative Balances**: Derived from chronological settlement history for 100% accuracy.
 
-## Printer Notes & References
-- Store printer configuration screenshots
-- Save recurring print samples
-- Keep reference images for repeat jobs
+## Inventory & Expenses
+- **Stock Management**: Track physical units (paper, ink) with low-stock alerts.
+- **Expense Logging**: Categorized business costs for accurate profit calculation.
 
 ---
 
 # Daily Workflow
 
-1. Customer places an order
-2. I enter service type and price
-3. Payment is recorded as CASH, UPI, or CREDIT
-4. Order gets saved instantly
-5. Customer balances update automatically
-6. Returning customers retain complete history
-7. Payments and settlements recalculate balances in real time
+1. Customer places an order.
+2. Enter service type, quantity, and price.
+3. Validation ensures quantity/price > 0 and stock is available.
+4. Payment is recorded as CASH, UPI, or CREDIT.
+5. Order saved instantly across all ledgers (Orders, Settlements, Stock).
+6. Returning customers retain complete history with persistent expansion states in the ledger.
 
 ---
 
 # Technical Highlights
 
 ## Architecture
-- Kotlin
-- Room Database (SQLite)
-- Repository Pattern
-- Material Design UI
-- ViewBinding
-- Coroutines
+- **MVVM (Model-View-ViewModel)**: Clean separation of UI and business logic.
+- **Room Database (v27)**: Robust local storage with explicit migration paths.
+- **Repository Pattern**: Authoritative business rule enforcement.
+- **ViewBinding**: Type-safe UI interaction.
+- **Coroutines & Flow**: High-performance asynchronous data streams.
+- **WorkManager**: Background tasks for daily database backups.
 
-## Data Integrity Features
-- Atomic multi-table transactions
-- Case-insensitive customer normalization
-- Settlement-history-driven balance calculations
-- Automatic projection rebuilding
-- Prevention of duplicate balance calculations
-- Audit logging and debug monitoring tools
+## Data Integrity & Security
+- **Atomic Transactions**: `@Transaction` boundaries for all critical financial writes.
+- **Duplicate Guard**: ViewModel-level submission guards preventing rapid-tap duplicates.
+- **Safe Reversals**: Full reversal logic for cancelled orders (reverts stock and balances).
+- **Biometric Security**: Integrated SecurityManager for PIN/Biometric app locking.
 
 ## Reliability
-- Fully offline-first
-- No server dependency
-- No account/login system
-- Local database ownership
-- Designed for low-resource Android devices
+- **Fully Offline-First**: No server dependency.
+- **Automated Backups**: 24-hour periodic database exports.
+- **Unit Tested**: Comprehensive test suite for order validation, sorting, and database integrity.
 
 ---
 
@@ -116,41 +103,25 @@ Instead of adapting generic apps to my workflow, I built my own.
 
 ---
 
-# Setup & Installation
+# Setup & Development
 
 ## Requirements
 - Android 7.0 (API 24+) or higher
-- ~20 MB storage
+- Android Studio Ladybug or newer
+- Kotlin 2.0+
 
-## Installation
-1. Download the APK or clone the repository
-2. Install the app on Android
-3. Grant storage permission for image attachments
-4. Start creating orders immediately
-
-No signup or internet connection required.
-
----
-
-# Current Status
-
-- Stable daily-use build
-- Actively used in my real printing business
-- Offline-first architecture complete
-- Customer ledger and settlement system operational
-- Analytics and financial tracking integrated
+## Development
+- **Build**: `./gradlew assembleDebug`
+- **Test**: `./gradlew test`
+- **Lint**: `./gradlew lint`
 
 ---
 
 # About This Project
 
-This is not a tutorial clone or a demo project.
+This is not a tutorial clone or a demo project. I built this app to solve real operational problems in my own business while studying and running a print hustle from my dorm room.
 
-I built this app to solve real operational problems in my own business while studying and running a print hustle from my dorm room.
-
-The goal was simple:
-
-> Build software that is genuinely useful in daily life.
+The goal was simple: **Build software that is genuinely useful in daily life.**
 
 ---
 
@@ -160,4 +131,4 @@ The goal was simple:
 
 ---
 
-*Last Updated: May 2026*
+*Last Updated: July 2026*

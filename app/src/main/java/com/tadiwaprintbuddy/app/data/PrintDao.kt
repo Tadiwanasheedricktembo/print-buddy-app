@@ -145,8 +145,8 @@ interface PrintDao {
     @Query("SELECT * FROM customers")
     suspend fun getAllCustomers(): List<CustomerEntity>
 
-    @Query("SELECT remainingBalance FROM settlement_history WHERE customerId = :customerId ORDER BY timestamp DESC LIMIT 1")
-    suspend fun getLatestBalanceForCustomer(customerId: Long): Double?
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId")
+    suspend fun getLatestBalanceForCustomer(customerId: Long): Double
 
     @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE customerId = :customerId AND orderStatus = 'ACTIVE'")
     suspend fun getUnpaidTotalForCustomer(customerId: Long): Double
@@ -250,7 +250,7 @@ interface PrintDao {
     @Transaction
     suspend fun applyPaymentToCustomerIdAtomic(customerId: Long, paymentAmount: Double, paymentMethod: String) {
         val customer = getCustomerById(customerId) ?: return
-        val currentBalance = getLatestBalanceForCustomer(customerId) ?: getUnpaidTotalForCustomer(customerId)
+        val currentBalance = getAuthoritativeCustomerBalance(customerId)
         
         val unpaidOrders = getUnpaidOrdersForCustomer(customerId)
         var remainingPayment = paymentAmount
@@ -295,12 +295,7 @@ interface PrintDao {
     @Transaction
     suspend fun rebuildCustomerProjection(customerId: Long) {
         val customer = getCustomerById(customerId) ?: return
-        val latestSettlement = getLatestBalanceForCustomer(customerId)
-        val calculatedBalance = if (latestSettlement != null) {
-            latestSettlement
-        } else {
-            getUnpaidTotalForCustomer(customerId)
-        }
+        val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
         
         insertOrUpdateDebtorCredit(
             DebtorCredit(
@@ -333,11 +328,26 @@ interface PrintDao {
     @Query("SELECT SUM(amount) FROM external_ledger")
     suspend fun getExternalBalance(): Double?
 
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE paymentMethod = 'CASH' AND orderStatus = 'ACTIVE'")
-    fun getCashInHandFlow(): Flow<Double?>
+    // --- Authoritative customer balance derived from full ledger ---
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId")
+    suspend fun getAuthoritativeCustomerBalance(customerId: Long): Double
 
-    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE'")
-    fun getTotalReceivablesFlow(): Flow<Double?>
+    // --- Authoritative wallet/beauty balance derived from full digital history ---
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM beauty_transactions")
+    suspend fun getAuthoritativeWalletBalance(): Double
+
+    // --- Corrected cash-in-hand that includes ledger payments and subtracts cash expenses ---
+    @Query("""
+        SELECT (
+            IFNULL((SELECT SUM(transactionAmount) FROM settlement_history WHERE ledgerEntryType = 'PAYMENT' AND (note IS NULL OR note NOT LIKE '%UPI%')), 0.0)
+            - IFNULL((SELECT SUM(amount) FROM expenses WHERE paymentMethod = 'CASH'), 0.0)
+        )
+    """)
+    fun getAuthoritativeCashInHandFlow(): Flow<Double?>
+
+    // --- Corrected receivables derived from full ledger ---
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history")
+    fun getAuthoritativeTotalReceivablesFlow(): Flow<Double?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBeautyTransaction(transaction: BeautyTransaction): Unit
@@ -348,13 +358,13 @@ interface PrintDao {
     @Query("SELECT * FROM `beauty_transactions`")
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction>
 
-    @Query("SELECT newBalance FROM `beauty_transactions` ORDER BY timestamp DESC, id DESC LIMIT 1")
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions`")
     fun getBeautyBalanceFlow(): Flow<Double?>
 
-    @Query("SELECT newBalance FROM `beauty_transactions` ORDER BY timestamp DESC, id DESC LIMIT 1")
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions`")
     suspend fun getBeautyBalance(): Double?
 
-    @Query("SELECT IFNULL((SELECT newBalance FROM `beauty_transactions` ORDER BY timestamp DESC, id DESC LIMIT 1), 0.0)")
+    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions`")
     suspend fun getCurrentBeautyBalance(): Double
 
     @Delete

@@ -296,8 +296,7 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun getCustomerBalanceById(customerId: Long): Double {
-        val latest = printDao.getLatestBalanceForCustomer(customerId)
-        return if (latest != null) latest else printDao.getUnpaidTotalForCustomer(customerId)
+        return printDao.getAuthoritativeCustomerBalance(customerId)
     }
 
     suspend fun getCustomerBalance(customerName: String): Double {
@@ -375,9 +374,9 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     // Money Tracking
-    fun getCashInHandFlow(): Flow<Double?> = printDao.getCashInHandFlow()
+    fun getCashInHandFlow(): Flow<Double?> = printDao.getAuthoritativeCashInHandFlow()
     
-    fun getTotalReceivablesFlow(): Flow<Double?> = printDao.getTotalReceivablesFlow()
+    fun getTotalReceivablesFlow(): Flow<Double?> = printDao.getAuthoritativeTotalReceivablesFlow()
 
     suspend fun recordMoneyReturnedFromExternal(amount: Double, note: String? = null) {
         insertBeautyTransaction(amount, "RETURN", note ?: "Money returned by Beauty Rani")
@@ -421,7 +420,9 @@ class PrintRepository(private val printDao: PrintDao) {
     
     suspend fun getBeautyBalance(): Double? = printDao.getBeautyBalance()
 
-    suspend fun getCurrentBeautyBalance(): Double = printDao.getCurrentBeautyBalance()
+    suspend fun getCurrentBeautyBalance(): Double {
+        return printDao.getAuthoritativeWalletBalance()
+    }
 
     suspend fun deleteBeautyTransaction(transaction: BeautyTransaction) {
         printDao.deleteBeautyTransaction(transaction)

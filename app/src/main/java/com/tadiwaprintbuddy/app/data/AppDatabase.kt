@@ -19,6 +19,7 @@ import com.tadiwaprintbuddy.app.BuildConfig
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun printDao(): PrintDao
+    abstract fun integrityCheckDao(): IntegrityCheckDao
 
     companion object {
         @Volatile

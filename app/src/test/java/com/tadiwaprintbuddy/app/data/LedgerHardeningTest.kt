@@ -53,11 +53,10 @@ class LedgerHardeningTest {
 
         // Verify Settlement History
         val settlements = dao.getAllSettlements()
-        assertEquals(1, settlements.size)
-        val settlement = settlements[0]
-        assertEquals("ORDER_POST", settlement.ledgerEntryType)
-        assertEquals(orderId, settlement.originId)
-        assertEquals(20.0, settlement.transactionAmount)
+        // Now creates 2 entries: ORDER_POST (+100) and PAYMENT (-80)
+        assertEquals(2, settlements.size)
+        assertTrue(settlements.any { it.ledgerEntryType == "ORDER_POST" && it.transactionAmount == 100.0 })
+        assertTrue(settlements.any { it.ledgerEntryType == "PAYMENT" && it.transactionAmount == -80.0 })
 
         // Verify Projection
         val customer = dao.getCustomerByNormalizedName("rahul")

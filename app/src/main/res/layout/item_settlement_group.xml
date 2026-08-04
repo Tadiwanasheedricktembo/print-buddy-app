@@ -89,79 +89,112 @@
             app:tint="@color/text_muted" />
     </LinearLayout>
 
-    <!-- EXPANDABLE CONTENT (NO BACKGROUNDS, FLAT LINEAR FLOW) -->
+    <!-- EXPANDABLE CONTENT (BUSINESS ORIENTED METRICS) -->
     <LinearLayout
         android:id="@+id/layoutSummary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingHorizontal="20dp"
         android:paddingBottom="16dp"
         android:visibility="gone"
         tools:visibility="visible">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Total Added"
-                android:textSize="10sp" />
-            <TextView
-                android:id="@+id/textTotalDebt"
-                android:layout_width="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Purchases"
+                    android:textSize="10sp" />
+                <TextView
+                    android:id="@+id/textOrdersTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="₹ 59.00" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="₹ 8.00" />
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Payments"
+                    android:textSize="10sp" />
+                <TextView
+                    android:id="@+id/textCashReceived"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/brand_success"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="₹ 138.00" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Total Paid"
-                android:textSize="10sp" />
-            <TextView
-                android:id="@+id/textTotalPaid"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/brand_success"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="₹ 0.00" />
-        </LinearLayout>
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="end"
-            android:orientation="vertical">
-            <TextView
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Balance"
-                android:textSize="10sp" />
-            <TextView
-                android:id="@+id/textCurrentBalanceSummary"
-                android:layout_width="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Amount Due"
+                    android:textSize="10sp" />
+                <TextView
+                    android:id="@+id/textOutstandingDebt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/brand_error"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="₹ 0.00" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="₹ 8.00" />
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Customer Credit"
+                    android:textSize="10sp" />
+                <TextView
+                    android:id="@+id/textCustomerCredit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="₹ 79.00" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

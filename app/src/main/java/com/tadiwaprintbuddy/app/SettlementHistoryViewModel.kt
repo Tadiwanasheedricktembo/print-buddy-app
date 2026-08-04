@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.data.SettlementHistory
+import com.tadiwaprintbuddy.app.data.BusinessEvent
+import com.tadiwaprintbuddy.app.data.BusinessEventMapper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -17,11 +19,14 @@ data class GroupedSettlement(
     val customerId: Long,
     val customerName: String,
     val totalOwed: Double,
-    val transactions: List<SettlementHistory>,
+    val events: List<BusinessEvent>,
+    val rawTransactions: List<SettlementHistory>,
     var isExpanded: Boolean = false
 )
 
 class SettlementHistoryViewModel(private val repository: PrintRepository) : ViewModel() {
+
+    private val mapper = BusinessEventMapper()
 
     private val _sortOrder = MutableStateFlow(TransactionSortOrder.NEWEST_FIRST)
     val sortOrder: StateFlow<TransactionSortOrder> = _sortOrder.asStateFlow()
@@ -47,15 +52,7 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
     ): List<GroupedSettlement> {
         return settlements.groupBy { it.customerId }
             .map { (id, trans) ->
-                val sortedTrans = when (order) {
-                    TransactionSortOrder.NEWEST_FIRST -> trans.sortedWith(
-                        compareByDescending<SettlementHistory> { it.timestamp }.thenByDescending { it.id }
-                    )
-                    TransactionSortOrder.OLDEST_FIRST -> trans.sortedWith(
-                        compareBy<SettlementHistory> { it.timestamp }.thenBy { it.id }
-                    )
-                }
-                val name = sortedTrans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
+                val name = trans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
                 
                 // Authoritative balance derived from the most recent transaction (by time then ID)
                 val mostRecent = trans.maxWithOrNull(compareBy<SettlementHistory> { it.timestamp }.thenBy { it.id })
@@ -63,11 +60,19 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
                     if (it.newBalance != 0.0 || it.transactionAmount != 0.0) it.newBalance else it.balanceAfter 
                 } ?: 0.0
 
+                val businessEvents = mapper.map(trans).let { events ->
+                    when (order) {
+                        TransactionSortOrder.NEWEST_FIRST -> events.sortedByDescending { it.timestamp }
+                        TransactionSortOrder.OLDEST_FIRST -> events.sortedBy { it.timestamp }
+                    }
+                }
+
                 GroupedSettlement(
                     customerId = id,
                     customerName = name,
                     totalOwed = balance,
-                    transactions = sortedTrans,
+                    events = businessEvents,
+                    rawTransactions = trans,
                     isExpanded = expandedIds.contains(id)
                 )
             }

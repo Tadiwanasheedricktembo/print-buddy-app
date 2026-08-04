@@ -77,6 +77,7 @@
             tools:text="Order #1024 for 10 prints" />
 
         <LinearLayout
+            android:id="@+id/layoutSummaryRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -105,6 +106,41 @@
                 android:textColor="@color/text_primary"
                 android:textSize="12sp"
                 tools:text="BAL: ₹ 8.00" />
+        </LinearLayout>
+
+        <!-- NEW BUSINESS EVENT DETAILS SECTION -->
+        <LinearLayout
+            android:id="@+id/layoutEventDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="12dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/brand_divider"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:id="@+id/textEventBreakdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:lineSpacingExtra="4dp"
+                tools:text="✓ Previous debt ........ ₹21\n✓ Credit created ....... ₹79" />
+
+            <TextView
+                android:id="@+id/textEventAudit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:textColor="@color/text_muted"
+                android:textSize="10sp"
+                tools:text="Ledger IDs: #45, #46 | Order Ref: #12" />
         </LinearLayout>
     </LinearLayout>
 

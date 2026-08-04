@@ -10,7 +10,7 @@ interface PrintDao {
     suspend fun insertOrder(order: Order): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrderItems(items: List<OrderItem>)
+    suspend fun insertOrderItems(items: List<OrderItem>): List<Long>
 
     @Query("SELECT * FROM `orders` ORDER BY date DESC")
     suspend fun getAllOrders(): List<Order>
@@ -93,7 +93,7 @@ interface PrintDao {
     suspend fun getUnpaidOrders(): List<Order>
 
     @Query("UPDATE `orders` SET paidAmount = :newPaidAmount, paymentStatus = :status, paymentMethod = :method WHERE id = :orderId")
-    suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: Double, status: String, method: String)
+    suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: Double, status: String, method: String): Int
 
     @Query("SELECT customerId, customerName, IFNULL(SUM(totalAmount - paidAmount), 0.0) as totalBalance, 'OWES' as type FROM `orders` WHERE orderStatus = 'ACTIVE' GROUP BY customerId HAVING totalBalance > 0")
     suspend fun getDebtors(): List<DebtorSummary>
@@ -102,7 +102,7 @@ interface PrintDao {
     suspend fun getUnpaidOrdersForCustomer(customerId: Long): List<Order>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateDebtorCredit(credit: DebtorCredit): Unit
+    suspend fun insertOrUpdateDebtorCredit(credit: DebtorCredit): Long
 
     @Query("SELECT * FROM debtor_credits WHERE customerId = :customerId")
     suspend fun getDebtorCreditById(customerId: Long): DebtorCredit?
@@ -111,23 +111,24 @@ interface PrintDao {
     suspend fun getDebtorCreditList(): List<DebtorCredit>
 
     @Query("DELETE FROM debtor_credits WHERE customerId = :customerId")
-    suspend fun deleteDebtorCredit(customerId: Long): Unit
+    suspend fun deleteDebtorCredit(customerId: Long): Int
 
     @Query("DELETE FROM customers WHERE id = :customerId")
-    suspend fun deleteCustomer(customerId: Long): Unit
+    suspend fun deleteCustomer(customerId: Long): Int
 
     @Query("DELETE FROM `orders` WHERE customerId = :customerId")
-    suspend fun deleteOrdersForCustomer(customerId: Long): Unit
+    suspend fun deleteOrdersForCustomer(customerId: Long): Int
 
     @Query("DELETE FROM settlement_history WHERE customerId = :customerId")
-    suspend fun deleteSettlementsForCustomer(customerId: Long): Unit
+    suspend fun deleteSettlementsForCustomer(customerId: Long): Int
 
     @Transaction
-    suspend fun deleteCustomerCompletely(customerId: Long) {
+    suspend fun deleteCustomerCompletely(customerId: Long): Boolean {
         deleteDebtorCredit(customerId)
         deleteOrdersForCustomer(customerId)
         deleteSettlementsForCustomer(customerId)
         deleteCustomer(customerId)
+        return true
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -152,47 +153,55 @@ interface PrintDao {
     suspend fun getUnpaidTotalForCustomer(customerId: Long): Double
 
     @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized WHERE id = :customerId")
-    suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String)
+    suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addPhoto(photo: Photo): Unit
+    suspend fun addPhoto(photo: Photo): Long
 
     @Query("SELECT * FROM photos WHERE orderId = :orderId")
     suspend fun getPhotosForOrder(orderId: Int): List<Photo>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addPrinterReference(reference: PrinterReference): Unit
+    suspend fun addPrinterReference(reference: PrinterReference): Long
 
     @Query("SELECT * FROM printer_references ORDER BY timestamp DESC")
     suspend fun getAllPrinterReferences(): List<PrinterReference>
 
     @Delete
-    suspend fun deletePrinterReference(reference: PrinterReference): Unit
+    suspend fun deletePrinterReference(reference: PrinterReference): Int
 
     @Query("SELECT * FROM `orders` WHERE id = :orderId")
     suspend fun getOrderById(orderId: Int): Order?
 
     @Delete
-    suspend fun deleteOrder(order: Order): Unit
+    suspend fun deleteOrder(order: Order): Int
 
     @Query("DELETE FROM `orders` WHERE date BETWEEN :start AND :end")
-    suspend fun deleteOrdersBetween(start: Long, end: Long): Unit
+    suspend fun deleteOrdersBetween(start: Long, end: Long): Int
 
     @Query("DELETE FROM `orders`")
-    suspend fun deleteAllOrders(): Unit
+    suspend fun deleteAllOrders(): Int
 
     @Transaction
-    suspend fun deleteOrderAndItems(order: Order) {
+    suspend fun deleteOrderAndItems(order: Order): Boolean {
         deleteOrder(order)
         // OrderItems should be deleted via ForeignKey CASCADE, but we can be explicit if needed
+        return true
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSettlement(settlement: SettlementHistory): Unit
+    suspend fun insertSettlement(settlement: SettlementHistory): Long
 
     @Transaction
-    suspend fun recordOrderAtomic(order: Order, items: List<OrderItem>): Int {
-        // 1. Deduct Stock
+    suspend fun recordOrderAtomic(
+        customer: CustomerEntity,
+        items: List<OrderItem>,
+        total: Double,
+        requestedPaymentMethod: String,
+        appliedCredit: Double,
+        currentTime: Long
+    ): Int {
+        // 1. Stock Deduction
         for (item in items) {
             val affected = safeDeductStock(item.serviceName, item.quantity)
             val stockItem = getStockItemByName(item.serviceName)
@@ -201,43 +210,111 @@ interface PrintDao {
             }
         }
 
-        // 2. Insert Order
+        // 2. Authoritative Financial Calculation (Inside Transaction)
+        val previousBalance = getAuthoritativeCustomerBalance(customer.id)
+        val availableCredit = if (previousBalance < 0) -previousBalance else 0.0
+        
+        val cashPaid = if (requestedPaymentMethod == "OWES_ME") 0.0 else total - appliedCredit
+        val creditUsed = Math.min(availableCredit, Math.max(0.0, total - cashPaid))
+        
+        val finalPaidAmount = cashPaid + creditUsed
+        val transactionAmount = total - cashPaid // The amount added to the customer's account (Revenue)
+        val newBalance = previousBalance + transactionAmount
+        
+        val finalPaymentMethod = if (requestedPaymentMethod == "OWES_ME") {
+            if (creditUsed > 0) "CREDIT" else "NONE"
+        } else {
+            if (creditUsed > 0) "MIXED" else requestedPaymentMethod
+        }
+        
+        val finalPaymentStatus = when {
+            finalPaidAmount >= total -> "PAID"
+            finalPaidAmount > 0 -> "PARTIALLY_PAID"
+            else -> "UNPAID"
+        }
+
+        // 3. Insert Order
+        val order = Order(
+            totalAmount = total,
+            date = currentTime,
+            customerName = customer.displayName,
+            customerId = customer.id,
+            paidAmount = finalPaidAmount,
+            paymentMethod = finalPaymentMethod,
+            previousBalance = previousBalance,
+            transactionAmount = transactionAmount,
+            newBalance = newBalance,
+            paymentStatus = finalPaymentStatus,
+            orderStatus = "ACTIVE"
+        )
+        
         val orderId = insertOrder(order).toInt()
         val itemsWithOrderId = items.map { it.copy(orderId = orderId) }
         insertOrderItems(itemsWithOrderId)
 
-        // 3. Settlement
-        if (order.transactionAmount != 0.0) {
+        // 4. Ledger Entries
+        // Entry 1: The Order (Revenue/Debt Creation)
+        val orderBalanceBefore = previousBalance
+        val orderBalanceAfter = previousBalance + total
+        
+        insertSettlement(
+            SettlementHistory(
+                customerName = order.customerName,
+                customerId = order.customerId,
+                balanceBefore = orderBalanceBefore,
+                amountPaid = creditUsed, // Mark credit as "paid" for this order audit
+                balanceAfter = orderBalanceAfter,
+                timestamp = currentTime,
+                type = "ORDER",
+                note = "Order #$orderId (Total: ₹$total" + (if (creditUsed > 0) ", Credit used: ₹$creditUsed" else "") + ")",
+                transactionAmount = total,
+                newBalance = orderBalanceAfter,
+                originId = orderId,
+                ledgerEntryType = "ORDER_POST"
+            )
+        )
+
+        // Entry 2: Payment at counter (if any)
+        if (cashPaid > 0) {
+            val paymentBalanceBefore = orderBalanceAfter
+            val paymentBalanceAfter = orderBalanceAfter - cashPaid
+            
             insertSettlement(
                 SettlementHistory(
                     customerName = order.customerName,
                     customerId = order.customerId,
-                    balanceBefore = order.previousBalance,
-                    amountPaid = order.paidAmount,
-                    balanceAfter = order.newBalance,
-                    timestamp = order.date,
-                    type = "ORDER",
-                    note = "Order #$orderId",
-                    transactionAmount = order.transactionAmount,
-                    newBalance = order.newBalance,
-                    originId = orderId,
-                    ledgerEntryType = "ORDER_POST"
+                    balanceBefore = paymentBalanceBefore,
+                    amountPaid = cashPaid,
+                    balanceAfter = paymentBalanceAfter,
+                    timestamp = currentTime,
+                    type = "PAYMENT",
+                    ledgerEntryType = "PAYMENT",
+                    note = "Payment for Order #$orderId via $requestedPaymentMethod",
+                    transactionAmount = -cashPaid,
+                    newBalance = paymentBalanceAfter,
+                    originId = orderId
                 )
             )
-            rebuildCustomerProjection(order.customerId)
         }
+
+        // Entry 3: Credit usage note (Implicit in Entry 1, but we can add a comment to it or a shadow entry)
+        // For now, Entry 1 and Entry 2 correctly represent the state. 
+        // Example: Bal -70. Order +150. Bal 80. Pay -80. Bal 0.
+        
+        rebuildCustomerProjection(order.customerId)
         return orderId
     }
 
     @Transaction
-    suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: Double, status: String, method: String, settlement: SettlementHistory) {
+    suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: Double, status: String, method: String, settlement: SettlementHistory): Boolean {
         updateOrderPaymentStatus(orderId, newPaidAmount, status, method)
         insertSettlement(settlement)
         rebuildCustomerProjection(settlement.customerId)
+        return true
     }
 
     @Transaction
-    suspend fun cancelOrderAtomic(orderId: Int, status: String, settlement: SettlementHistory) {
+    suspend fun cancelOrderAtomic(orderId: Int, status: String, settlement: SettlementHistory): Boolean {
         val items = getItemsForOrder(orderId)
         for (item in items) {
             restoreStock(item.serviceName, item.quantity)
@@ -245,15 +322,19 @@ interface PrintDao {
         updateOrderStatus(orderId, status)
         insertSettlement(settlement)
         rebuildCustomerProjection(settlement.customerId)
+        return true
     }
 
     @Transaction
-    suspend fun applyPaymentToCustomerIdAtomic(customerId: Long, paymentAmount: Double, paymentMethod: String) {
-        val customer = getCustomerById(customerId) ?: return
+    suspend fun applyPaymentToCustomerIdAtomic(customerId: Long, paymentAmount: Double, paymentMethod: String): Boolean {
+        val customer = getCustomerById(customerId) ?: return false
         val currentBalance = getAuthoritativeCustomerBalance(customerId)
         
         val unpaidOrders = getUnpaidOrdersForCustomer(customerId)
         var remainingPayment = paymentAmount
+        var runningBalance = currentBalance
+
+        android.util.Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Start - Customer: ${customer.displayName}, Payment: $paymentAmount, Initial Balance: $currentBalance")
 
         for (order in unpaidOrders) {
             if (remainingPayment <= 0) break
@@ -268,33 +349,62 @@ interface PrintDao {
             
             updateOrderPaymentStatus(order.id, newPaidAmount, newStatus, newMethod)
 
+            val balanceBefore = runningBalance
+            runningBalance -= paymentForThisOrder
+
+            android.util.Log.d("PaymentProcess", "Allocating $paymentForThisOrder to Order #${order.id}. New Order Paid: $newPaidAmount, Order Status: $newStatus")
+
+            insertSettlement(
+                SettlementHistory(
+                    customerName = customer.displayName,
+                    customerId = customer.id,
+                    balanceBefore = balanceBefore,
+                    amountPaid = paymentForThisOrder,
+                    balanceAfter = runningBalance,
+                    timestamp = System.currentTimeMillis(),
+                    type = "PAYMENT",
+                    ledgerEntryType = "PAYMENT",
+                    note = "Debt Payment for Order #${order.id}",
+                    transactionAmount = -paymentForThisOrder,
+                    newBalance = runningBalance,
+                    originId = order.id
+                )
+            )
+
             remainingPayment -= paymentForThisOrder
         }
 
-        val newBalance = currentBalance - paymentAmount
+        if (remainingPayment > 0.001) {
+            val balanceBefore = runningBalance
+            runningBalance -= remainingPayment
 
-        insertSettlement(
-            SettlementHistory(
-                customerName = customer.displayName,
-                customerId = customer.id,
-                balanceBefore = currentBalance,
-                amountPaid = paymentAmount,
-                balanceAfter = newBalance,
-                timestamp = System.currentTimeMillis(),
-                type = "PAYMENT",
-                ledgerEntryType = "PAYMENT",
-                note = "Debt Payment via $paymentMethod",
-                transactionAmount = -paymentAmount,
-                newBalance = newBalance
+            android.util.Log.d("PaymentProcess", "Creating overpayment credit: $remainingPayment. New Balance: $runningBalance")
+
+            insertSettlement(
+                SettlementHistory(
+                    customerName = customer.displayName,
+                    customerId = customer.id,
+                    balanceBefore = balanceBefore,
+                    amountPaid = remainingPayment,
+                    balanceAfter = runningBalance,
+                    timestamp = System.currentTimeMillis(),
+                    type = "PAYMENT",
+                    ledgerEntryType = "CREDIT",
+                    note = "Overpayment Credit",
+                    transactionAmount = -remainingPayment,
+                    newBalance = runningBalance
+                )
             )
-        )
+        }
         
         rebuildCustomerProjection(customer.id)
+        android.util.Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Finished - Final Balance: $runningBalance")
+        return true
     }
 
     @Transaction
-    suspend fun rebuildCustomerProjection(customerId: Long) {
-        val customer = getCustomerById(customerId) ?: return
+    suspend fun rebuildCustomerProjection(customerId: Long): Boolean {
+        val customer = getCustomerById(customerId) ?: return false
         val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
         
         insertOrUpdateDebtorCredit(
@@ -305,6 +415,7 @@ interface PrintDao {
                 lastUpdated = System.currentTimeMillis()
             )
         )
+        return true
     }
 
     @Query("SELECT COUNT(*) = 0 FROM (SELECT id FROM settlement_history WHERE customerId = :customerId EXCEPT SELECT id FROM settlement_history WHERE customerId = :customerId)")
@@ -317,19 +428,25 @@ interface PrintDao {
     suspend fun getAllSettlementHistoryOnce(): List<SettlementHistory>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllSettlements(settlements: List<SettlementHistory>): Unit
+    suspend fun insertAllSettlements(settlements: List<SettlementHistory>): List<Long>
 
     @Query("DELETE FROM settlement_history")
-    suspend fun clearSettlementHistory(): Unit
+    suspend fun clearSettlementHistory(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExternalLedger(entry: ExternalLedger): Unit
+    suspend fun insertExternalLedger(entry: ExternalLedger): Long
 
     @Query("SELECT SUM(amount) FROM external_ledger")
     suspend fun getExternalBalance(): Double?
 
     // --- Authoritative customer balance derived from full ledger ---
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId")
+    @Query("""
+        SELECT CASE 
+            WHEN EXISTS (SELECT 1 FROM settlement_history WHERE customerId = :customerId)
+            THEN IFNULL((SELECT SUM(transactionAmount) FROM settlement_history WHERE customerId = :customerId), 0.0)
+            ELSE IFNULL((SELECT SUM(totalAmount - paidAmount) FROM orders WHERE customerId = :customerId AND orderStatus = 'ACTIVE'), 0.0)
+        END
+    """)
     suspend fun getAuthoritativeCustomerBalance(customerId: Long): Double
 
     // --- Authoritative wallet/beauty balance derived from full digital history ---
@@ -339,18 +456,24 @@ interface PrintDao {
     // --- Corrected cash-in-hand that includes ledger payments and subtracts cash expenses ---
     @Query("""
         SELECT (
-            IFNULL((SELECT SUM(transactionAmount) FROM settlement_history WHERE ledgerEntryType = 'PAYMENT' AND (note IS NULL OR note NOT LIKE '%UPI%')), 0.0)
+            IFNULL((SELECT SUM(settledAmount) FROM settlement_history WHERE ledgerEntryType IN ('PAYMENT', 'CREDIT') AND (note IS NULL OR note NOT LIKE '%UPI%')), 0.0)
             - IFNULL((SELECT SUM(amount) FROM expenses WHERE paymentMethod = 'CASH'), 0.0)
         )
     """)
     fun getAuthoritativeCashInHandFlow(): Flow<Double?>
 
     // --- Corrected receivables derived from full ledger ---
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history")
+    @Query("""
+        SELECT CASE 
+            WHEN EXISTS (SELECT 1 FROM settlement_history)
+            THEN IFNULL((SELECT SUM(transactionAmount) FROM settlement_history), 0.0)
+            ELSE IFNULL((SELECT SUM(totalAmount - paidAmount) FROM orders WHERE orderStatus = 'ACTIVE'), 0.0)
+        END
+    """)
     fun getAuthoritativeTotalReceivablesFlow(): Flow<Double?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBeautyTransaction(transaction: BeautyTransaction): Unit
+    suspend fun insertBeautyTransaction(transaction: BeautyTransaction): Long
 
     @Query("SELECT * FROM `beauty_transactions` ORDER BY timestamp DESC")
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>>
@@ -368,19 +491,19 @@ interface PrintDao {
     suspend fun getCurrentBeautyBalance(): Double
 
     @Delete
-    suspend fun deleteBeautyTransaction(transaction: BeautyTransaction): Unit
+    suspend fun deleteBeautyTransaction(transaction: BeautyTransaction): Int
 
     @Query("SELECT * FROM `beauty_transactions` WHERE timestamp > :timestamp OR (timestamp = :timestamp AND id > :id) ORDER BY timestamp ASC, id ASC")
     suspend fun getBeautyTransactionsAfter(timestamp: Long, id: Int): List<BeautyTransaction>
 
     @Update
-    suspend fun updateBeautyTransaction(transaction: BeautyTransaction): Unit
+    suspend fun updateBeautyTransaction(transaction: BeautyTransaction): Int
 
     @Query("SELECT newBalance FROM `beauty_transactions` WHERE timestamp < :timestamp OR (timestamp = :timestamp AND id < :id) ORDER BY timestamp DESC, id DESC LIMIT 1")
     suspend fun getBeautyBalanceBefore(timestamp: Long, id: Int): Double?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExpense(expense: Expense): Unit
+    suspend fun insertExpense(expense: Expense): Long
 
     @Query("SELECT * FROM `expenses` ORDER BY timestamp DESC")
     fun getAllExpensesFlow(): Flow<List<Expense>>
@@ -389,16 +512,16 @@ interface PrintDao {
     suspend fun getTotalExpenses(): Double?
 
     @Query("DELETE FROM `expenses` WHERE id = :id")
-    suspend fun deleteExpense(id: Int): Unit
+    suspend fun deleteExpense(id: Int): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllExpenses(expenses: List<Expense>): Unit
+    suspend fun insertAllExpenses(expenses: List<Expense>): List<Long>
 
     @Query("DELETE FROM `expenses`")
-    suspend fun clearExpenses(): Unit
+    suspend fun clearExpenses(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStockItem(item: StockItem): Unit
+    suspend fun insertStockItem(item: StockItem): Long
 
     @Query("SELECT * FROM `stock_items` ORDER BY name ASC")
     fun getAllStockItemsFlow(): Flow<List<StockItem>>
@@ -410,17 +533,17 @@ interface PrintDao {
     suspend fun safeDeductStock(name: String, quantity: Int): Int
 
     @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity - :quantity WHERE name = :name")
-    suspend fun deductStockByName(name: String, quantity: Int): Unit
+    suspend fun deductStockByName(name: String, quantity: Int): Int
 
     @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity + :quantity WHERE name = :name")
-    suspend fun restoreStock(name: String, quantity: Int): Unit
+    suspend fun restoreStock(name: String, quantity: Int): Int
 
     @Query("SELECT * FROM `stock_items` WHERE name = :name")
     suspend fun getStockItemByName(name: String): StockItem?
 
     @Delete
-    suspend fun deleteStockItem(item: StockItem): Unit
+    suspend fun deleteStockItem(item: StockItem): Int
 
     @Query("UPDATE `orders` SET orderStatus = :status WHERE id = :orderId")
-    suspend fun updateOrderStatus(orderId: Int, status: String)
+    suspend fun updateOrderStatus(orderId: Int, status: String): Int
 }

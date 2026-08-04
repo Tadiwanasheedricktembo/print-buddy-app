@@ -60,11 +60,11 @@ class TransactionSortingTest {
         
         val settlements = listOf(t1, t2)
         val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.NEWEST_FIRST, "", emptySet())
-        val transactions = groups[0].transactions
+        val events = groups[0].events
         
-        assertEquals(2, transactions.size)
-        assertEquals(2, transactions[0].id)
-        assertEquals(1, transactions[1].id)
+        assertEquals(2, events.size)
+        assertEquals(now + 1000, events[0].timestamp)
+        assertEquals(now, events[1].timestamp)
     }
 
     @Test
@@ -75,30 +75,28 @@ class TransactionSortingTest {
         
         val settlements = listOf(t1, t2)
         val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.OLDEST_FIRST, "", emptySet())
-        val transactions = groups[0].transactions
+        val events = groups[0].events
         
-        assertEquals(2, transactions.size)
-        assertEquals(1, transactions[0].id)
-        assertEquals(2, transactions[1].id)
+        assertEquals(2, events.size)
+        assertEquals(now, events[0].timestamp)
+        assertEquals(now + 1000, events[1].timestamp)
     }
 
     @Test
     fun `test equal timestamps ordered by ID`() {
+        // BusinessEventMapper groups by timestamp, so if they are equal, they become 1 event.
+        // The mapper sorts details by ID ascending to preserve logical flow (e.g. Order then Payment)
         val now = System.currentTimeMillis()
         val t1 = createSettlement(1, 1, now)
         val t2 = createSettlement(2, 1, now)
         
         val settlements = listOf(t1, t2)
         
-        // Newest first should have ID 2 then 1 (Descending ID)
-        val groupsNewest = viewModel.groupAndSort(settlements, TransactionSortOrder.NEWEST_FIRST, "", emptySet())
-        assertEquals(2, groupsNewest[0].transactions[0].id)
-        assertEquals(1, groupsNewest[0].transactions[1].id)
-        
-        // Oldest first should have ID 1 then 2 (Ascending ID)
-        val groupsOldest = viewModel.groupAndSort(settlements, TransactionSortOrder.OLDEST_FIRST, "", emptySet())
-        assertEquals(1, groupsOldest[0].transactions[0].id)
-        assertEquals(2, groupsOldest[0].transactions[1].id)
+        val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.NEWEST_FIRST, "", emptySet())
+        assertEquals(1, groups[0].events.size)
+        assertEquals(2, groups[0].events[0].details.size)
+        assertEquals(1, groups[0].events[0].details[0].id) 
+        assertEquals(2, groups[0].events[0].details[1].id)
     }
 
     @Test
@@ -109,9 +107,8 @@ class TransactionSortingTest {
         
         val settlements = listOf(t1, t2)
         
-        // Sort Oldest, Search matches (since groupAndSort filters by name)
         val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.OLDEST_FIRST, "Tes", emptySet())
-        assertEquals(1, groups[0].transactions[0].id)
+        assertEquals(now, groups[0].events[0].timestamp)
     }
 
     @Test
@@ -135,12 +132,10 @@ class TransactionSortingTest {
         val t1 = createSettlement(1, 1, now)
         val t2 = createSettlement(2, 1, now + 1000)
         
-        // Simulated Newest First List from ViewModel
-        val historyList = listOf(t2, t1)
-        val adapter = TransactionAdapter(historyList)
+        val mapper = com.tadiwaprintbuddy.app.data.BusinessEventMapper()
+        val events = mapper.map(listOf(t2, t1)).sortedByDescending { it.timestamp }
+        val adapter = BusinessEventAdapter(events)
         
-        // TransactionAdapter should have t2 then t1 (plus one date header if same day)
-        // If different days, maybe more headers. Let's assume same day.
         assertTrue(adapter.itemCount >= 2)
     }
 }

@@ -11,12 +11,15 @@ class PrintRepository(private val printDao: PrintDao) {
     private suspend fun getOrCreateCustomer(name: String): CustomerEntity {
         val trimmedName = name.trim()
         val normalized = trimmedName.lowercase()
+        android.util.Log.d(DebugTags.CUSTOMER_LOOKUP, "getOrCreateCustomer: name='$name' normalized='$normalized'")
         return printDao.getCustomerByNormalizedName(normalized) ?: run {
+            android.util.Log.i(DebugTags.CUSTOMER_CREATION, "Creating new customer: '$trimmedName'")
             val newCustomer = CustomerEntity(
                 displayName = trimmedName,
                 normalizedName = normalized
             )
             val id = printDao.insertCustomer(newCustomer)
+            android.util.Log.i(DebugTags.CUSTOMER_CREATION, "Created customer with ID: $id")
             newCustomer.copy(id = id)
         }
     }
@@ -51,6 +54,7 @@ class PrintRepository(private val printDao: PrintDao) {
         paymentMethod: String = "CASH",
         appliedCredit: Double = 0.0
     ): OrderResult {
+        android.util.Log.i(DebugTags.ORDER_CREATION, "confirmOrder: customer='$customerName', items=${cartItems.size}, method=$paymentMethod")
         // Authoritative Repository Validation
         if (cartItems.isEmpty()) return OrderResult.ValidationError("Add at least one item")
         
@@ -71,44 +75,7 @@ class PrintRepository(private val printDao: PrintDao) {
         }
 
         val customer = getOrCreateCustomer(customerName)
-        val amountAfterCredit = total - appliedCredit
-        
-        // Logical Mapping
-        val finalPaymentMethod: String
-        val finalPaymentStatus: String
-        val finalPaidAmount: Double
-
-        if (paymentMethod == "OWES_ME") {
-            finalPaymentMethod = "NONE"
-            finalPaymentStatus = "UNPAID"
-            finalPaidAmount = 0.0
-        } else {
-            finalPaymentMethod = paymentMethod
-            finalPaidAmount = amountAfterCredit
-            finalPaymentStatus = when {
-                finalPaidAmount >= total -> "PAID"
-                finalPaidAmount > 0 -> "PARTIALLY_PAID"
-                else -> "UNPAID"
-            }
-        }
-
-        val previousBalance = getCustomerBalanceById(customer.id)
-        val transactionAmount = total - finalPaidAmount
-        val newBalance = previousBalance + transactionAmount
-
-        val order = Order(
-            totalAmount = total,
-            date = System.currentTimeMillis(),
-            customerName = customer.displayName,
-            customerId = customer.id,
-            paidAmount = finalPaidAmount,
-            paymentMethod = finalPaymentMethod,
-            previousBalance = previousBalance,
-            transactionAmount = transactionAmount,
-            newBalance = newBalance,
-            paymentStatus = finalPaymentStatus,
-            orderStatus = "ACTIVE"
-        )
+        val currentTime = System.currentTimeMillis()
 
         val orderItems = cartItems.map { cartItem ->
             OrderItem(
@@ -120,15 +87,29 @@ class PrintRepository(private val printDao: PrintDao) {
         }
         
         return try {
-            val orderId = printDao.recordOrderAtomic(order, orderItems)
+            val orderId = printDao.recordOrderAtomic(
+                customer = customer,
+                items = orderItems,
+                total = total,
+                requestedPaymentMethod = paymentMethod,
+                appliedCredit = appliedCredit,
+                currentTime = currentTime
+            )
             
-            // Record in Beauty Account if UPI was used
-            if (finalPaymentMethod == "UPI" && finalPaidAmount > 0) {
-                insertBeautyTransaction(finalPaidAmount, "ADD", "Direct Pay - Order #$orderId - ${customer.displayName}")
+            // Re-fetch order for post-processing logic (like Beauty account)
+            val recordedOrder = printDao.getOrderById(orderId)
+            if (recordedOrder != null) {
+                // Determine actual cash/upi paid (excluding credit)
+                val cashPaid = if (paymentMethod == "OWES_ME") 0.0 else total - appliedCredit
+                if (paymentMethod == "UPI" && cashPaid > 0) {
+                    android.util.Log.d(DebugTags.PAYMENT_PROCESS, "UPI Payment: Recording beauty transaction for order #$orderId")
+                    insertBeautyTransaction(cashPaid, "ADD", "Direct Pay - Order #$orderId - ${customer.displayName}")
+                }
             }
             
             OrderResult.Success(orderId)
         } catch (e: Exception) {
+            android.util.Log.e(DebugTags.ORDER_CREATION, "Failed to record order", e)
             OrderResult.Error(e.message ?: "Failed to save order")
         }
     }
@@ -138,7 +119,11 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
 
     suspend fun updatePayment(orderId: Int, newPaidAmount: Double, paymentMethod: String = "CASH") {
-        val order = printDao.getOrderById(orderId) ?: return
+        android.util.Log.i(DebugTags.PAYMENT_PROCESS, "updatePayment: orderId=$orderId, newPaidAmount=$newPaidAmount, method=$paymentMethod")
+        val order = printDao.getOrderById(orderId) ?: run {
+            android.util.Log.w(DebugTags.PAYMENT_PROCESS, "updatePayment: Order #$orderId not found")
+            return
+        }
         val delta = newPaidAmount - order.paidAmount
         if (delta <= 0.0) return
 
@@ -287,16 +272,20 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: Double, paymentMethod: String = "CASH") {
+        android.util.Log.i(DebugTags.PAYMENT_PROCESS, "applyPaymentToCustomerId: customerId=$customerId, amount=$paymentAmount, method=$paymentMethod")
         printDao.applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod)
         
         if (paymentMethod == "UPI") {
             val customer = printDao.getCustomerById(customerId)
+            android.util.Log.d(DebugTags.PAYMENT_PROCESS, "UPI Debt Settlement: Recording beauty transaction")
             insertBeautyTransaction(paymentAmount, "ADD", "Debt Settlement - ${customer?.displayName ?: "Unknown"}")
         }
     }
 
     suspend fun getCustomerBalanceById(customerId: Long): Double {
-        return printDao.getAuthoritativeCustomerBalance(customerId)
+        val balance = printDao.getAuthoritativeCustomerBalance(customerId)
+        android.util.Log.d(DebugTags.DEBT_CALC, "getCustomerBalanceById: ID=$customerId, balance=$balance")
+        return balance
     }
 
     suspend fun getCustomerBalance(customerName: String): Double {

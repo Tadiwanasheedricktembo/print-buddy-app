@@ -27,6 +27,7 @@ import com.google.gson.reflect.TypeToken
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.data.SettlementHistory
+import com.tadiwaprintbuddy.app.data.BusinessEvent
 import com.tadiwaprintbuddy.app.databinding.ActivitySettlementHistoryBinding
 import com.tadiwaprintbuddy.app.databinding.ItemSettlementBinding
 import com.tadiwaprintbuddy.app.databinding.ItemSettlementGroupBinding
@@ -292,14 +293,6 @@ class SettlementHistoryActivity : AppCompatActivity() {
     }
 }
 
-sealed class LedgerItem {
-    data class DateHeader(val date: String) : LedgerItem()
-    data class DebtAdded(val history: SettlementHistory) : LedgerItem()
-    data class PaymentReceived(val history: SettlementHistory) : LedgerItem()
-    data class CreditCreated(val history: SettlementHistory) : LedgerItem()
-    data class Adjustment(val history: SettlementHistory) : LedgerItem()
-}
-
 class GroupedSettlementAdapter(
     private var groups: List<GroupedSettlement>,
     private val onHeaderClick: (Long) -> Unit
@@ -318,33 +311,36 @@ class GroupedSettlementAdapter(
         val format = NumberFormat.getCurrencyInstance(locale)
 
         holder.binding.textCustomerName.text = group.customerName
-        holder.binding.textTransactionCount.text = "${group.transactions.size} transactions"
+        holder.binding.textTransactionCount.text = "${group.events.size} activities"
         
         val balance = group.totalOwed
         if (balance > 0) {
             holder.binding.textTotalOwed.text = format.format(balance)
-            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
-            holder.binding.textBalanceLabel.text = "PENDING"
-            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+            holder.binding.textBalanceLabel.text = "AMOUNT DUE"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
         } else if (balance < 0) {
             holder.binding.textTotalOwed.text = format.format(Math.abs(balance))
-            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
-            holder.binding.textBalanceLabel.text = "CREDIT AVAILABLE"
-            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+            holder.binding.textBalanceLabel.text = "CUSTOMER CREDIT"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
         } else {
-            holder.binding.textTotalOwed.text = "Settled"
-            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
-            holder.binding.textBalanceLabel.text = "NO BALANCE"
-            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
+            holder.binding.textTotalOwed.text = "₹ 0.00"
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+            holder.binding.textBalanceLabel.text = "NO OUTSTANDING BALANCE"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
         }
 
-        // Summary Calculations (Authoritative from ViewModel's provided transactions)
-        val totalDebt = group.transactions.sumOf { it.transactionAmount.coerceAtLeast(0.0) }
-        val totalPaid = group.transactions.sumOf { (-it.transactionAmount).coerceAtLeast(0.0) }
+        // Business Oriented Summary Metrics
+        val ordersTotal = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.sumOf { it.transactionAmount }
+        val cashReceived = group.rawTransactions.filter { it.ledgerEntryType in listOf("PAYMENT", "CREDIT") }.sumOf { it.amountPaid }
+        val outstandingDebt = if (balance > 0) balance else 0.0
+        val customerCredit = if (balance < 0) -balance else 0.0
 
-        holder.binding.textTotalDebt.text = "+ ${format.format(totalDebt)}"
-        holder.binding.textTotalPaid.text = "- ${format.format(totalPaid)}"
-        holder.binding.textCurrentBalanceSummary.text = format.format(Math.abs(group.totalOwed))
+        holder.binding.textOrdersTotal.text = format.format(ordersTotal)
+        holder.binding.textCashReceived.text = format.format(cashReceived)
+        holder.binding.textOutstandingDebt.text = format.format(outstandingDebt)
+        holder.binding.textCustomerCredit.text = format.format(customerCredit)
 
         holder.binding.recyclerTransactions.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
         holder.binding.layoutSummary.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
@@ -356,7 +352,7 @@ class GroupedSettlementAdapter(
 
         if (group.isExpanded) {
             holder.binding.recyclerTransactions.layoutManager = LinearLayoutManager(holder.itemView.context)
-            holder.binding.recyclerTransactions.adapter = TransactionAdapter(group.transactions)
+            holder.binding.recyclerTransactions.adapter = BusinessEventAdapter(group.events)
         }
     }
 
@@ -368,144 +364,144 @@ class GroupedSettlementAdapter(
     }
 }
 
-class TransactionAdapter(private val historyList: List<SettlementHistory>) :
+class BusinessEventAdapter(private val events: List<BusinessEvent>) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
         private const val VIEW_TYPE_DATE_HEADER = 0
-        private const val VIEW_TYPE_DEBT_ADDED = 1
-        private const val VIEW_TYPE_PAYMENT = 2
-        private const val VIEW_TYPE_CREDIT_CREATED = 4
-        private const val VIEW_TYPE_ADJUSTMENT = 3
+        private const val VIEW_TYPE_EVENT = 1
     }
 
-    private val ledgerItems: List<LedgerItem> = historyList
-        .let { sortedList ->
-            val items = mutableListOf<LedgerItem>()
+    private val timelineItems: List<Any> = events
+        .let { sortedEvents ->
+            val items = mutableListOf<Any>()
             var lastDate = ""
             val headerFormat = SimpleDateFormat("EEEE, MMM dd, yyyy", Locale.getDefault())
 
-            sortedList.forEach { history ->
-                val dateStr = headerFormat.format(Date(history.timestamp))
+            sortedEvents.forEach { event ->
+                val dateStr = headerFormat.format(Date(event.timestamp))
                 if (dateStr != lastDate) {
-                    items.add(LedgerItem.DateHeader(dateStr))
+                    items.add(dateStr)
                     lastDate = dateStr
                 }
-
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
-                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
-
-                val item = when {
-                    history.ledgerEntryType == "ORDER_POST" || history.type == "ORDER" || delta > 0 -> LedgerItem.DebtAdded(history)
-                    (history.ledgerEntryType == "PAYMENT" || history.type == "PAYMENT" || delta < 0) && balAfter < 0 -> LedgerItem.CreditCreated(history)
-                    history.ledgerEntryType == "PAYMENT" || history.type == "PAYMENT" || delta < 0 -> LedgerItem.PaymentReceived(history)
-                    else -> LedgerItem.Adjustment(history)
-                }
-                items.add(item)
+                items.add(event)
             }
             items
         }
 
+    private var expandedPositions = mutableSetOf<Int>()
+
     override fun getItemViewType(position: Int): Int {
-        return when (ledgerItems[position]) {
-            is LedgerItem.DateHeader -> VIEW_TYPE_DATE_HEADER
-            is LedgerItem.DebtAdded -> VIEW_TYPE_DEBT_ADDED
-            is LedgerItem.PaymentReceived -> VIEW_TYPE_PAYMENT
-            is LedgerItem.CreditCreated -> VIEW_TYPE_CREDIT_CREATED
-            is LedgerItem.Adjustment -> VIEW_TYPE_ADJUSTMENT
-        }
+        return if (timelineItems[position] is String) VIEW_TYPE_DATE_HEADER else VIEW_TYPE_EVENT
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return when (viewType) {
-            VIEW_TYPE_DATE_HEADER -> {
-                val view = inflater.inflate(R.layout.item_ledger_date_header, parent, false)
-                DateHeaderViewHolder(view)
-            }
-            VIEW_TYPE_DEBT_ADDED -> DebtAddedViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_PAYMENT -> PaymentViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_CREDIT_CREATED -> CreditCreatedViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
-            else -> AdjustmentViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
+        return if (viewType == VIEW_TYPE_DATE_HEADER) {
+            val view = inflater.inflate(R.layout.item_ledger_date_header, parent, false)
+            DateHeaderViewHolder(view)
+        } else {
+            EventViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val item = ledgerItems[position]
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
         val dateTimeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
 
-        when (holder) {
-            is DateHeaderViewHolder -> {
-                val header = item as LedgerItem.DateHeader
-                (holder.itemView as TextView).text = header.date
-            }
-            is DebtAddedViewHolder -> {
-                val history = (item as LedgerItem.DebtAdded).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
-                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
-                
-                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
-                holder.binding.textAmount.text = "+ ${format.format(delta)}"
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.destructive))
-                holder.binding.textLabel.text = "Debt Added"
-                holder.binding.textNote.text = history.note.ifEmpty { "Transaction for ${history.customerName}" }
-                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
-                
-                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
-            }
-            is PaymentViewHolder -> {
-                val history = (item as LedgerItem.PaymentReceived).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
-                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
-                
-                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
-                holder.binding.textAmount.text = "− ${format.format(Math.abs(delta))}"
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.primary_accent))
-                holder.binding.textLabel.text = "Payment Received"
-                holder.binding.textNote.text = history.note.ifEmpty { "Payment from ${history.customerName}" }
-                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+        if (holder is DateHeaderViewHolder) {
+            (holder.itemView as TextView).text = timelineItems[position] as String
+            return
+        }
 
-                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
-            }
-            is CreditCreatedViewHolder -> {
-                val history = (item as LedgerItem.CreditCreated).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
-                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
-                
-                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
-                holder.binding.textAmount.text = format.format(Math.abs(delta))
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.warning))
-                holder.binding.textLabel.text = "Credit Created"
-                holder.binding.textNote.text = "Excess payment converted to credit"
-                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+        val eventHolder = holder as EventViewHolder
+        val event = timelineItems[position] as BusinessEvent
+        val binding = eventHolder.binding
 
-                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
-            }
-            is AdjustmentViewHolder -> {
-                val history = (item as LedgerItem.Adjustment).history
-                val delta = if (history.transactionAmount != 0.0) history.transactionAmount else (history.newBalance - history.balanceBefore)
-                val balAfter = if (history.newBalance != 0.0 || history.transactionAmount != 0.0) history.newBalance else history.balanceAfter
-                
-                holder.binding.textDate.text = dateTimeFormat.format(Date(history.timestamp))
-                val prefix = if (delta >= 0) "± " else "- "
-                holder.binding.textAmount.text = "$prefix${format.format(Math.abs(delta))}"
-                holder.binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.text_secondary))
-                holder.binding.textLabel.text = "Adjustment"
-                holder.binding.textNote.text = history.note.ifEmpty { "Manual Correction" }
-                holder.binding.textNewBalance.text = "BAL: ${format.format(balAfter)}"
+        val isExpanded = expandedPositions.contains(position)
+        binding.layoutEventDetails.visibility = if (isExpanded) View.VISIBLE else View.GONE
+        
+        binding.textDate.text = dateTimeFormat.format(Date(event.timestamp))
+        
+        val balAfter = event.balanceAfter
+        binding.textNewBalance.text = when {
+            balAfter < 0 -> "Customer Credit: ${format.format(Math.abs(balAfter))}"
+            balAfter > 0 -> "Amount Due: ${format.format(balAfter)}"
+            else -> "Balance Cleared"
+        }
+        binding.lineTop.visibility = if (position > 0 && timelineItems[position-1] !is String) View.VISIBLE else View.INVISIBLE
 
-                holder.binding.lineTop.visibility = if (position > 0 && ledgerItems[position-1] !is LedgerItem.DateHeader) View.VISIBLE else View.INVISIBLE
+        when (event) {
+            is BusinessEvent.PaymentReceived -> {
+                binding.textLabel.text = "Payment Received"
+                binding.textNote.text = "Paid ${format.format(event.totalPaid)}"
+                binding.textAmount.text = "− ${format.format(event.totalPaid)}"
+                binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
+                
+                binding.textEventBreakdown.text = buildString {
+                    if (event.debtCleared > 0) {
+                        append("✓ Applied to outstanding debt .. ${format.format(event.debtCleared)}\n")
+                    }
+                    if (event.creditCreated > 0) {
+                        append("✓ Added to customer credit ...... ${format.format(event.creditCreated)}\n")
+                    }
+                    
+                    append("\nStatus: ")
+                    if (event.balanceAfter < 0) append("Customer Credit ${format.format(Math.abs(event.balanceAfter))}")
+                    else if (event.balanceAfter > 0) append("Remaining Debt ${format.format(event.balanceAfter)}")
+                    else append("Account Cleared")
+                }
             }
+            is BusinessEvent.NewOrder -> {
+                binding.textLabel.text = if (event.outstanding > 0) "Partial Payment" else "New Order"
+                binding.textNote.text = "Order Total: ${format.format(event.orderTotal)}"
+                binding.textAmount.text = "+ ${format.format(event.orderTotal)}"
+                binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+
+                binding.textEventBreakdown.text = buildString {
+                    if (event.creditUsed > 0) append("• Used Credit ............ ${format.format(event.creditUsed)}\n")
+                    if (event.cashPaid > 0) append("• Cash Paid .............. ${format.format(event.cashPaid)}\n")
+                    if (event.outstanding > 0) append("• Outstanding ............ ${format.format(event.outstanding)}")
+                    else append("• Outstanding ............ Cleared")
+                }
+            }
+            is BusinessEvent.DebtAdded -> {
+                binding.textLabel.text = "Debt Added"
+                binding.textNote.text = event.note
+                binding.textAmount.text = "+ ${format.format(event.amount)}"
+                binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
+                binding.textEventBreakdown.text = "Customer purchased on credit."
+            }
+            is BusinessEvent.Adjustment -> {
+                binding.textLabel.text = "Adjustment"
+                binding.textNote.text = event.note
+                val prefix = if (event.amount >= 0) "+ " else "− "
+                binding.textAmount.text = "$prefix${format.format(Math.abs(event.amount))}"
+                binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.text_secondary))
+                binding.textEventBreakdown.text = "Manual account adjustment."
+            }
+        }
+
+        binding.textEventAudit.text = buildString {
+            append("Ledger IDs: ")
+            append(event.details.joinToString(", ") { "#${it.id}" })
+            val orderRef = event.details.firstNotNullOfOrNull { it.originId }
+            if (orderRef != null) append(" | Order Ref: #$orderRef")
+        }
+
+        holder.itemView.setOnClickListener {
+            if (expandedPositions.contains(position)) {
+                expandedPositions.remove(position)
+            } else {
+                expandedPositions.add(position)
+            }
+            notifyItemChanged(position)
         }
     }
 
-    override fun getItemCount() = ledgerItems.size
+    override fun getItemCount() = timelineItems.size
 
     class DateHeaderViewHolder(view: View) : RecyclerView.ViewHolder(view)
-    class DebtAddedViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
-    class PaymentViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
-    class CreditCreatedViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
-    class AdjustmentViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
+    class EventViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
 }

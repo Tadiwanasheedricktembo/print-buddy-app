@@ -13,7 +13,8 @@ class DebtorCreditAdapter(
     private var debtorCredits: List<DebtorCredit>,
     private val onUpdateClicked: (DebtorCredit) -> Unit,
     private val onItemClicked: (DebtorCredit) -> Unit,
-    private val onItemLongClicked: (DebtorCredit) -> Unit
+    private val onItemLongClicked: (DebtorCredit) -> Unit,
+    private val onEditClicked: (DebtorCredit) -> Unit
 ) : RecyclerView.Adapter<DebtorCreditAdapter.ViewHolder>() {
 
     fun updateDebtorCredits(newDebtorCredits: List<DebtorCredit>) {
@@ -83,6 +84,10 @@ class DebtorCreditAdapter(
 
             binding.buttonUpdateAmount.setOnClickListener {
                 onUpdateClicked(debtorCredit)
+            }
+
+            binding.buttonEditBalance.setOnClickListener {
+                onEditClicked(debtorCredit)
             }
 
             binding.root.setOnClickListener {

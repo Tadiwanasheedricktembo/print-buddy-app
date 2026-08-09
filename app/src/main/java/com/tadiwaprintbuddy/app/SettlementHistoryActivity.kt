@@ -425,10 +425,11 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
         binding.textDate.text = dateTimeFormat.format(Date(event.timestamp))
         
         val balAfter = event.balanceAfter
+        val context = holder.itemView.context
         binding.textNewBalance.text = when {
-            balAfter < 0 -> "Customer Credit: ${format.format(Math.abs(balAfter))}"
-            balAfter > 0 -> "Amount Due: ${format.format(balAfter)}"
-            else -> "Balance Cleared"
+            balAfter < 0 -> "${context.getString(R.string.customer_credit_label)}: ${format.format(Math.abs(balAfter))}"
+            balAfter > 0 -> "${context.getString(R.string.amount_due)}: ${format.format(balAfter)}"
+            else -> context.getString(R.string.no_outstanding_balance)
         }
         binding.lineTop.visibility = if (position > 0 && timelineItems[position-1] !is String) View.VISIBLE else View.INVISIBLE
 
@@ -448,8 +449,8 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
                     }
                     
                     append("\nStatus: ")
-                    if (event.balanceAfter < 0) append("Customer Credit ${format.format(Math.abs(event.balanceAfter))}")
-                    else if (event.balanceAfter > 0) append("Remaining Debt ${format.format(event.balanceAfter)}")
+                    if (event.balanceAfter < 0) append("${context.getString(R.string.customer_credit_label)} ${format.format(Math.abs(event.balanceAfter))}")
+                    else if (event.balanceAfter > 0) append("${context.getString(R.string.amount_due)} ${format.format(event.balanceAfter)}")
                     else append("Account Cleared")
                 }
             }

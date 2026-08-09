@@ -337,6 +337,33 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun verifyCustomerBalance(customerId: Long): Boolean = printDao.verifyCustomerBalance(customerId)
 
+    suspend fun adjustCustomerBalance(customerId: Long, newAmountOwing: Double, reason: String? = null) {
+        val customer = printDao.getCustomerById(customerId) ?: return
+        val currentBalance = getCustomerBalanceById(customerId)
+        val adjustmentDelta = newAmountOwing - currentBalance
+
+        // Skip if no actual change
+        if (Math.abs(adjustmentDelta) < 0.001) return
+
+        val now = System.currentTimeMillis()
+        
+        val settlement = SettlementHistory(
+            customerName = customer.displayName,
+            customerId = customer.id,
+            balanceBefore = currentBalance,
+            amountPaid = 0.0, 
+            balanceAfter = newAmountOwing,
+            timestamp = now,
+            type = "ADJUSTMENT",
+            ledgerEntryType = "ADJUSTMENT",
+            note = reason ?: "Manual Balance Adjustment",
+            transactionAmount = adjustmentDelta,
+            newBalance = newAmountOwing
+        )
+
+        printDao.adjustBalanceAtomic(settlement)
+    }
+
     // --- Other ---
 
     suspend fun addPrinterReference(reference: PrinterReference) = printDao.addPrinterReference(reference)

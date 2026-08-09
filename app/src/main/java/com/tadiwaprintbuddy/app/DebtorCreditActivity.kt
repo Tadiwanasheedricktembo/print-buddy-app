@@ -82,6 +82,8 @@ class DebtorCreditActivity : AppCompatActivity() {
             }
         }, { debtorCredit ->
             showDeleteCustomerDialog(debtorCredit)
+        }, { debtorCredit ->
+            showEditBalanceDialog(debtorCredit)
         })
         binding.recyclerDebtorCredits.layoutManager = LinearLayoutManager(this)
         binding.recyclerDebtorCredits.adapter = adapter
@@ -335,6 +337,73 @@ class DebtorCreditActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     repository.addOrUpdateDebtorCredit(customerName, finalAmount)
                     loadDebtorCredits()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showEditBalanceDialog(debtorCredit: DebtorCredit) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_balance, null)
+        val textCurrentBalance = dialogView.findViewById<android.widget.TextView>(R.id.textCurrentBalance)
+        val editNewBalance = dialogView.findViewById<EditText>(R.id.editNewBalance)
+        val textAdjustment = dialogView.findViewById<android.widget.TextView>(R.id.textAdjustment)
+        val editReason = dialogView.findViewById<EditText>(R.id.editReason)
+
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
+
+        val currentBalance = debtorCredit.amount
+        textCurrentBalance.text = format.format(currentBalance)
+        editNewBalance.setText(currentBalance.toString())
+
+        val updateAdjustment = {
+            val newVal = editNewBalance.text.toString().toDoubleOrNull() ?: 0.0
+            val delta = newVal - currentBalance
+            textAdjustment.text = format.format(delta)
+            if (delta > 0) {
+                textAdjustment.setTextColor(ContextCompat.getColor(this, R.color.brand_error))
+            } else if (delta < 0) {
+                textAdjustment.setTextColor(ContextCompat.getColor(this, R.color.brand_primary))
+            } else {
+                textAdjustment.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+            }
+        }
+
+        editNewBalance.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateAdjustment()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        updateAdjustment()
+
+        AlertDialog.Builder(this)
+            .setTitle("Edit Balance for ${debtorCredit.customerName}")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val newBalance = editNewBalance.text.toString().toDoubleOrNull()
+                if (newBalance == null) {
+                    Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val reason = editReason.text.toString().trim().ifEmpty { null }
+
+                lifecycleScope.launch {
+                    try {
+                        repository.adjustCustomerBalance(debtorCredit.customerId, newBalance, reason)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@DebtorCreditActivity, "Balance adjusted", Toast.LENGTH_SHORT).show()
+                            loadDebtorCredits()
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@DebtorCreditActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)

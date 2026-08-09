@@ -114,7 +114,7 @@
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Purchases"
+                    android:text="@string/purchases_label"
                     android:textSize="10sp" />
                 <TextView
                     android:id="@+id/textOrdersTotal"
@@ -135,7 +135,7 @@
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Payments"
+                    android:text="@string/payments_label"
                     android:textSize="10sp" />
                 <TextView
                     android:id="@+id/textCashReceived"
@@ -163,7 +163,7 @@
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Amount Due"
+                    android:text="@string/amount_due"
                     android:textSize="10sp" />
                 <TextView
                     android:id="@+id/textOutstandingDebt"
@@ -184,7 +184,7 @@
                     style="@style/TextAppearance.App.Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Customer Credit"
+                    android:text="@string/customer_credit_label"
                     android:textSize="10sp" />
                 <TextView
                     android:id="@+id/textCustomerCredit"

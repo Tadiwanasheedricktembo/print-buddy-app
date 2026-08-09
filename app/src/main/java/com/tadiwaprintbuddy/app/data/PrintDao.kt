@@ -418,6 +418,13 @@ interface PrintDao {
         return true
     }
 
+    @Transaction
+    suspend fun adjustBalanceAtomic(settlement: SettlementHistory): Boolean {
+        insertSettlement(settlement)
+        rebuildCustomerProjection(settlement.customerId)
+        return true
+    }
+
     @Query("SELECT COUNT(*) = 0 FROM (SELECT id FROM settlement_history WHERE customerId = :customerId EXCEPT SELECT id FROM settlement_history WHERE customerId = :customerId)")
     suspend fun verifyCustomerBalance(customerId: Long): Boolean
 

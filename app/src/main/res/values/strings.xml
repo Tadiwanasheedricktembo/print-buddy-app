@@ -202,4 +202,19 @@
     <string name="upi_wallet_balance">💳 UPI WALLET BALANCE</string>
     <string name="upi_wallet_subtitle">Updated live from digital transactions</string>
 
+    <!-- Edit Balance -->
+    <string name="edit_balance">Edit Balance</string>
+    <string name="current_amount_owing">Current Amount Owing</string>
+    <string name="new_amount_owing">New Amount Owing</string>
+    <string name="adjustment_label">Adjustment: </string>
+    <string name="reason_optional">Reason (Optional)</string>
+    <string name="target_balance_hint">Enter target balance</string>
+    <string name="reason_hint">e.g. Incorrect entry correction</string>
+    <string name="balance_adjusted">Balance adjusted</string>
+    <string name="amount_due">Amount Due</string>
+    <string name="customer_credit_label">Customer Credit</string>
+    <string name="no_outstanding_balance">No Outstanding Balance</string>
+    <string name="purchases_label">Purchases</string>
+    <string name="payments_label">Payments</string>
+
 </resources>

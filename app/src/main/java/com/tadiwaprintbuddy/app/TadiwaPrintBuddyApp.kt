@@ -2,7 +2,9 @@ package com.tadiwaprintbuddy.app
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -27,15 +29,26 @@ class TadiwaPrintBuddyApp : Application(), Application.ActivityLifecycleCallback
     override fun onCreate() {
         super<Application>.onCreate()
         ThemeManager(this).applyTheme()
-        SecurityManager.getInstance(this).lockApp()
+        SecurityManager.getInstance(this).lockApp() // Guaranteed cold-start lock
         scheduleBackup()
         
         registerActivityLifecycleCallbacks(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        registerScreenOffReceiver()
 
         if (BuildConfig.DEBUG) {
             runDatabaseIntegrityCheck()
         }
+    }
+
+    private fun registerScreenOffReceiver() {
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                // Immediate lock on screen off for maximum security
+                SecurityManager.getInstance(this@TadiwaPrintBuddyApp).lockApp()
+            }
+        }, filter)
     }
 
     private fun runDatabaseIntegrityCheck() {
@@ -88,29 +101,36 @@ class TadiwaPrintBuddyApp : Application(), Application.ActivityLifecycleCallback
 
     private fun checkSecurity() {
         val securityManager = SecurityManager.getInstance(this)
-        if (securityManager.isBiometricEnabled && !securityManager.isSessionValid()) {
+        if (securityManager.isLockEnabled && !securityManager.isSessionValid()) {
             currentActivity?.let { activity ->
-                if (activity !is SecurityActivity) {
+                if (activity !is SecurityActivity && !activity.isFinishing) {
                     val intent = Intent(activity, SecurityActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
+                    // Use SINGLE_TOP and REORDER_TO_FRONT to avoid multiple instances 
+                    // and prevent destroying the underlying activity stack.
+                    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    activity.startActivity(intent)
                 }
             }
         }
     }
 
     // ActivityLifecycleCallbacks
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+        SecurityManager.getInstance(this).updateWindowSecurity(activity)
+    }
     override fun onActivityStarted(activity: Activity) {
         currentActivity = activity
+        checkSecurity()
     }
     override fun onActivityResumed(activity: Activity) {
         currentActivity = activity
+        SecurityManager.getInstance(this).updateWindowSecurity(activity)
     }
     override fun onActivityPaused(activity: Activity) {}
     override fun onActivityStopped(activity: Activity) {
         if (currentActivity == activity) {
-            currentActivity = null
+            // Don't null it out immediately, it might be an activity transition.
+            // checkSecurity() needs a valid currentActivity to launch the lock screen.
         }
     }
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}

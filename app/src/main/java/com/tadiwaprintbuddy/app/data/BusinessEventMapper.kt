@@ -25,6 +25,7 @@ class BusinessEventMapper {
                             creditUsed = creditUsed,
                             cashPaid = cashPaid,
                             outstanding = total - cashPaid - creditUsed,
+                            receivedAmount = orderPost.receivedAmount ?: payments.firstOrNull()?.receivedAmount,
                             timestamp = timestamp,
                             balanceAfter = balanceAfter,
                             details = sortedEvents
@@ -38,6 +39,7 @@ class BusinessEventMapper {
                             totalPaid = totalPaid,
                             debtCleared = debtCleared,
                             creditCreated = creditCreated,
+                            receivedAmount = payments.firstOrNull { it.receivedAmount != null }?.receivedAmount ?: credit?.receivedAmount,
                             timestamp = timestamp,
                             balanceAfter = balanceAfter,
                             details = sortedEvents

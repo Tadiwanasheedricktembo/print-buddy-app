@@ -28,6 +28,8 @@ class PrintRepository(private val printDao: PrintDao) {
 
     fun getAllCustomersFlow(): Flow<List<CustomerEntity>> = printDao.getAllCustomersFlow()
 
+    suspend fun getAllCustomers(): List<CustomerEntity> = printDao.getAllCustomers()
+
     // --- Orders ---
 
     fun getTotalRevenueFlow(): Flow<Double?> = printDao.getTotalRevenueFlow()
@@ -52,7 +54,8 @@ class PrintRepository(private val printDao: PrintDao) {
         customerName: String, 
         cartItems: List<CartItem>, 
         paymentMethod: String = "CASH",
-        appliedCredit: Double = 0.0
+        appliedCredit: Double = 0.0,
+        receivedAmount: Double? = null
     ): OrderResult {
         android.util.Log.i(DebugTags.ORDER_CREATION, "confirmOrder: customer='$customerName', items=${cartItems.size}, method=$paymentMethod")
         // Authoritative Repository Validation
@@ -93,7 +96,8 @@ class PrintRepository(private val printDao: PrintDao) {
                 total = total,
                 requestedPaymentMethod = paymentMethod,
                 appliedCredit = appliedCredit,
-                currentTime = currentTime
+                currentTime = currentTime,
+                receivedAmount = receivedAmount
             )
             
             // Re-fetch order for post-processing logic (like Beauty account)
@@ -118,7 +122,7 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
 
-    suspend fun updatePayment(orderId: Int, newPaidAmount: Double, paymentMethod: String = "CASH") {
+    suspend fun updatePayment(orderId: Int, newPaidAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
         android.util.Log.i(DebugTags.PAYMENT_PROCESS, "updatePayment: orderId=$orderId, newPaidAmount=$newPaidAmount, method=$paymentMethod")
         val order = printDao.getOrderById(orderId) ?: run {
             android.util.Log.w(DebugTags.PAYMENT_PROCESS, "updatePayment: Order #$orderId not found")
@@ -155,7 +159,8 @@ class PrintRepository(private val printDao: PrintDao) {
             note = "Additional payment for Order #${order.id} via $paymentMethod",
             transactionAmount = -delta,
             newBalance = newBalance,
-            originId = orderId
+            originId = orderId,
+            receivedAmount = receivedAmount
         )
 
         printDao.recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
@@ -266,14 +271,14 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // --- Debt & Settlements ---
 
-    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double, paymentMethod: String = "CASH") {
+    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
         val customer = getOrCreateCustomer(customerName)
-        applyPaymentToCustomerId(customer.id, paymentAmount, paymentMethod)
+        applyPaymentToCustomerId(customer.id, paymentAmount, paymentMethod, receivedAmount)
     }
 
-    suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: Double, paymentMethod: String = "CASH") {
+    suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
         android.util.Log.i(DebugTags.PAYMENT_PROCESS, "applyPaymentToCustomerId: customerId=$customerId, amount=$paymentAmount, method=$paymentMethod")
-        printDao.applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod)
+        printDao.applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
         
         if (paymentMethod == "UPI") {
             val customer = printDao.getCustomerById(customerId)
@@ -295,7 +300,7 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getCustomerSummaries(): List<DebtorSummary> = printDao.getDebtors()
 
-    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double, note: String? = null) {
+    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double, note: String? = null, receivedAmount: Double? = null) {
         val customer = getOrCreateCustomer(customerName)
         val previousBalance = getCustomerBalanceById(customer.id)
         val newBalance = previousBalance + amountDelta
@@ -322,7 +327,8 @@ class PrintRepository(private val printDao: PrintDao) {
                 ledgerEntryType = if (isPayment) "PAYMENT" else "ADJUSTMENT",
                 note = finalNote,
                 transactionAmount = amountDelta,
-                newBalance = newBalance
+                newBalance = newBalance,
+                receivedAmount = receivedAmount
             )
         )
 
@@ -334,6 +340,10 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun deleteCustomerCompletely(customerId: Long) = printDao.deleteCustomerCompletely(customerId)
 
     suspend fun rebuildCustomerProjection(customerId: Long) = printDao.rebuildCustomerProjection(customerId)
+
+    suspend fun updateCustomerPhone(customerId: Long, phone: String?) {
+        printDao.updateCustomerPhone(customerId, phone)
+    }
 
     suspend fun verifyCustomerBalance(customerId: Long): Boolean = printDao.verifyCustomerBalance(customerId)
 

@@ -22,10 +22,12 @@ workRuntimeKtx = "2.10.0"
 coreSplashscreen = "1.0.1"
 gson = "2.11.0"
 biometric = "1.2.0-alpha05"
+security-crypto = "1.1.0-alpha06"
 ksp = "2.3.10"
 room = "2.8.4"
 
 [libraries]
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

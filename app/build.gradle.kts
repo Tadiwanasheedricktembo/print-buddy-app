@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.security.crypto)
     implementation(libs.gson)
     
     // Compose dependencies (Required for Theme.kt)

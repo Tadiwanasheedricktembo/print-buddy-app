@@ -117,6 +117,7 @@
         <activity
             android:name=".SecurityActivity"
             android:exported="false"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <activity

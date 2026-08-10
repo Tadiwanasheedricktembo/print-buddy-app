@@ -341,10 +341,6 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun rebuildCustomerProjection(customerId: Long) = printDao.rebuildCustomerProjection(customerId)
 
-    suspend fun updateCustomerPhone(customerId: Long, phone: String?) {
-        printDao.updateCustomerPhone(customerId, phone)
-    }
-
     suspend fun verifyCustomerBalance(customerId: Long): Boolean = printDao.verifyCustomerBalance(customerId)
 
     suspend fun adjustCustomerBalance(customerId: Long, newAmountOwing: Double, reason: String? = null) {

@@ -2,6 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_calculator"
+        android:icon="@drawable/ic_printer"
+        android:title="Calculator"
+        app:iconTint="@color/brand_primary"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/action_beauty_account"
         android:icon="@drawable/ic_wallet"
         android:title="Beauty Account"

@@ -540,28 +540,6 @@ Store scanned or referenced printer details.
 
 ---
 
-## 13. Reminder Worker
-
-### Purpose
-Schedule reminder notifications for customers or app usage.
-
-### Entry Points
-- `ReminderScheduler.scheduleReminder()` in `MainActivity.onCreate`
-- `BootReceiver` on device reboot
-
-### Execution Flow
-1. `ReminderScheduler` schedules `ReminderWorker`
-2. `ReminderWorker` sends `NotificationHelper.showReminderNotification()`
-
-### Database Tables Affected
-- none
-
-### Business Rules
-- Reminder timing is based on user preference values stored outside Room
-- Notifications are generated even if no app state changes
-
----
-
 ## Sequence Diagrams
 
 ### Order Creation

@@ -76,9 +76,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
 
         adapter = GroupedSettlementAdapter(
             groups = emptyList(),
-            onHeaderClick = { customerId -> viewModel.toggleExpansion(customerId) },
-            onPhoneClick = { customerId, currentPhone -> showEditPhoneDialog(customerId, currentPhone) },
-            onRemindClick = { group -> sendPaymentReminder(group) }
+            onHeaderClick = { customerId -> viewModel.toggleExpansion(customerId) }
         )
         binding.recyclerSettlements.layoutManager = LinearLayoutManager(this)
         binding.recyclerSettlements.adapter = adapter
@@ -119,51 +117,6 @@ class SettlementHistoryActivity : AppCompatActivity() {
             repository.getAllSettlements().let {
                 allSettlements = it
             }
-        }
-    }
-
-    private fun showEditPhoneDialog(customerId: Long, currentPhone: String?) {
-        val editText = android.widget.EditText(this).apply {
-            setText(currentPhone)
-            hint = "Enter phone number"
-            inputType = android.text.InputType.TYPE_CLASS_PHONE
-            setPadding(60, 40, 60, 40)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Customer Phone Number")
-            .setView(editText)
-            .setPositiveButton("Save") { _, _ ->
-                val newPhone = editText.text.toString().trim().ifBlank { null }
-                viewModel.updateCustomerPhone(customerId, newPhone)
-                Toast.makeText(this, "Phone number updated", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun sendPaymentReminder(group: GroupedSettlement) {
-        val phone = group.phoneNumber
-        if (phone.isNullOrBlank()) {
-            AlertDialog.Builder(this)
-                .setTitle("Missing Phone Number")
-                .setMessage("Please add a phone number for ${group.customerName} before sending a reminder.")
-                .setPositiveButton("Add Now") { _, _ -> showEditPhoneDialog(group.customerId, null) }
-                .setNegativeButton("Cancel", null)
-                .show()
-            return
-        }
-
-        val message = PaymentReminderUtils.generateReminderMessage(group.customerName, group.totalOwed)
-        
-        try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("sms:${phone.replace(" ", "")}")
-                putExtra("sms_body", message)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Could not open messaging app", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -343,9 +296,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
 
 class GroupedSettlementAdapter(
     private var groups: List<GroupedSettlement>,
-    private val onHeaderClick: (Long) -> Unit,
-    private val onPhoneClick: (Long, String?) -> Unit,
-    private val onRemindClick: (GroupedSettlement) -> Unit
+    private val onHeaderClick: (Long) -> Unit
 ) : RecyclerView.Adapter<GroupedSettlementAdapter.GroupViewHolder>() {
 
     class GroupViewHolder(val binding: ItemSettlementGroupBinding) : RecyclerView.ViewHolder(binding.root)
@@ -391,17 +342,6 @@ class GroupedSettlementAdapter(
         holder.binding.textCashReceived.text = format.format(cashReceived)
         holder.binding.textOutstandingDebt.text = format.format(outstandingDebt)
         holder.binding.textCustomerCredit.text = format.format(customerCredit)
-
-        // Phone and Reminder
-        holder.binding.textPhoneNumber.text = if (group.phoneNumber.isNullOrBlank()) "Add Number" else group.phoneNumber
-        holder.binding.textPhoneNumber.setOnClickListener {
-            onPhoneClick(group.customerId, group.phoneNumber)
-        }
-
-        holder.binding.btnRemindToPay.isEnabled = outstandingDebt > 0
-        holder.binding.btnRemindToPay.setOnClickListener {
-            onRemindClick(group)
-        }
 
         holder.binding.recyclerTransactions.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
         holder.binding.layoutSummary.visibility = if (group.isExpanded) View.VISIBLE else View.GONE

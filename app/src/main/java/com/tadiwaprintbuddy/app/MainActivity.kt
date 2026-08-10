@@ -34,6 +34,26 @@ class MainActivity : AppCompatActivity() {
         MainViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
     }
 
+    private val calculatorLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            val total = data?.getDoubleExtra(PrintCalculatorActivity.EXTRA_TOTAL_AMOUNT, 0.0) ?: 0.0
+            val received = if (data?.hasExtra(PrintCalculatorActivity.EXTRA_RECEIVED_AMOUNT) == true) {
+                data.getDoubleExtra(PrintCalculatorActivity.EXTRA_RECEIVED_AMOUNT, 0.0)
+            } else null
+            val note = data?.getStringExtra(PrintCalculatorActivity.EXTRA_NOTE) ?: ""
+
+            if (total > 0) {
+                binding.editPrice.setText(total.toString())
+                binding.editQuantity.setText("1")
+                viewModel.onReceivedAmountChanged(received)
+                Toast.makeText(this, "Print Job Added: $note", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private val currencyFormat: NumberFormat by lazy {
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         NumberFormat.getCurrencyInstance(locale)
@@ -53,8 +73,6 @@ class MainActivity : AppCompatActivity() {
         setupTextWatchers()
         setupStepper()
         observeViewModel()
-        
-        ReminderScheduler(this).scheduleReminder()
     }
 
     private fun setupStepper() {
@@ -135,6 +153,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_calculator -> {
+                val intent = Intent(this, PrintCalculatorActivity::class.java)
+                calculatorLauncher.launch(intent)
+                true
+            }
             R.id.action_beauty_account -> {
                 startActivityWithTransition(BeautyAccountActivity::class.java)
                 true

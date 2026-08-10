@@ -7,8 +7,6 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
@@ -121,17 +119,14 @@
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <activity
-            android:name=".InventoryActivity"
+            android:name=".PrintCalculatorActivity"
             android:exported="false"
             android:theme="@style/Theme.TadiwaPrintBuddy" />
 
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
+        <activity
+            android:name=".InventoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TadiwaPrintBuddy" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

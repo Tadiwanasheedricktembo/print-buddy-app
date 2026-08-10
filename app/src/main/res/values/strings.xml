@@ -90,26 +90,8 @@
     <string name="dark_mode">Dark</string>
     <string name="system_default">System</string>
 
-    <!-- Notifications -->
-    <string name="notifications">NOTIFICATIONS</string>
-
-    <string name="reminders">Reminders</string>
-    <string name="enable_reminders">Enable Reminders</string>
-
-    <string name="reminder_time">Reminder Time</string>
-    <string name="frequency">Frequency</string>
-
-    <string name="interval_hours">Interval (Hours)</string>
-
-    <string name="reminder_message">Reminder Message</string>
-
-    <string name="test_notification">Test Notification</string>
-    <string name="save_settings">Save All Settings</string>
-
-    <string name="settings_saved">Settings saved</string>
-    <string name="permission_denied">
-        Notification permission denied
-    </string>
+    <!-- Support -->
+    <string name="developer_support">DEVELOPER &amp; SUPPORT</string>
 
     <!-- Security -->
     <string name="security">SECURITY</string>
@@ -132,9 +114,6 @@
     <string name="unit_hint">Unit (sheets/pcs)</string>
     <string name="threshold_hint">Low Stock Threshold</string>
     <string name="remaining_format">%1$d %2$s remaining</string>
-
-    <!-- Support -->
-    <string name="developer_support">DEVELOPER &amp; SUPPORT</string>
 
     <!-- Payment QR -->
     <string name="scan_to_pay">Scan to Pay</string>

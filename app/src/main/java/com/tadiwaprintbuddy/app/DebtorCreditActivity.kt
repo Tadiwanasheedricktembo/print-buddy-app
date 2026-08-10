@@ -83,9 +83,7 @@ class DebtorCreditActivity : AppCompatActivity() {
                 }
             }, 
             onItemLongClicked = { debtorCredit -> showDeleteCustomerDialog(debtorCredit) }, 
-            onEditClicked = { debtorCredit -> showEditBalanceDialog(debtorCredit) },
-            onPhoneClicked = { customerId, currentPhone -> showEditPhoneDialog(customerId, currentPhone) },
-            onRemindClicked = { debtorCredit -> sendPaymentReminder(debtorCredit) }
+            onEditClicked = { debtorCredit -> showEditBalanceDialog(debtorCredit) }
         )
         binding.recyclerDebtorCredits.layoutManager = LinearLayoutManager(this)
         binding.recyclerDebtorCredits.adapter = adapter
@@ -104,54 +102,6 @@ class DebtorCreditActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
-    }
-
-    private fun showEditPhoneDialog(customerId: Long, currentPhone: String?) {
-        val editText = android.widget.EditText(this).apply {
-            setText(currentPhone)
-            hint = "Enter phone number"
-            inputType = android.text.InputType.TYPE_CLASS_PHONE
-            setPadding(60, 40, 60, 40)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Customer Phone Number")
-            .setView(editText)
-            .setPositiveButton("Save") { _, _ ->
-                val newPhone = editText.text.toString().trim().ifBlank { null }
-                lifecycleScope.launch {
-                    repository.updateCustomerPhone(customerId, newPhone)
-                    loadDebtorCredits()
-                    Toast.makeText(this@DebtorCreditActivity, "Phone number updated", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun sendPaymentReminder(debtorCredit: DebtorCredit) {
-        val phone = debtorCredit.phoneNumber
-        if (phone.isNullOrBlank()) {
-            AlertDialog.Builder(this)
-                .setTitle("Missing Phone Number")
-                .setMessage("Please add a phone number for ${debtorCredit.customerName} before sending a reminder.")
-                .setPositiveButton("Add Now") { _, _ -> showEditPhoneDialog(debtorCredit.customerId, null) }
-                .setNegativeButton("Cancel", null)
-                .show()
-            return
-        }
-
-        val message = PaymentReminderUtils.generateReminderMessage(debtorCredit.customerName, debtorCredit.amount)
-        
-        try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("sms:${phone.replace(" ", "")}")
-                putExtra("sms_body", message)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Could not open messaging app", Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun setupSearch() {

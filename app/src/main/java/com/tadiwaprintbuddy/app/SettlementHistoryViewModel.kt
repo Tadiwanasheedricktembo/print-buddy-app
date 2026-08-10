@@ -18,7 +18,6 @@ enum class TransactionSortOrder {
 data class GroupedSettlement(
     val customerId: Long,
     val customerName: String,
-    val phoneNumber: String? = null,
     val totalOwed: Double,
     val events: List<BusinessEvent>,
     val rawTransactions: List<SettlementHistory>,
@@ -60,7 +59,6 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
             .map { (id, trans) ->
                 val customer = customerMap[id]
                 val name = customer?.displayName ?: trans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
-                val phone = customer?.phoneNumber
                 
                 // Authoritative balance derived from the most recent transaction (by time then ID)
                 val mostRecent = trans.maxWithOrNull(compareBy<SettlementHistory> { it.timestamp }.thenBy { it.id })
@@ -78,7 +76,6 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
                 GroupedSettlement(
                     customerId = id,
                     customerName = name,
-                    phoneNumber = phone,
                     totalOwed = balance,
                     events = businessEvents,
                     rawTransactions = trans,
@@ -93,13 +90,6 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
         viewModelScope.launch {
             _allCustomers.value = repository.getAllCustomers()
             _allSettlements.value = repository.getAllSettlements()
-        }
-    }
-
-    fun updateCustomerPhone(customerId: Long, phone: String?) {
-        viewModelScope.launch {
-            repository.updateCustomerPhone(customerId, phone)
-            _allCustomers.value = repository.getAllCustomers()
         }
     }
 

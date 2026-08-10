@@ -155,9 +155,6 @@ interface PrintDao {
     @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized WHERE id = :customerId")
     suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String): Int
 
-    @Query("UPDATE customers SET phoneNumber = :phone WHERE id = :customerId")
-    suspend fun updateCustomerPhone(customerId: Long, phone: String?): Int
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addPhoto(photo: Photo): Long
 
@@ -445,7 +442,7 @@ interface PrintDao {
                 customerName = customer.displayName,
                 amount = calculatedBalance,
                 lastUpdated = System.currentTimeMillis(),
-                phoneNumber = customer.phoneNumber
+                phoneNumber = null
             )
         )
         return true

@@ -217,4 +217,23 @@
     <string name="purchases_label">Purchases</string>
     <string name="payments_label">Payments</string>
 
+    <!-- App Lock -->
+    <string name="enable_app_lock">Enable App Lock</string>
+    <string name="app_lock_description">Protect your financial data with a PIN.</string>
+    <string name="set_app_pin">Set App PIN</string>
+    <string name="change_app_pin">Change App PIN</string>
+    <string name="pin_hint">Enter 4-digit PIN</string>
+    <string name="confirm_pin_hint">Confirm 4-digit PIN</string>
+    <string name="pin_mismatch">PINs do not match</string>
+    <string name="pin_too_short">PIN must be 4 digits</string>
+    <string name="pin_set_success">PIN set successfully</string>
+    <string name="use_biometric_unlock">Use Biometric Unlock</string>
+    <string name="biometric_only_if_lock">Require PIN before enabling Biometric.</string>
+    <string name="lock_timeout">Lock Timeout</string>
+    <string name="timeout_immediate">Immediately</string>
+    <string name="timeout_1min">After 1 minute</string>
+    <string name="timeout_5min">After 5 minutes</string>
+    <string name="timeout_15min">After 15 minutes</string>
+    <string name="incorrect_pin">Incorrect PIN</string>
+
 </resources>

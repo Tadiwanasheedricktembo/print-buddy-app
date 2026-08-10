@@ -1,19 +1,30 @@
 package com.tadiwaprintbuddy.app
 
-import android.content.res.ColorStateList
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.tadiwaprintbuddy.app.databinding.BottomSheetPaymentBinding
+import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 
-class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : BottomSheetDialogFragment() {
+class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Unit) : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetPaymentBinding? = null
     private val binding get() = _binding!!
     private var isPaidSelected = true
+    
+    private val viewModel: MainViewModel by activityViewModels()
+    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -27,7 +38,11 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initial State
+        setupUI()
+        observeViewModel()
+    }
+
+    private fun setupUI() {
         updateSelectionUi()
         binding.toggleGroupPaymentMethod.check(R.id.btnCash)
 
@@ -41,6 +56,21 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
             updateSelectionUi()
         }
 
+        binding.toggleGroupPaymentMethod.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                updateTenderVisibility()
+            }
+        }
+
+        binding.editAmountReceived.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val amount = s?.toString()?.toDoubleOrNull()
+                viewModel.onReceivedAmountChanged(amount)
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
         binding.btnConfirmPayment.setOnClickListener {
             val status = if (isPaidSelected) "Paid" else "Credit"
             val method = if (isPaidSelected) {
@@ -48,8 +78,36 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
             } else {
                 "OWES_ME"
             }
-            onConfirm(status, method)
+            
+            val receivedAmount = if (isPaidSelected && method == "CASH") {
+                binding.editAmountReceived.text.toString().toDoubleOrNull()
+            } else if (isPaidSelected && method == "UPI") {
+                viewModel.uiState.value.balanceToPay
+            } else null
+
+            onConfirm(status, method, receivedAmount)
             dismiss()
+        }
+    }
+
+    private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    binding.textChangeAmount.text = currencyFormat.format(state.changeAmount)
+                }
+            }
+        }
+    }
+
+    private fun updateTenderVisibility() {
+        val isCash = binding.toggleGroupPaymentMethod.checkedButtonId == R.id.btnCash
+        binding.layoutTender.visibility = if (isPaidSelected && isCash) View.VISIBLE else View.GONE
+        
+        // Reset tender if hidden
+        if (binding.layoutTender.visibility == View.GONE) {
+            binding.editAmountReceived.setText("")
+            viewModel.onReceivedAmountChanged(null)
         }
     }
 
@@ -58,7 +116,6 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
         val divider = ContextCompat.getColor(requireContext(), R.color.border_divider)
         val surface = ContextCompat.getColor(requireContext(), R.color.surface_card)
         val container = ContextCompat.getColor(requireContext(), R.color.primary_container)
-        val textSecondary = ContextCompat.getColor(requireContext(), R.color.text_secondary)
 
         if (isPaidSelected) {
             binding.cardStatusPaid.strokeColor = primary
@@ -81,6 +138,7 @@ class PaymentBottomSheet(private val onConfirm: (String, String) -> Unit) : Bott
             
             binding.layoutPaymentMethod.visibility = View.GONE
         }
+        updateTenderVisibility()
     }
 
     override fun onDestroyView() {

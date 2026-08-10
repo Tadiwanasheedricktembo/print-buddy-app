@@ -25,6 +25,8 @@ data class OrderUiState(
     val existingBalance: Double = 0.0,
     val creditUsed: Double = 0.0,
     val balanceToPay: Double = 0.0,
+    val receivedAmount: Double? = null,
+    val changeAmount: Double = 0.0,
     val isCompleteEnabled: Boolean = false,
     val isLoading: Boolean = false
 )
@@ -55,6 +57,13 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
     fun onPriceChanged(price: Double) {
         _uiState.update { it.copy(price = price) }
         calculateTotals()
+    }
+
+    fun onReceivedAmountChanged(amount: Double?) {
+        _uiState.update { 
+            val change = if (amount != null && amount > it.balanceToPay) amount - it.balanceToPay else 0.0
+            it.copy(receivedAmount = amount, changeAmount = change) 
+        }
     }
 
     private fun calculateTotals() {
@@ -117,7 +126,8 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
                     current.customerName,
                     cartItems,
                     internalPaymentMethod,
-                    current.creditUsed
+                    current.creditUsed,
+                    current.receivedAmount
                 )
                 
                 when (result) {

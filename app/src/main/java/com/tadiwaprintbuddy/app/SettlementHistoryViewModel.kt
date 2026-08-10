@@ -18,6 +18,7 @@ enum class TransactionSortOrder {
 data class GroupedSettlement(
     val customerId: Long,
     val customerName: String,
+    val phoneNumber: String? = null,
     val totalOwed: Double,
     val events: List<BusinessEvent>,
     val rawTransactions: List<SettlementHistory>,
@@ -32,27 +33,34 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
     val sortOrder: StateFlow<TransactionSortOrder> = _sortOrder.asStateFlow()
 
     private val _allSettlements = MutableStateFlow<List<SettlementHistory>>(emptyList())
+    private val _allCustomers = MutableStateFlow<List<com.tadiwaprintbuddy.app.data.CustomerEntity>>(emptyList())
     private val _searchQuery = MutableStateFlow("")
     private val _expandedCustomerIds = MutableStateFlow<Set<Long>>(emptySet())
     
     val groupedSettlements: StateFlow<List<GroupedSettlement>> = combine(
         _allSettlements, 
+        _allCustomers,
         _sortOrder, 
         _searchQuery, 
         _expandedCustomerIds
-    ) { settlements, order, query, expandedIds ->
-        groupAndSort(settlements, order, query, expandedIds)
+    ) { settlements, customers, order, query, expandedIds ->
+        groupAndSort(settlements, customers, order, query, expandedIds)
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun groupAndSort(
         settlements: List<SettlementHistory>, 
+        customers: List<com.tadiwaprintbuddy.app.data.CustomerEntity>,
         order: TransactionSortOrder, 
         query: String,
         expandedIds: Set<Long>
     ): List<GroupedSettlement> {
+        val customerMap = customers.associateBy { it.id }
+        
         return settlements.groupBy { it.customerId }
             .map { (id, trans) ->
-                val name = trans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
+                val customer = customerMap[id]
+                val name = customer?.displayName ?: trans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
+                val phone = customer?.phoneNumber
                 
                 // Authoritative balance derived from the most recent transaction (by time then ID)
                 val mostRecent = trans.maxWithOrNull(compareBy<SettlementHistory> { it.timestamp }.thenBy { it.id })
@@ -70,6 +78,7 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
                 GroupedSettlement(
                     customerId = id,
                     customerName = name,
+                    phoneNumber = phone,
                     totalOwed = balance,
                     events = businessEvents,
                     rawTransactions = trans,
@@ -82,7 +91,15 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
 
     fun loadSettlements() {
         viewModelScope.launch {
+            _allCustomers.value = repository.getAllCustomers()
             _allSettlements.value = repository.getAllSettlements()
+        }
+    }
+
+    fun updateCustomerPhone(customerId: Long, phone: String?) {
+        viewModelScope.launch {
+            repository.updateCustomerPhone(customerId, phone)
+            _allCustomers.value = repository.getAllCustomers()
         }
     }
 

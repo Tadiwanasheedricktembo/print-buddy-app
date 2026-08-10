@@ -71,6 +71,14 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun navigateToHome() {
+        val securityManager = SecurityManager.getInstance(this)
+        if (securityManager.isLockEnabled && !securityManager.isSessionValid()) {
+            // Stay on splash or wait for security activity to handle it.
+            // We don't want to start MainActivity in the background while locked.
+            // When SecurityActivity finishes, we will re-check the lifecycle.
+            return
+        }
+
         val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
         finish()

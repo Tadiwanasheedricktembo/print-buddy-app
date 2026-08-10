@@ -12,7 +12,7 @@ import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class],
-    version = 27,
+    version = 30,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -35,7 +35,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, 
                     MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
-                    MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27
+                    MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
+                    MIGRATION_28_29, MIGRATION_29_30
                 )
 
                 if (BuildConfig.DEBUG) {
@@ -45,6 +46,25 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `debtor_credits` ADD COLUMN `phoneNumber` TEXT")
+            }
+        }
+
+        private val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Version 29 was a placeholder bump in a previous edit, keeping it empty to maintain chain
+            }
+        }
+
+        private val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `orders` ADD COLUMN `receivedAmount` REAL")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `receivedAmount` REAL")
             }
         }
 

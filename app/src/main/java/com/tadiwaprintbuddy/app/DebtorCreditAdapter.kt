@@ -14,7 +14,9 @@ class DebtorCreditAdapter(
     private val onUpdateClicked: (DebtorCredit) -> Unit,
     private val onItemClicked: (DebtorCredit) -> Unit,
     private val onItemLongClicked: (DebtorCredit) -> Unit,
-    private val onEditClicked: (DebtorCredit) -> Unit
+    private val onEditClicked: (DebtorCredit) -> Unit,
+    private val onPhoneClicked: (Long, String?) -> Unit,
+    private val onRemindClicked: (DebtorCredit) -> Unit
 ) : RecyclerView.Adapter<DebtorCreditAdapter.ViewHolder>() {
 
     fun updateDebtorCredits(newDebtorCredits: List<DebtorCredit>) {
@@ -88,6 +90,16 @@ class DebtorCreditAdapter(
 
             binding.buttonEditBalance.setOnClickListener {
                 onEditClicked(debtorCredit)
+            }
+
+            binding.textPhoneNumber.text = if (debtorCredit.phoneNumber.isNullOrBlank()) "Add Phone" else debtorCredit.phoneNumber
+            binding.textPhoneNumber.setOnClickListener {
+                onPhoneClicked(debtorCredit.customerId, debtorCredit.phoneNumber)
+            }
+
+            binding.buttonRemind.isEnabled = debtorCredit.amount > 0
+            binding.buttonRemind.setOnClickListener {
+                onRemindClicked(debtorCredit)
             }
 
             binding.root.setOnClickListener {

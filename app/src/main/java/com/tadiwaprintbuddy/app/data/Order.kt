@@ -24,5 +24,6 @@ data class Order(
     val transactionAmount: Double = 0.0,
     val newBalance: Double = 0.0,
     val paymentStatus: String = "PAID", // PAID, UNPAID, PARTIALLY_PAID
-    val orderStatus: String = "ACTIVE"  // ACTIVE, CANCELLED
+    val orderStatus: String = "ACTIVE", // ACTIVE, CANCELLED
+    val receivedAmount: Double? = null
 )

@@ -155,6 +155,9 @@ interface PrintDao {
     @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized WHERE id = :customerId")
     suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String): Int
 
+    @Query("UPDATE customers SET phoneNumber = :phone WHERE id = :customerId")
+    suspend fun updateCustomerPhone(customerId: Long, phone: String?): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addPhoto(photo: Photo): Long
 
@@ -199,7 +202,8 @@ interface PrintDao {
         total: Double,
         requestedPaymentMethod: String,
         appliedCredit: Double,
-        currentTime: Long
+        currentTime: Long,
+        receivedAmount: Double? = null
     ): Int {
         // 1. Stock Deduction
         for (item in items) {
@@ -292,7 +296,8 @@ interface PrintDao {
                     note = "Payment for Order #$orderId via $requestedPaymentMethod",
                     transactionAmount = -cashPaid,
                     newBalance = paymentBalanceAfter,
-                    originId = orderId
+                    originId = orderId,
+                    receivedAmount = receivedAmount
                 )
             )
         }
@@ -326,13 +331,19 @@ interface PrintDao {
     }
 
     @Transaction
-    suspend fun applyPaymentToCustomerIdAtomic(customerId: Long, paymentAmount: Double, paymentMethod: String): Boolean {
+    suspend fun applyPaymentToCustomerIdAtomic(
+        customerId: Long, 
+        paymentAmount: Double, 
+        paymentMethod: String,
+        receivedAmount: Double? = null
+    ): Boolean {
         val customer = getCustomerById(customerId) ?: return false
         val currentBalance = getAuthoritativeCustomerBalance(customerId)
         
         val unpaidOrders = getUnpaidOrdersForCustomer(customerId)
         var remainingPayment = paymentAmount
         var runningBalance = currentBalance
+        var tenderAccountedFor = false
 
         android.util.Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Start - Customer: ${customer.displayName}, Payment: $paymentAmount, Initial Balance: $currentBalance")
 
@@ -367,9 +378,11 @@ interface PrintDao {
                     note = "Debt Payment for Order #${order.id}",
                     transactionAmount = -paymentForThisOrder,
                     newBalance = runningBalance,
-                    originId = order.id
+                    originId = order.id,
+                    receivedAmount = if (!tenderAccountedFor) receivedAmount else null
                 )
             )
+            tenderAccountedFor = true
 
             remainingPayment -= paymentForThisOrder
         }
@@ -392,7 +405,26 @@ interface PrintDao {
                     ledgerEntryType = "CREDIT",
                     note = "Overpayment Credit",
                     transactionAmount = -remainingPayment,
-                    newBalance = runningBalance
+                    newBalance = runningBalance,
+                    receivedAmount = if (!tenderAccountedFor) receivedAmount else null
+                )
+            )
+        } else if (!tenderAccountedFor && receivedAmount != null) {
+            // Case where debt was 0 or something but money was received (unlikely in this flow but for safety)
+            insertSettlement(
+                SettlementHistory(
+                    customerName = customer.displayName,
+                    customerId = customer.id,
+                    balanceBefore = runningBalance,
+                    amountPaid = 0.0,
+                    balanceAfter = runningBalance,
+                    timestamp = System.currentTimeMillis(),
+                    type = "PAYMENT",
+                    ledgerEntryType = "PAYMENT",
+                    note = "Physical Tender recorded",
+                    transactionAmount = 0.0,
+                    newBalance = runningBalance,
+                    receivedAmount = receivedAmount
                 )
             )
         }
@@ -412,7 +444,8 @@ interface PrintDao {
                 customerId = customer.id,
                 customerName = customer.displayName,
                 amount = calculatedBalance,
-                lastUpdated = System.currentTimeMillis()
+                lastUpdated = System.currentTimeMillis(),
+                phoneNumber = customer.phoneNumber
             )
         )
         return true

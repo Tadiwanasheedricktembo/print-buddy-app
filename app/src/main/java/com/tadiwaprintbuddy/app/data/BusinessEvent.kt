@@ -10,6 +10,7 @@ sealed class BusinessEvent {
         val totalPaid: Double,
         val debtCleared: Double,
         val creditCreated: Double,
+        val receivedAmount: Double? = null,
         override val timestamp: Long,
         override val balanceAfter: Double,
         override val details: List<SettlementHistory>
@@ -21,6 +22,7 @@ sealed class BusinessEvent {
         val creditUsed: Double,
         val cashPaid: Double,
         val outstanding: Double,
+        val receivedAmount: Double? = null,
         override val timestamp: Long,
         override val balanceAfter: Double,
         override val details: List<SettlementHistory>

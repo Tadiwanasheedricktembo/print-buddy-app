@@ -4,66 +4,58 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:background="@color/brand_surface">
+    android:padding="24dp">
 
-    <View
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_horizontal"
+    <TextView
+        android:id="@+id/txtPinTitle"
+        style="@style/TextAppearance.App.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/set_app_pin"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/txtPinDescription"
+        style="@style/TextAppearance.App.Label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:layout_marginBottom="24dp"
-        android:background="@color/brand_divider" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Record Payment"
-        android:textColor="@color/text_primary"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enter the amount received from the customer to update their balance."
-        android:textColor="@color/text_secondary"
-        android:textSize="14sp"
-        android:layout_marginBottom="24dp" />
+        android:text="@string/app_lock_description" />
 
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/layoutPin"
         style="@style/Widget.App.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Amount Kept"
-        app:prefixText="₹ "
-        app:prefixTextColor="@color/text_primary">
+        android:hint="@string/pin_hint"
+        app:endIconMode="password_toggle">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/editPaymentAmount"
+            android:id="@+id/editPin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="numberDecimal"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:inputType="numberPassword"
+            android:maxLength="6"
+            android:textColor="@color/text_primary" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/layoutConfirmPin"
         style="@style/Widget.App.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:hint="Amount Received"
-        app:prefixText="₹ "
-        app:prefixTextColor="@color/text_secondary">
+        android:hint="@string/confirm_pin_hint"
+        app:endIconMode="password_toggle">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/editReceivedAmount"
+            android:id="@+id/editConfirmPin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="numberDecimal"
-            android:textColor="@color/text_secondary" />
+            android:inputType="numberPassword"
+            android:maxLength="6"
+            android:textColor="@color/text_primary" />
     </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>

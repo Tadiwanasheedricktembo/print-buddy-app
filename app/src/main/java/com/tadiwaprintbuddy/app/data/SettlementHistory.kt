@@ -32,5 +32,6 @@ data class SettlementHistory(
     val originId: Int? = null,         // Link to Orders.id if ledgerEntryType is ORDER_POST
     val ledgerEntryType: String = "",  // "ORDER_POST", "PAYMENT", "ADJUSTMENT"
     val isShadowDuplicate: Boolean = false, // True if flagged during reconciliation
-    val reconciliationStatus: String = "VERIFIED" // "VERIFIED", "SHADOW_PURGED", "FLAGGED"
+    val reconciliationStatus: String = "VERIFIED", // "VERIFIED", "SHADOW_PURGED", "FLAGGED"
+    val receivedAmount: Double? = null
 )

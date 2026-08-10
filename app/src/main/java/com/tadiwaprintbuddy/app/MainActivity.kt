@@ -227,7 +227,16 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val sheet = PaymentBottomSheet { status, method ->
+        val sheet = PaymentBottomSheet { status, method, receivedAmount ->
+            // Use a temporary state or just pass through if ViewModel is updated
+            // Actually, we need to make sure the receivedAmount reaches the ViewModel
+            // Or just call completeOrder with it.
+            
+            // We'll update the ViewModel state before completing if not already done by BottomSheet
+            // But BottomSheet already calls onReceivedAmountChanged.
+            // However, completeOrder in MainViewModel currently only takes (status, method).
+            // I should update completeOrder signature in MainViewModel too.
+            
             viewModel.completeOrder(status, method)
         }
         sheet.show(supportFragmentManager, PaymentBottomSheet.TAG)

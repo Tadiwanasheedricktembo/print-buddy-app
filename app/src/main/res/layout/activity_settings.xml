@@ -108,14 +108,14 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Reminders Section -->
+            <!-- Printing Rates Section -->
             <TextView
                 style="@style/TextAppearance.App.Label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 android:layout_marginStart="4dp"
-                android:text="NOTIFICATIONS"
+                android:text="PRINTING RATES"
                 android:textColor="@color/brand_primary"
                 android:textStyle="bold"
                 android:letterSpacing="0.05" />
@@ -133,96 +133,35 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/switchEnableReminders"
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.App.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Enable Reminders"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
+                        android:hint="B&amp;W Rate per Page"
+                        app:prefixText="₹ ">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editDefaultBwRate"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="numberDecimal"
+                            android:textColor="@color/text_primary" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                    <LinearLayout
-                        android:id="@+id/layoutReminderSettings"
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.App.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginTop="20dp"
-                        android:visibility="gone"
-                        tools:visibility="visible">
-
-                        <TextView
-                            style="@style/TextAppearance.App.Label"
+                        android:layout_marginTop="16dp"
+                        android:hint="Colour Rate per Page"
+                        app:prefixText="₹ ">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editDefaultColorRate"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Reminder Time"
-                            android:textStyle="bold" />
+                            android:inputType="numberDecimal"
+                            android:textColor="@color/text_primary" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                        <Button
-                            android:id="@+id/btnSelectTime"
-                            style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="20:00"
-                            android:textColor="@color/brand_primary"
-                            app:icon="@android:drawable/ic_menu_today" />
-
-                        <TextView
-                            style="@style/TextAppearance.App.Label"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
-                            android:text="Frequency"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.App.TextInputLayout"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp">
-
-                            <AutoCompleteTextView
-                                android:id="@+id/spinnerFrequency"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="none"
-                                android:textColor="@color/text_primary" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/layoutInterval"
-                            style="@style/Widget.App.TextInputLayout"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:hint="Interval (Hours)"
-                            android:visibility="gone">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editInterval"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:textColor="@color/text_primary" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.App.TextInputLayout"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:hint="Reminder Message">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/editMessage"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="textMultiLine"
-                                android:textColor="@color/text_primary" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -406,20 +345,6 @@
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnTestNotification"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_marginTop="12dp"
-                android:text="Test Notification"
-                android:textColor="@color/text_primary"
-                app:backgroundTint="@color/brand_surface"
-                app:strokeColor="@color/brand_divider"
-                app:strokeWidth="1dp"
-                app:icon="@android:drawable/ic_popup_reminder"
-                app:iconTint="@color/text_primary" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSaveSettings"

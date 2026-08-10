@@ -40,6 +40,12 @@ class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Uni
 
         setupUI()
         observeViewModel()
+        
+        // Pre-fill tender if available from calculator
+        val received = viewModel.uiState.value.receivedAmount
+        if (received != null && received > 0) {
+            binding.editAmountReceived.setText(received.toString())
+        }
     }
 
     private fun setupUI() {

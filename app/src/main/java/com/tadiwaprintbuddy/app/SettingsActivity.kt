@@ -22,20 +22,9 @@ import kotlinx.coroutines.launch
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
-    private lateinit var prefs: ReminderPreferencesManager
-    private lateinit var scheduler: ReminderScheduler
     private lateinit var themeManager: ThemeManager
     private lateinit var securityManager: SecurityManager
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            saveAndSchedule()
-        } else {
-            Toast.makeText(this, "Notification permission denied", Toast.LENGTH_SHORT).show()
-        }
-    }
+    private lateinit var rateManager: PrintRateManager
 
     private val backupLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -58,10 +47,9 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        prefs = ReminderPreferencesManager(this)
-        scheduler = ReminderScheduler(this)
         themeManager = ThemeManager(this)
         securityManager = SecurityManager.getInstance(this)
+        rateManager = PrintRateManager(this)
 
         setupUI()
         loadSettings()
@@ -78,10 +66,6 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 themeManager.selectedTheme = theme
             }
-        }
-
-        binding.switchEnableReminders.setOnCheckedChangeListener { _, isChecked ->
-            binding.layoutReminderSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
 
         binding.switchEnableAppLock.setOnCheckedChangeListener { buttonView, isChecked ->
@@ -170,30 +154,6 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        binding.btnSelectTime.setOnClickListener {
-            TimePickerDialog(this, { _, hour, minute ->
-                prefs.hour = hour
-                prefs.minute = minute
-                binding.btnSelectTime.text = String.format("%02d:%02d", hour, minute)
-            }, prefs.hour, prefs.minute, true).show()
-        }
-
-        val frequencies = arrayOf("Daily", "Weekdays Only", "Custom Interval")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, frequencies)
-        binding.spinnerFrequency.setAdapter(adapter)
-        binding.spinnerFrequency.setOnItemClickListener { _, _, position, _ ->
-            val frequency = when (position) {
-                0 -> ReminderPreferencesManager.FREQUENCY_DAILY
-                1 -> ReminderPreferencesManager.FREQUENCY_WEEKDAYS
-                else -> ReminderPreferencesManager.FREQUENCY_INTERVAL
-            }
-            binding.layoutInterval.visibility = if (frequency == ReminderPreferencesManager.FREQUENCY_INTERVAL) View.VISIBLE else View.GONE
-        }
-
-        binding.btnTestNotification.setOnClickListener {
-            NotificationHelper(this).showReminderNotification(binding.editMessage.text.toString())
-        }
-
         binding.btnBackup.setOnClickListener {
             val fileName = "PrintBuddy_Backup_${System.currentTimeMillis()}.zip"
             backupLauncher.launch(fileName)
@@ -204,7 +164,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         binding.btnSaveSettings.setOnClickListener {
-            checkPermissionAndSave()
+            saveAllSettings()
         }
     }
 
@@ -218,24 +178,12 @@ class SettingsActivity : AppCompatActivity() {
         }
         binding.toggleGroupTheme.check(buttonId)
 
-        binding.switchEnableReminders.isChecked = prefs.isEnabled
         binding.switchEnableAppLock.isChecked = securityManager.isLockEnabled
         binding.btnChangePin.visibility = if (securityManager.isLockEnabled) View.VISIBLE else View.GONE
         
         binding.switchEnableBiometrics.isEnabled = securityManager.isLockEnabled
         binding.switchEnableBiometrics.isChecked = securityManager.isBiometricEnabled
         
-        binding.layoutReminderSettings.visibility = if (prefs.isEnabled) View.VISIBLE else View.GONE
-        binding.btnSelectTime.text = String.format("%02d:%02d", prefs.hour, prefs.minute)
-        
-        val frequencyText = when (prefs.frequency) {
-            ReminderPreferencesManager.FREQUENCY_DAILY -> "Daily"
-            ReminderPreferencesManager.FREQUENCY_WEEKDAYS -> "Weekdays Only"
-            else -> "Custom Interval"
-        }
-        binding.spinnerFrequency.setText(frequencyText, false)
-        binding.layoutInterval.visibility = if (prefs.frequency == ReminderPreferencesManager.FREQUENCY_INTERVAL) View.VISIBLE else View.GONE
-
         // Timeout
         val timeoutValue = securityManager.lockTimeout
         val timeoutIndex = when (timeoutValue) {
@@ -252,8 +200,9 @@ class SettingsActivity : AppCompatActivity() {
         )
         binding.spinnerTimeout.setText(options[timeoutIndex], false)
         
-        binding.editInterval.setText(prefs.intervalHours.toString())
-        binding.editMessage.setText(prefs.message)
+        // Load Rates
+        binding.editDefaultBwRate.setText(rateManager.bwRate.toString())
+        binding.editDefaultColorRate.setText(rateManager.colorRate.toString())
     }
 
     private fun showPinSetupDialog(isChange: Boolean = false, onSuccess: () -> Unit, onCancel: () -> Unit) {
@@ -334,34 +283,15 @@ class SettingsActivity : AppCompatActivity() {
             }
     }
 
-    private fun checkPermissionAndSave() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                saveAndSchedule()
-            } else {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        } else {
-            saveAndSchedule()
-        }
-    }
-
-    private fun saveAndSchedule() {
-        prefs.isEnabled = binding.switchEnableReminders.isChecked
+    private fun saveAllSettings() {
         securityManager.isBiometricEnabled = binding.switchEnableBiometrics.isChecked
         
-        val freq = when (binding.spinnerFrequency.text.toString()) {
-            "Daily" -> ReminderPreferencesManager.FREQUENCY_DAILY
-            "Weekdays Only" -> ReminderPreferencesManager.FREQUENCY_WEEKDAYS
-            else -> ReminderPreferencesManager.FREQUENCY_INTERVAL
-        }
-        prefs.frequency = freq
-        prefs.intervalHours = binding.editInterval.text.toString().toIntOrNull() ?: 4
-        prefs.message = binding.editMessage.text.toString()
-
-        scheduler.scheduleReminder()
+        // Save Rates
+        val bwRate = binding.editDefaultBwRate.text.toString().toDoubleOrNull() ?: PrintRateManager.DEFAULT_BW_RATE
+        val colorRate = binding.editDefaultColorRate.text.toString().toDoubleOrNull() ?: PrintRateManager.DEFAULT_COLOR_RATE
+        rateManager.bwRate = bwRate
+        rateManager.colorRate = colorRate
+        
         Toast.makeText(this, "Settings saved successfully", Toast.LENGTH_SHORT).show()
     }
 

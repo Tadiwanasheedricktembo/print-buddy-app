@@ -26,7 +26,7 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingBottom="100dp"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -34,21 +34,33 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="20dp"
-            android:paddingTop="8dp">
+            android:paddingBottom="120dp">
 
-            <!-- BLACK & WHITE SECTION -->
+            <!-- HEADER SUBTITLE -->
+            <TextView
+                style="@style/TextAppearance.App.Body2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="24dp"
+                android:gravity="center"
+                android:text="@string/calculator_subtitle"
+                android:textColor="@color/text_secondary" />
+
+            <!-- CURRENT ENTRY SECTION -->
             <TextView
                 style="@style/TextAppearance.App.Label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="BLACK &amp; WHITE"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="12dp"
+                android:text="@string/current_entry" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/surface_elevated"
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -56,122 +68,151 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- B&W Row -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.App.TextInputLayout"
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_printer"
+                            android:contentDescription="@string/bw_printing"
+                            app:tint="@color/text_disabled" />
+
+                        <TextView
+                            style="@style/TextAppearance.App.Body1"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
                             android:layout_weight="1"
-                            android:hint="Pages">
+                            android:text="@string/bw_pages"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/qty_hint"
+                            app:boxBackgroundColor="@color/primary_bg"
+                            app:placeholderText="0">
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editBwPages"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
-                                android:textColor="@color/text_primary" />
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
                         </com.google.android.material.textfield.TextInputLayout>
 
-                        <View android:layout_width="12dp" android:layout_height="0dp" />
+                        <View android:layout_width="8dp" android:layout_height="0dp" />
 
                         <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.App.TextInputLayout"
-                            android:layout_width="0dp"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_width="80dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:hint="Rate"
-                            app:prefixText="₹ ">
+                            app:boxBackgroundColor="@color/primary_bg"
+                            app:prefixText="₹">
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editBwRate"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
-                                android:textColor="@color/text_primary" />
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
 
                     <TextView
                         android:id="@+id/textBwSubtotal"
-                        style="@style/TextAppearance.App.Body1"
+                        style="@style/TextAppearance.App.Caption"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="end"
                         android:text="Subtotal: ₹ 0.00"
-                        android:textColor="@color/text_secondary" />
+                        android:textColor="@color/text_muted" />
 
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="12dp"
+                        android:background="@color/border_divider" />
 
-            <!-- COLOUR SECTION -->
-            <TextView
-                style="@style/TextAppearance.App.Label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="COLOUR"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="12dp" />
-
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.App.Card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
+                    <!-- Color Row -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.App.TextInputLayout"
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_printer"
+                            android:contentDescription="@string/colour_printing"
+                            app:tint="@color/warning" />
+
+                        <TextView
+                            style="@style/TextAppearance.App.Body1"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
                             android:layout_weight="1"
-                            android:hint="Pages">
+                            android:text="@string/colour_pages"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/qty_hint"
+                            app:boxBackgroundColor="@color/primary_bg"
+                            app:placeholderText="0">
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editColorPages"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
-                                android:textColor="@color/text_primary" />
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
                         </com.google.android.material.textfield.TextInputLayout>
 
-                        <View android:layout_width="12dp" android:layout_height="0dp" />
+                        <View android:layout_width="8dp" android:layout_height="0dp" />
 
                         <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.App.TextInputLayout"
-                            android:layout_width="0dp"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_width="80dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
                             android:hint="Rate"
-                            app:prefixText="₹ ">
+                            app:boxBackgroundColor="@color/primary_bg"
+                            app:prefixText="₹">
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editColorRate"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
-                                android:textColor="@color/text_primary" />
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
 
                     <TextView
                         android:id="@+id/textColorSubtotal"
-                        style="@style/TextAppearance.App.Body1"
+                        style="@style/TextAppearance.App.Caption"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="end"
                         android:text="Subtotal: ₹ 0.00"
-                        android:textColor="@color/text_secondary" />
+                        android:textColor="@color/text_muted" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -180,19 +221,22 @@
                 android:id="@+id/btnAddBatch"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_marginTop="20dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
                 android:text="@string/add_batch_to_cart"
+                android:textAllCaps="false"
+                android:textStyle="bold"
                 app:icon="@drawable/ic_add_white"
-                app:iconGravity="textStart" />
+                app:iconSize="18dp"
+                app:cornerRadius="8dp" />
 
-            <!-- BATCH CART SECTION -->
+            <!-- CART SECTION -->
             <LinearLayout
                 android:id="@+id/layoutCartHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -208,7 +252,11 @@
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="8dp"
                     android:text="@string/clear_all"
+                    android:textAllCaps="false"
                     android:textColor="@color/destructive" />
             </LinearLayout>
 
@@ -217,16 +265,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                tools:itemCount="2"
+                tools:itemCount="1"
                 tools:listitem="@layout/item_print_batch" />
 
-            <!-- SUMMARY SECTION -->
+            <!-- ORDER SUMMARY SECTION -->
+            <TextView
+                style="@style/TextAppearance.App.Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="12dp"
+                android:text="@string/order_summary" />
+
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                app:cardBackgroundColor="@color/surface_elevated">
+                android:layout_height="wrap_content">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -243,10 +297,11 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Total Pages" />
+                            android:text="Total Pages"
+                            android:textColor="@color/text_secondary" />
                         <TextView
                             android:id="@+id/textTotalPages"
-                            style="@style/TextAppearance.App.H2"
+                            style="@style/TextAppearance.App.Title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0" />
@@ -255,7 +310,8 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="12dp"
+                        android:gravity="bottom"
                         android:orientation="horizontal">
                         <TextView
                             style="@style/TextAppearance.App.Body1"
@@ -266,7 +322,7 @@
                             android:textStyle="bold" />
                         <TextView
                             android:id="@+id/textGrandTotal"
-                            style="@style/TextAppearance.App.H1"
+                            style="@style/TextAppearance.App.Heading"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="₹ 0.00"
@@ -276,57 +332,86 @@
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:layout_marginVertical="16dp"
+                        android:layout_marginVertical="20dp"
                         android:background="@color/border_divider" />
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.App.TextInputLayout"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Amount Received"
-                        app:prefixText="₹ ">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editReceived"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="numberDecimal"
-                            android:textColor="@color/text_primary" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
+                    <!-- PAYMENT ROW -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:baselineAligned="false"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal">
-                        <TextView
-                            style="@style/TextAppearance.App.Body1"
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.App.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Change" />
-                        <TextView
-                            android:id="@+id/textChange"
-                            style="@style/TextAppearance.App.H2"
-                            android:layout_width="wrap_content"
+                            android:hint="@string/cash_received"
+                            app:prefixText="₹ ">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/editReceived"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:textColor="@color/text_primary" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <LinearLayout
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
-                            android:text="₹ 0.00"
-                            android:textColor="@color/warning" />
+                            android:layout_marginStart="16dp"
+                            android:gravity="end"
+                            android:orientation="vertical">
+                            <TextView
+                                style="@style/TextAppearance.App.Label"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/change_label"
+                                android:textSize="11sp"
+                                android:textColor="@color/warning" />
+                            <TextView
+                                android:id="@+id/textChange"
+                                style="@style/TextAppearance.App.Title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="₹ 0.00"
+                                android:textColor="@color/warning" />
+                        </LinearLayout>
                     </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnAddtoPos"
-                style="@style/Widget.App.Button.CTA"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:layout_marginTop="24dp"
-                android:text="Add to POS"
-                app:icon="@drawable/ic_add_white"
-                app:iconGravity="textStart" />
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <!-- FLOATING ACTION FOOTER -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="16dp"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/surface_elevated"
+            android:padding="16dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddtoPos"
+                style="@style/Widget.App.Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="@string/transfer_to_pos"
+                android:textAllCaps="false"
+                app:icon="@drawable/ic_check"
+                app:iconGravity="textStart" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

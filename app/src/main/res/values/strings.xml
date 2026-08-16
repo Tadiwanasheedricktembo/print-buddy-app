@@ -232,4 +232,15 @@
     <string name="subtotal_label">Subtotal: %1$s</string>
     <string name="batch_details_format">Qty: %1$d × %2$s</string>
 
+    <!-- Calculator UX Improvements -->
+    <string name="calculator_subtitle">Build a multi-batch print order</string>
+    <string name="current_entry">CURRENT ENTRY</string>
+    <string name="bw_pages">B&amp;W Pages</string>
+    <string name="colour_pages">Colour Pages</string>
+    <string name="qty_hint">Qty</string>
+    <string name="order_summary">ORDER SUMMARY</string>
+    <string name="cash_received">Cash Received</string>
+    <string name="change_label">CHANGE</string>
+    <string name="transfer_to_pos">Transfer to POS</string>
+
 </resources>

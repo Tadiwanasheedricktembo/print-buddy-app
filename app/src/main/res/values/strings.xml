@@ -215,4 +215,10 @@
     <string name="timeout_15min">After 15 minutes</string>
     <string name="incorrect_pin">Incorrect PIN</string>
 
+    <!-- Sorting -->
+    <string name="sort_highest_balance">Highest Balance</string>
+    <string name="sort_lowest_balance">Lowest Balance</string>
+    <string name="sort_name_az">Name A-Z</string>
+    <string name="sort_name_za">Name Z-A</string>
+
 </resources>

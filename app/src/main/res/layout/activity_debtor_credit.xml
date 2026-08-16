@@ -112,6 +112,46 @@
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
+            <!-- SORT CHIPS -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:scrollbars="none">
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupSort"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipSortBalanceDesc"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sort_highest_balance"
+                        android:checked="true" />
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipSortBalanceAsc"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sort_lowest_balance" />
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipSortNameAsc"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sort_name_az" />
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipSortNameDesc"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sort_name_za" />
+                </com.google.android.material.chip.ChipGroup>
+            </HorizontalScrollView>
+
             <!-- SEARCH -->
             <LinearLayout
                 android:layout_width="match_parent"

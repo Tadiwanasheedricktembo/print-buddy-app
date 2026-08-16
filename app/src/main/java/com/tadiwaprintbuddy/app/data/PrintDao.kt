@@ -240,7 +240,7 @@ interface PrintDao {
         val finalPaymentMethod = if (requestedPaymentMethod == "OWES_ME") {
             if (creditUsed > 0) "CREDIT" else "NONE"
         } else {
-            if (creditUsed > 0) "MIXED" else requestedPaymentMethod
+            if (creditUsed > 0) "${requestedPaymentMethod}_MIXED" else requestedPaymentMethod
         }
         
         val finalPaymentStatus = when {
@@ -464,13 +464,133 @@ interface PrintDao {
     }
 
     @Transaction
+    suspend fun reconcileBeautyAccountAtomic() {
+        val all = getAllBeautyTransactions().sortedBy { it.timestamp }
+        var runningBalance = 0.0
+
+        for (item in all) {
+            val previousBalance = runningBalance
+            val transactionAmount = when (item.type) {
+                "ADD" -> item.amount
+                "RETURN" -> -item.amount
+                "RESET" -> -previousBalance
+                else -> item.transactionAmount
+            }
+            val newBalance = if (item.type == "RESET") 0.0 else previousBalance + transactionAmount
+
+            val updated = item.copy(
+                previousBalance = previousBalance,
+                transactionAmount = transactionAmount,
+                newBalance = newBalance
+            )
+            updateBeautyTransaction(updated)
+            runningBalance = newBalance
+        }
+    }
+
+    @Transaction
     suspend fun adjustBalanceAtomic(settlement: SettlementHistory): Boolean {
         insertSettlement(settlement)
         rebuildCustomerProjection(settlement.customerId)
         return true
     }
 
-    @Query("SELECT COUNT(*) = 0 FROM (SELECT id FROM settlement_history WHERE customerId = :customerId EXCEPT SELECT id FROM settlement_history WHERE customerId = :customerId)")
+    @Transaction
+    suspend fun recordOrderWithWalletAtomic(
+        customer: CustomerEntity,
+        items: List<OrderItem>,
+        total: Double,
+        requestedPaymentMethod: String,
+        appliedCredit: Double,
+        currentTime: Long,
+        receivedAmount: Double? = null,
+        walletNote: String? = null
+    ): Int {
+        val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
+        
+        val cashPaid = if (requestedPaymentMethod == "OWES_ME") 0.0 else total - appliedCredit
+        if (requestedPaymentMethod == "UPI" && cashPaid > 0) {
+            insertBeautyTransactionAtomic(cashPaid, "ADD", walletNote ?: "Direct Pay - Order #$orderId - ${customer.displayName}")
+        }
+        
+        return orderId
+    }
+
+    @Transaction
+    suspend fun insertBeautyTransactionAtomic(amount: Double, type: String, note: String? = null) {
+        val previousBalance = getAuthoritativeWalletBalance()
+        val transactionAmount = when (type) {
+            "ADD" -> amount
+            "RETURN" -> -amount
+            "RESET" -> -previousBalance
+            else -> amount
+        }
+        val newBalance = if (type == "RESET") 0.0 else previousBalance + transactionAmount
+
+        insertBeautyTransaction(
+            BeautyTransaction(
+                amount = amount, 
+                type = type, 
+                note = note,
+                previousBalance = previousBalance,
+                transactionAmount = transactionAmount,
+                newBalance = newBalance
+            )
+        )
+    }
+
+    @Transaction
+    suspend fun applyPaymentToCustomerIdWithWalletAtomic(
+        customerId: Long, 
+        paymentAmount: Double, 
+        paymentMethod: String,
+        receivedAmount: Double? = null
+    ): Boolean {
+        val success = applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
+        if (success && paymentMethod == "UPI") {
+            val customer = getCustomerById(customerId)
+            insertBeautyTransactionAtomic(paymentAmount, "ADD", "Debt Settlement - ${customer?.displayName ?: "Unknown"}")
+        }
+        return success
+    }
+
+    @Transaction
+    suspend fun recordPaymentWithWalletAtomic(
+        orderId: Int, 
+        newPaidAmount: Double, 
+        status: String, 
+        method: String, 
+        settlement: SettlementHistory,
+        walletDelta: Double
+    ): Boolean {
+        recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
+        if (method == "UPI" && walletDelta > 0) {
+            insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId - ${settlement.customerName}")
+        }
+        return true
+    }
+
+    @Transaction
+    suspend fun cancelOrderWithWalletAtomic(
+        orderId: Int, 
+        status: String, 
+        settlement: SettlementHistory,
+        walletReturnAmount: Double
+    ): Boolean {
+        cancelOrderAtomic(orderId, status, settlement)
+        if (walletReturnAmount > 0) {
+             insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId - ${settlement.customerName}")
+        }
+        return true
+    }
+
+    @Query("""
+        SELECT (
+            SELECT amount FROM debtor_credits WHERE customerId = :customerId
+        ) == (
+            SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId
+        )
+    """)
     suspend fun verifyCustomerBalance(customerId: Long): Boolean
 
     @Query("SELECT * FROM settlement_history ORDER BY timestamp DESC")

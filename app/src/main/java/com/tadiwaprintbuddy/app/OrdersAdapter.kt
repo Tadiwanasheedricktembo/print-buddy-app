@@ -75,38 +75,31 @@ class OrdersAdapter(
                 binding.root.alpha = 1.0f
             }
 
-            // Dynamic Icons and Badges
+            // Dynamic Icons and Badges based on restored payment semantics
             val methodDisplay = when (order.paymentMethod) {
-                "CASH" -> "CASH"
-                "UPI" -> "UPI"
+                "CASH", "CASH_MIXED" -> "CASH"
+                "UPI", "UPI_MIXED" -> "UPI"
                 "MIXED" -> "MIXED"
-                "NONE" -> "CREDIT"
+                "NONE", "CREDIT" -> "CREDIT"
                 else -> order.paymentMethod
             }
 
             when (order.paymentMethod) {
-                "CASH" -> {
+                "CASH", "CASH_MIXED", "MIXED" -> {
                     binding.imagePaymentIcon.setImageResource(R.drawable.ic_wallet)
                     binding.cardIcon.setCardBackgroundColor(Color.parseColor("#1B5E20"))
                     binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#1B5E20"))
                     binding.badgePaymentMethod.setTextColor(Color.parseColor("#00C853"))
                     binding.tagCreditHeader.visibility = View.GONE
                 }
-                "UPI" -> {
+                "UPI", "UPI_MIXED" -> {
                     binding.imagePaymentIcon.setImageResource(R.drawable.ic_qr_code)
                     binding.cardIcon.setCardBackgroundColor(Color.parseColor("#0D47A1"))
                     binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#0D47A1"))
                     binding.badgePaymentMethod.setTextColor(Color.parseColor("#448AFF"))
                     binding.tagCreditHeader.visibility = View.GONE
                 }
-                "MIXED" -> {
-                    binding.imagePaymentIcon.setImageResource(R.drawable.ic_check)
-                    binding.cardIcon.setCardBackgroundColor(Color.parseColor("#4527A0"))
-                    binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4527A0"))
-                    binding.badgePaymentMethod.setTextColor(Color.parseColor("#B39DDB"))
-                    binding.tagCreditHeader.visibility = View.GONE
-                }
-                else -> { // NONE / CREDIT
+                else -> { // NONE / CREDIT / OTHERS
                     binding.imagePaymentIcon.setImageResource(R.drawable.ic_history)
                     binding.cardIcon.setCardBackgroundColor(Color.parseColor("#4A1500"))
                     binding.badgePaymentMethod.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4A1500"))

@@ -192,18 +192,35 @@ class OrdersActivity : AppCompatActivity() {
     private fun applyAllFilters() {
         var filtered = allOrders
         
-        // Apply Payment Filter
+        // 1. Apply Payment Filter with explicit semantics to handle new mixed/credit states
         if (currentPaymentFilter != PaymentFilter.ALL) {
-            filtered = filtered.filter { 
+            filtered = filtered.filter { order ->
                 when (currentPaymentFilter) {
-                    PaymentFilter.CASH -> it.paymentMethod == "CASH"
-                    PaymentFilter.UPI -> it.paymentMethod == "UPI"
-                    PaymentFilter.CREDIT -> it.paymentStatus != "PAID"
+                    PaymentFilter.CASH -> {
+                        // Includes pure cash, mixed payments involving cash, 
+                        // and legacy mixed transactions (usually cash-based)
+                        order.paymentMethod == "CASH" || 
+                        order.paymentMethod == "CASH_MIXED" || 
+                        order.paymentMethod == "MIXED"
+                    }
+                    PaymentFilter.UPI -> {
+                        // Includes pure digital and mixed payments involving UPI
+                        order.paymentMethod == "UPI" || 
+                        order.paymentMethod == "UPI_MIXED"
+                    }
+                    PaymentFilter.CREDIT -> {
+                        // Includes pure debt, overpayment credits, 
+                        // and any order with an outstanding balance
+                        order.paymentMethod == "NONE" || 
+                        order.paymentMethod == "CREDIT" || 
+                        order.paymentStatus != "PAID"
+                    }
                     else -> true
                 }
             }
         }
 
+        // 2. Apply Search Filter (Customer name or Order ID)
         if (currentSearchQuery.isNotEmpty()) {
             filtered = filtered.filter { 
                 it.customerName.contains(currentSearchQuery, ignoreCase = true) ||
@@ -211,6 +228,7 @@ class OrdersActivity : AppCompatActivity() {
             }
         }
 
+        // 3. Update UI (Ensures List, Count, and Total are derived from the exact same dataset)
         updateUI(filtered)
     }
 
@@ -229,9 +247,16 @@ class OrdersActivity : AppCompatActivity() {
                 adapter.updateOrders(orders)
             }
             
-            val totalRevenue = orders.filter { it.orderStatus == "ACTIVE" }.sumOf { it.paidAmount }
+            // Total represents authoritative Value of Work (Total Amount of orders)
+            // Filter: Only include active or legacy (null status) orders in the financial total
+            val activeOrders = orders.filter { 
+                it.orderStatus == "ACTIVE" || it.orderStatus.isNullOrEmpty() 
+            }
+            
+            val totalWorkValue = activeOrders.sumOf { it.totalAmount }
+            
             binding.textOrderCount.text = getString(R.string.order_count_format, orders.size)
-            binding.textTotalRevenue.text = currencyFormat.format(totalRevenue).replace(" ", "")
+            binding.textTotalRevenue.text = currencyFormat.format(totalWorkValue).replace(" ", "")
         }
     }
 

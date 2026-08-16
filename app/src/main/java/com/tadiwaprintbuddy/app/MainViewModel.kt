@@ -39,6 +39,8 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
     private val _events = MutableSharedFlow<MainEvent>()
     val events: SharedFlow<MainEvent> = _events.asSharedFlow()
 
+    private var calculationJob: kotlinx.coroutines.Job? = null
+
     sealed class MainEvent {
         object OrderCompleted : MainEvent()
         data class ShowError(val message: String) : MainEvent()
@@ -70,7 +72,8 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
         val current = _uiState.value
         val total = current.quantity * current.price
         
-        viewModelScope.launch {
+        calculationJob?.cancel()
+        calculationJob = viewModelScope.launch {
             val balance = if (current.customerName.isNotBlank()) {
                 repository.getCustomerBalance(current.customerName)
             } else 0.0
@@ -85,7 +88,7 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
                     existingBalance = balance,
                     creditUsed = creditUsed,
                     balanceToPay = toPay,
-                    isCompleteEnabled = current.quantity > 0 && current.price > 0
+                    isCompleteEnabled = it.quantity > 0 && it.price > 0
                 )
             }
         }
@@ -158,7 +161,9 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
             OrderUiState(
                 customerName = "",
                 quantity = 1,
-                price = 0.0
+                price = 0.0,
+                receivedAmount = null,
+                changeAmount = 0.0
             )
         }
     }

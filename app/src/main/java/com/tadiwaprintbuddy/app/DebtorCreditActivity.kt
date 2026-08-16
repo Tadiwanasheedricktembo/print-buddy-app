@@ -38,9 +38,17 @@ class DebtorCreditActivity : AppCompatActivity() {
     private lateinit var adapter: DebtorCreditAdapter
     private var allDebtorCredits: List<DebtorCredit> = emptyList()
     private var currentFilter = FilterMode.ALL
+    private var currentSort = SortMode.BALANCE_DESC
 
     private enum class FilterMode {
         ALL, OWES_ME, I_OWE_CHANGE
+    }
+
+    enum class SortMode {
+        BALANCE_DESC,
+        BALANCE_ASC,
+        NAME_ASC,
+        NAME_DESC
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +66,7 @@ class DebtorCreditActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupSummaryCardFilters()
+        setupSortChips()
 
         binding.buttonAddDebtorCredit.setOnClickListener {
             showAddNewEntryDialog()
@@ -128,6 +137,18 @@ class DebtorCreditActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupSortChips() {
+        binding.chipGroupSort.setOnCheckedStateChangeListener { _, checkedIds ->
+            currentSort = when (checkedIds.firstOrNull()) {
+                R.id.chipSortBalanceAsc -> SortMode.BALANCE_ASC
+                R.id.chipSortNameAsc -> SortMode.NAME_ASC
+                R.id.chipSortNameDesc -> SortMode.NAME_DESC
+                else -> SortMode.BALANCE_DESC
+            }
+            applyFilters()
+        }
+    }
+
     private fun toggleFilter(mode: FilterMode) {
         currentFilter = if (currentFilter == mode) FilterMode.ALL else mode
         updateFilterUI()
@@ -166,18 +187,26 @@ class DebtorCreditActivity : AppCompatActivity() {
         
         var filteredList = allDebtorCredits
         
-        // Apply category filter
+        // 1. Apply category filter
         filteredList = when (currentFilter) {
             FilterMode.ALL -> filteredList
             FilterMode.OWES_ME -> filteredList.filter { it.amount > 0 }
             FilterMode.I_OWE_CHANGE -> filteredList.filter { it.amount < 0 }
         }
         
-        // Apply search filter
+        // 2. Apply search filter
         if (searchQuery.isNotEmpty()) {
             filteredList = filteredList.filter { 
                 it.customerName.contains(searchQuery, ignoreCase = true) 
             }
+        }
+
+        // 3. Apply sorting
+        filteredList = when (currentSort) {
+            SortMode.BALANCE_DESC -> filteredList.sortedByDescending { it.amount }
+            SortMode.BALANCE_ASC -> filteredList.sortedBy { it.amount }
+            SortMode.NAME_ASC -> filteredList.sortedBy { it.customerName.lowercase() }
+            SortMode.NAME_DESC -> filteredList.sortedByDescending { it.customerName.lowercase() }
         }
         
         adapter.updateDebtorCredits(filteredList)

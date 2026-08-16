@@ -224,8 +224,11 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getSalesRevenueBetween(start: Long, end: Long): Double = 
         printDao.getSalesRevenueBetween(start, end)
 
-    suspend fun getSettledDebtRevenueBetween(start: Long, end: Long): Double = 
-        printDao.getSettledDebtRevenueBetween(start, end)
+    suspend fun getSalesVolumeBetween(start: Long, end: Long): Double = 
+        printDao.getSalesVolumeBetween(start, end)
+
+    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): Double = 
+        printDao.getSettledRevenueByMethodBetween(start, end, method)
 
     suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double = 
         printDao.getRevenueByMethodBetween(start, end, method)

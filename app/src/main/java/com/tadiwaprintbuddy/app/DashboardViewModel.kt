@@ -59,52 +59,32 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val (start, end) = getRange(state.period)
             val (prevStart, prevEnd) = getPreviousRange(state.period, start)
 
-            // Dimension 1: Revenue
-            val revenue: Double
-            val prevRevenue: Double
-            
-            if (state.paymentMethod == "All") {
-                val sales = repository.getSalesRevenueBetween(start, end)
-                val settled = repository.getSettledDebtRevenueBetween(start, end)
-                revenue = sales + settled
-                
-                val prevSales = repository.getSalesRevenueBetween(prevStart, prevEnd)
-                val prevSettled = repository.getSettledDebtRevenueBetween(prevStart, prevEnd)
-                prevRevenue = prevSales + prevSettled
-            } else {
-                // If specific method, use direct query
-                revenue = repository.getRevenueByMethodBetween(start, end, state.paymentMethod.uppercase())
-                prevRevenue = repository.getRevenueByMethodBetween(prevStart, prevEnd, state.paymentMethod.uppercase())
-            }
+            val method = state.paymentMethod.uppercase()
 
-            // Dimension 4: Expenses
-            val expenses: Double
-            val prevExpenses: Double
-            val cashExpenses: Double
-            if (state.paymentMethod == "All") {
-                expenses = repository.getExpensesBetween(start, end)
-                prevExpenses = repository.getExpensesBetween(prevStart, prevEnd)
-                cashExpenses = repository.getExpensesByMethodBetween(start, end, "CASH")
-            } else {
-                expenses = repository.getExpensesByMethodBetween(start, end, state.paymentMethod.uppercase())
-                prevExpenses = repository.getExpensesByMethodBetween(prevStart, prevEnd, state.paymentMethod.uppercase())
-                cashExpenses = if (state.paymentMethod == "Cash") expenses else 0.0
-            }
+            // 1. Revenue (Authoritative Collection - Money In)
+            // Using settlement_history as source of truth for money flow to avoid doubling with orders.paidAmount
+            val revenue = repository.getSettledRevenueByMethodBetween(start, end, method)
+            val prevRevenue = repository.getSettledRevenueByMethodBetween(prevStart, prevEnd, method)
 
-            // Orders
-            val ordersCount: Int
-            val prevOrdersCount: Int
-            val cashSales: Double
-            if (state.paymentMethod == "All") {
-                ordersCount = repository.getOrdersCountBetween(start, end)
-                prevOrdersCount = repository.getOrdersCountBetween(prevStart, prevEnd)
-                cashSales = repository.getRevenueByMethodBetween(start, end, "CASH")
-            } else {
-                ordersCount = repository.getOrdersCountByMethodBetween(start, end, state.paymentMethod.uppercase())
-                prevOrdersCount = repository.getOrdersCountByMethodBetween(prevStart, prevEnd, state.paymentMethod.uppercase())
-                cashSales = if (state.paymentMethod == "Cash") revenue else 0.0
-            }
+            // 2. Sales Volume (Value of all work done)
+            // Used for Average Order calculations to represent business throughput accurately
+            val salesVolume = repository.getSalesVolumeBetween(start, end)
 
+            // 3. Expenses
+            val expenses = if (method == "ALL") repository.getExpensesBetween(start, end) else repository.getExpensesByMethodBetween(start, end, method)
+            val prevExpenses = if (method == "ALL") repository.getExpensesBetween(prevStart, prevEnd) else repository.getExpensesByMethodBetween(prevStart, prevEnd, method)
+
+            // 4. Orders & Counts
+            val ordersCount = if (method == "ALL") repository.getOrdersCountBetween(start, end) else repository.getOrdersCountByMethodBetween(start, end, method)
+            val prevOrdersCount = if (method == "ALL") repository.getOrdersCountBetween(prevStart, prevEnd) else repository.getOrdersCountByMethodBetween(prevStart, prevEnd, method)
+
+            // 5. Cash in Hand (Period Specific Flow)
+            // Robust calculation: (Cash from orders + Cash from debt) - Cash expenses
+            val cashCollected = repository.getSettledRevenueByMethodBetween(start, end, "CASH")
+            val cashExpenses = repository.getExpensesByMethodBetween(start, end, "CASH")
+            val cashInHand = cashCollected - cashExpenses
+
+            // Financial Metrics
             val netProfit = revenue - expenses
             val prevNetProfit = prevRevenue - prevExpenses
             val profitMargin = if (revenue > 0) (netProfit / revenue) * 100 else 0.0
@@ -121,20 +101,19 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 previousOrdersCount = prevOrdersCount
             )
 
-            // Snapshot Metrics (Dimension 2 & 3)
+            // Snapshot Metrics
             val upiWallet = repository.getCurrentBeautyBalance()
             val totalReceivables = repository.getTotalReceivables()
             val debtorsCount = repository.getDebtorsCount()
-            val cashInHand = cashSales - cashExpenses
 
             // Charts
-            val trend = repository.getRevenueTrendByMethod(start, end, if (state.paymentMethod == "All") "CASH" else state.paymentMethod.uppercase()) 
+            val trend = repository.getRevenueTrendByMethod(start, end, method) 
             val payments = repository.getPaymentBreakdownBetween(start, end)
             val services = repository.getServiceBreakdownBetween(start, end)
             val expenseBreakdown = repository.getExpenseBreakdownBetween(start, end)
 
-            // Insights
-            val insights = calculateInsights(revenue, ordersCount, upiWallet, totalReceivables, debtorsCount, cashInHand, trend)
+            // Insights (Using Sales Volume for Avg Order to be accurate)
+            val insights = calculateInsights(salesVolume, ordersCount, upiWallet, totalReceivables, debtorsCount, cashInHand, trend)
 
             _uiState.update {
                 it.copy(

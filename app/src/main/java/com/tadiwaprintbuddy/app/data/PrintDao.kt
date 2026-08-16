@@ -34,9 +34,17 @@ interface PrintDao {
     @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end AND paymentMethod != 'NONE'")
     suspend fun getSalesRevenueBetween(start: Long, end: Long): Double
 
-    // Revenue from debt settlements
-    @Query("SELECT IFNULL(SUM(settledAmount), 0.0) FROM `settlement_history` WHERE timestamp BETWEEN :start AND :end AND ledgerEntryType = 'PAYMENT'")
-    suspend fun getSettledDebtRevenueBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(totalAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end")
+    suspend fun getSalesVolumeBetween(start: Long, end: Long): Double
+
+    // Revenue from collection (authoritative money in)
+    @Query("""
+        SELECT IFNULL(SUM(settledAmount), 0.0) FROM `settlement_history` 
+        WHERE timestamp BETWEEN :start AND :end 
+        AND ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (:method = 'ALL' OR (:method = 'UPI' AND note LIKE '%UPI%') OR (:method = 'CASH' AND (note IS NULL OR note NOT LIKE '%UPI%')))
+    """)
+    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): Double
 
     @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end AND paymentMethod = :method")
     suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double
@@ -59,7 +67,14 @@ interface PrintDao {
     @Query("SELECT COUNT(*) FROM debtor_credits WHERE amount > 0")
     suspend fun getDebtorsCount(): Int
 
-    @Query("SELECT date as timestamp, IFNULL(SUM(paidAmount), 0.0) as amount FROM `orders` WHERE orderStatus = 'ACTIVE' AND paymentMethod = :method AND date BETWEEN :start AND :end GROUP BY date / (24 * 60 * 60 * 1000)")
+    @Query("""
+        SELECT date as timestamp, IFNULL(SUM(paidAmount), 0.0) as amount 
+        FROM `orders` 
+        WHERE orderStatus = 'ACTIVE' 
+        AND (:method = 'ALL' OR paymentMethod = :method) 
+        AND date BETWEEN :start AND :end 
+        GROUP BY date / (24 * 60 * 60 * 1000)
+    """)
     suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
 
     @Query("SELECT paymentMethod as type, IFNULL(SUM(paidAmount), 0.0) as total FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end GROUP BY paymentMethod")
@@ -372,7 +387,7 @@ interface PrintDao {
                     timestamp = System.currentTimeMillis(),
                     type = "PAYMENT",
                     ledgerEntryType = "PAYMENT",
-                    note = "Debt Payment for Order #${order.id}",
+                    note = "Debt Payment for Order #${order.id} via $paymentMethod",
                     transactionAmount = -paymentForThisOrder,
                     newBalance = runningBalance,
                     originId = order.id,
@@ -400,7 +415,7 @@ interface PrintDao {
                     timestamp = System.currentTimeMillis(),
                     type = "PAYMENT",
                     ledgerEntryType = "CREDIT",
-                    note = "Overpayment Credit",
+                    note = "Overpayment Credit via $paymentMethod",
                     transactionAmount = -remainingPayment,
                     newBalance = runningBalance,
                     receivedAmount = if (!tenderAccountedFor) receivedAmount else null

@@ -5,7 +5,7 @@
     style="@style/Widget.App.Card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="12dp"
     app:cardBackgroundColor="@color/surface_elevated"
     app:strokeWidth="0dp">
 
@@ -14,11 +14,21 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="12dp">
+        android:padding="16dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@color/primary_bg"
+            android:padding="8dp"
+            android:src="@drawable/ic_printer"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small"
+            app:tint="@color/text_secondary" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -36,28 +46,28 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
+                android:textColor="@color/text_muted"
                 tools:text="Qty: 10 × ₹2.00" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/textBatchTotal"
-            style="@style/TextAppearance.App.Body1"
+            style="@style/TextAppearance.App.Title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="16dp"
             android:textColor="@color/primary_accent"
-            android:textStyle="bold"
             tools:text="₹ 20.00" />
 
         <ImageButton
             android:id="@+id/btnRemoveBatch"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="4dp"
+            android:padding="6dp"
             android:src="@drawable/ic_backspace"
             app:tint="@color/destructive"
-            android:contentDescription="Remove batch" />
+            android:contentDescription="@string/close" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

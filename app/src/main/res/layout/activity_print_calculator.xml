@@ -176,6 +176,50 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddBatch"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="20dp"
+                android:text="@string/add_batch_to_cart"
+                app:icon="@drawable/ic_add_white"
+                app:iconGravity="textStart" />
+
+            <!-- BATCH CART SECTION -->
+            <LinearLayout
+                android:id="@+id/layoutCartHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/TextAppearance.App.Label"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/calculated_batches" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnClearCart"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/clear_all"
+                    android:textColor="@color/destructive" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerBatches"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:itemCount="2"
+                tools:listitem="@layout/item_print_batch" />
+
             <!-- SUMMARY SECTION -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.App.Card"

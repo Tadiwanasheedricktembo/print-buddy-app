@@ -90,7 +90,7 @@ class PrintRepository(private val printDao: PrintDao) {
         }
         
         return try {
-            val orderId = printDao.recordOrderAtomic(
+            val orderId = printDao.recordOrderWithWalletAtomic(
                 customer = customer,
                 items = orderItems,
                 total = total,
@@ -99,18 +99,6 @@ class PrintRepository(private val printDao: PrintDao) {
                 currentTime = currentTime,
                 receivedAmount = receivedAmount
             )
-            
-            // Re-fetch order for post-processing logic (like Beauty account)
-            val recordedOrder = printDao.getOrderById(orderId)
-            if (recordedOrder != null) {
-                // Determine actual cash/upi paid (excluding credit)
-                val cashPaid = if (paymentMethod == "OWES_ME") 0.0 else total - appliedCredit
-                if (paymentMethod == "UPI" && cashPaid > 0) {
-                    android.util.Log.d(DebugTags.PAYMENT_PROCESS, "UPI Payment: Recording beauty transaction for order #$orderId")
-                    insertBeautyTransaction(cashPaid, "ADD", "Direct Pay - Order #$orderId - ${customer.displayName}")
-                }
-            }
-            
             OrderResult.Success(orderId)
         } catch (e: Exception) {
             android.util.Log.e(DebugTags.ORDER_CREATION, "Failed to record order", e)
@@ -163,12 +151,7 @@ class PrintRepository(private val printDao: PrintDao) {
             receivedAmount = receivedAmount
         )
 
-        printDao.recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
-
-        // If UPI, record in Beauty Account
-        if (paymentMethod == "UPI") {
-            insertBeautyTransaction(delta, "ADD", "Payment Order #${order.id} - ${order.customerName}")
-        }
+        printDao.recordPaymentWithWalletAtomic(orderId, newPaidAmount, status, method, settlement, delta)
     }
 
     suspend fun cancelOrder(orderId: Int) {
@@ -197,11 +180,8 @@ class PrintRepository(private val printDao: PrintDao) {
             originId = orderId
         )
 
-        printDao.cancelOrderAtomic(orderId, "CANCELLED", settlement)
-
-        if (order.paymentMethod == "UPI" && order.paidAmount > 0) {
-            insertBeautyTransaction(order.paidAmount, "RETURN", "Order Cancelled #$orderId - ${order.customerName}")
-        }
+        val walletReturn = if (order.paymentMethod == "UPI") order.paidAmount else 0.0
+        printDao.cancelOrderWithWalletAtomic(orderId, "CANCELLED", settlement, walletReturn)
     }
 
     suspend fun deleteOrder(orderId: Int) {
@@ -281,13 +261,7 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
         android.util.Log.i(DebugTags.PAYMENT_PROCESS, "applyPaymentToCustomerId: customerId=$customerId, amount=$paymentAmount, method=$paymentMethod")
-        printDao.applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
-        
-        if (paymentMethod == "UPI") {
-            val customer = printDao.getCustomerById(customerId)
-            android.util.Log.d(DebugTags.PAYMENT_PROCESS, "UPI Debt Settlement: Recording beauty transaction")
-            insertBeautyTransaction(paymentAmount, "ADD", "Debt Settlement - ${customer?.displayName ?: "Unknown"}")
-        }
+        printDao.applyPaymentToCustomerIdWithWalletAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
     }
 
     suspend fun getCustomerBalanceById(customerId: Long): Double {
@@ -413,28 +387,7 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // Beauty Account Logic
     suspend fun insertBeautyTransaction(amount: Double, type: String, note: String? = null) {
-        val previousBalance = getCurrentBeautyBalance()
-        val transactionAmount = when (type) {
-            "ADD" -> amount
-            "RETURN" -> -amount
-            "RESET" -> -previousBalance
-            else -> amount
-        }
-        val newBalance = when (type) {
-            "RESET" -> 0.0
-            else -> previousBalance + transactionAmount
-        }
-
-        printDao.insertBeautyTransaction(
-            BeautyTransaction(
-                amount = amount, 
-                type = type, 
-                note = note,
-                previousBalance = previousBalance,
-                transactionAmount = transactionAmount,
-                newBalance = newBalance
-            )
-        )
+        printDao.insertBeautyTransactionAtomic(amount, type, note)
     }
 
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()
@@ -455,27 +408,7 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun reconcileBeautyAccount() {
-        val all = printDao.getAllBeautyTransactions().sortedBy { it.timestamp }
-        var runningBalance = 0.0
-
-        for (item in all) {
-            val previousBalance = runningBalance
-            val transactionAmount = when (item.type) {
-                "ADD" -> item.amount
-                "RETURN" -> -item.amount
-                "RESET" -> -previousBalance
-                else -> item.transactionAmount
-            }
-            val newBalance = if (item.type == "RESET") 0.0 else previousBalance + transactionAmount
-
-            val updated = item.copy(
-                previousBalance = previousBalance,
-                transactionAmount = transactionAmount,
-                newBalance = newBalance
-            )
-            printDao.updateBeautyTransaction(updated)
-            runningBalance = newBalance
-        }
+        printDao.reconcileBeautyAccountAtomic()
     }
 
     suspend fun getExternalBalance(): Double? = getBeautyBalance()

@@ -192,27 +192,28 @@ class OrdersActivity : AppCompatActivity() {
     private fun applyAllFilters() {
         var filtered = allOrders
         
-        // 1. Apply Payment Filter with explicit semantics to handle new mixed/credit states
+        // 1. Apply Payment Filter with robust semantics to handle legacy and modern states
         if (currentPaymentFilter != PaymentFilter.ALL) {
             filtered = filtered.filter { order ->
+                val method = order.paymentMethod.uppercase().trim()
                 when (currentPaymentFilter) {
                     PaymentFilter.CASH -> {
-                        // Includes pure cash, mixed payments involving cash, 
-                        // and legacy mixed transactions (usually cash-based)
-                        order.paymentMethod == "CASH" || 
-                        order.paymentMethod == "CASH_MIXED" || 
-                        order.paymentMethod == "MIXED"
+                        // Matches pure cash, mixed payments involving cash, 
+                        // and legacy transactions (which default to empty or "CASH")
+                        method == "CASH" || 
+                        method == "CASH_MIXED" || 
+                        method == "MIXED" || 
+                        method.isEmpty()
                     }
                     PaymentFilter.UPI -> {
-                        // Includes pure digital and mixed payments involving UPI
-                        order.paymentMethod == "UPI" || 
-                        order.paymentMethod == "UPI_MIXED"
+                        // Matches pure digital and mixed payments involving UPI
+                        method == "UPI" || 
+                        method == "UPI_MIXED"
                     }
                     PaymentFilter.CREDIT -> {
-                        // Includes pure debt, overpayment credits, 
-                        // and any order with an outstanding balance
-                        order.paymentMethod == "NONE" || 
-                        order.paymentMethod == "CREDIT" || 
+                        // Matches pure debt and any order with an outstanding balance
+                        method == "NONE" || 
+                        method == "CREDIT" || 
                         order.paymentStatus != "PAID"
                     }
                     else -> true

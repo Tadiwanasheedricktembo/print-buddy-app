@@ -11,8 +11,8 @@ import androidx.room.TypeConverters
 import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
-    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class],
-    version = 30,
+    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class],
+    version = 31,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -20,6 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun printDao(): PrintDao
     abstract fun integrityCheckDao(): IntegrityCheckDao
+    abstract fun noteDao(): NoteDao
 
     companion object {
         @Volatile
@@ -36,7 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
-                    MIGRATION_28_29, MIGRATION_29_30
+                    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31
                 )
 
                 if (BuildConfig.DEBUG) {
@@ -46,6 +47,20 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        private val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `notes` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `title` TEXT NOT NULL, 
+                        `content` TEXT NOT NULL, 
+                        `createdAt` INTEGER NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
             }
         }
 

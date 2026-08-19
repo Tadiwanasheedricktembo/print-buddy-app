@@ -39,7 +39,7 @@ class OrdersActivity : AppCompatActivity() {
     }
 
     private var currentFilterType = FilterType.ALL
-    private var currentPaymentFilter = PaymentFilter.ALL
+    private var currentPaymentFilter = PaymentFilter.ALL_ORDERS
     private var currentSearchQuery = ""
     private var currentStart: Long? = null
     private var currentEnd: Long? = null
@@ -47,7 +47,7 @@ class OrdersActivity : AppCompatActivity() {
     private var currentOrders: List<Order> = emptyList()
 
     private enum class PaymentFilter {
-        ALL, CASH, UPI, CREDIT
+        ALL_ORDERS, ALL_PAYMENTS, CASH, UPI, CREDIT
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,9 +73,9 @@ class OrdersActivity : AppCompatActivity() {
 
         binding.btnClearFilters.setOnClickListener {
             binding.chipAll.isChecked = true
-            binding.chipPaymentAll.isChecked = true
+            binding.chipPaymentEverything.isChecked = true
             binding.editSearchOrders.text.clear()
-            currentPaymentFilter = PaymentFilter.ALL
+            currentPaymentFilter = PaymentFilter.ALL_ORDERS
             loadOrders(FilterType.ALL)
         }
     }
@@ -141,13 +141,14 @@ class OrdersActivity : AppCompatActivity() {
         }
 
         binding.chipGroupPaymentFilters.setOnCheckedStateChangeListener { _, checkedIds ->
-            val checkedId = checkedIds.firstOrNull() ?: R.id.chipPaymentAll
+            val checkedId = checkedIds.firstOrNull() ?: R.id.chipPaymentEverything
             currentPaymentFilter = when (checkedId) {
-                R.id.chipPaymentAll -> PaymentFilter.ALL
+                R.id.chipPaymentEverything -> PaymentFilter.ALL_ORDERS
+                R.id.chipPaymentAll -> PaymentFilter.ALL_PAYMENTS
                 R.id.chipPaymentCash -> PaymentFilter.CASH
                 R.id.chipPaymentUpi -> PaymentFilter.UPI
                 R.id.chipPaymentCredit -> PaymentFilter.CREDIT
-                else -> PaymentFilter.ALL
+                else -> PaymentFilter.ALL_ORDERS
             }
             applyAllFilters()
         }
@@ -192,32 +193,25 @@ class OrdersActivity : AppCompatActivity() {
     private fun applyAllFilters() {
         var filtered = allOrders
         
-        // 1. Apply Payment Filter with robust semantics to handle legacy and modern states
-        if (currentPaymentFilter != PaymentFilter.ALL) {
-            filtered = filtered.filter { order ->
-                val method = order.paymentMethod.uppercase().trim()
-                when (currentPaymentFilter) {
-                    PaymentFilter.CASH -> {
-                        // Matches pure cash, mixed payments involving cash, 
-                        // and legacy transactions (which default to empty or "CASH")
-                        method == "CASH" || 
-                        method == "CASH_MIXED" || 
-                        method == "MIXED" || 
-                        method.isEmpty()
-                    }
-                    PaymentFilter.UPI -> {
-                        // Matches pure digital and mixed payments involving UPI
-                        method == "UPI" || 
-                        method == "UPI_MIXED"
-                    }
-                    PaymentFilter.CREDIT -> {
-                        // Matches pure debt and any order with an outstanding balance
-                        method == "NONE" || 
-                        method == "CREDIT" || 
-                        order.paymentStatus != "PAID"
-                    }
-                    else -> true
+        // 1. Apply Payment Filter with absolute adherence to the requested bucket definitions
+        filtered = filtered.filter { order ->
+            val method = order.paymentMethod.uppercase().trim()
+            val isCash = method == "CASH" || method == "CASH_MIXED" || method == "MIXED" || method.isEmpty()
+            val isUpi = method == "UPI" || method == "UPI_MIXED"
+            val isCredit = method == "NONE" || method == "CREDIT"
+
+            when (currentPaymentFilter) {
+                PaymentFilter.ALL_ORDERS -> {
+                    // Show everything (Cash + UPI + Credit)
+                    true
                 }
+                PaymentFilter.ALL_PAYMENTS -> {
+                    // Show only Cash + UPI orders. Exclude Credit.
+                    isCash || isUpi
+                }
+                PaymentFilter.CASH -> isCash
+                PaymentFilter.UPI -> isUpi
+                PaymentFilter.CREDIT -> isCredit
             }
         }
 
@@ -229,7 +223,7 @@ class OrdersActivity : AppCompatActivity() {
             }
         }
 
-        // 3. Update UI (Ensures List, Count, and Total are derived from the exact same dataset)
+        // 3. Update UI (Derived strictly and exclusively from the final filtered dataset)
         updateUI(filtered)
     }
 
@@ -248,16 +242,17 @@ class OrdersActivity : AppCompatActivity() {
                 adapter.updateOrders(orders)
             }
             
-            // Total represents authoritative Value of Work (Total Amount of orders)
-            // Filter: Only include active or legacy (null status) orders in the financial total
-            val activeOrders = orders.filter { 
-                it.orderStatus == "ACTIVE" || it.orderStatus.isNullOrEmpty() 
-            }
+            // Single source of truth: aggregation derived from the EXACT same filtered list
+            // Note: We sum totalAmount (Work Value) as per requirements. 
+            // We do NOT filter out cancelled orders here because "The displayed totals must 
+            // never be calculated from unfiltered orders" and the list matches the total.
+            // If the user wants to exclude cancelled from totals, they should be filtered out 
+            // of the list too.
+            val count = orders.size
+            val totalValue = orders.sumOf { it.totalAmount }
             
-            val totalWorkValue = activeOrders.sumOf { it.totalAmount }
-            
-            binding.textOrderCount.text = getString(R.string.order_count_format, orders.size)
-            binding.textTotalRevenue.text = currencyFormat.format(totalWorkValue).replace(" ", "")
+            binding.textOrderCount.text = getString(R.string.order_count_format, count)
+            binding.textTotalRevenue.text = currencyFormat.format(totalValue).replace(" ", "")
         }
     }
 

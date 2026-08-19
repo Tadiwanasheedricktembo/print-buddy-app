@@ -166,6 +166,10 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, ExpenseActivity::class.java))
                 true
             }
+            R.id.action_notes -> {
+                startActivity(Intent(this, NotesActivity::class.java))
+                true
+            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true

@@ -214,6 +214,72 @@
                         android:text="Subtotal: ₹ 0.00"
                         android:textColor="@color/text_muted" />
 
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="12dp"
+                        android:background="@color/border_divider" />
+
+                    <!-- Other Expenses Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_analytics"
+                            android:contentDescription="Other Expenses"
+                            app:tint="@color/brand_secondary" />
+
+                        <TextView
+                            style="@style/TextAppearance.App.Body1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:text="Other Expenses"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1.5"
+                            android:hint="Description"
+                            app:boxBackgroundColor="@color/primary_bg">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/editOtherDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapSentences"
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <View android:layout_width="8dp" android:layout_height="0dp" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:hint="Amount"
+                            app:boxBackgroundColor="@color/primary_bg"
+                            app:prefixText="₹">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/editOtherAmount"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:paddingVertical="8dp"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -305,6 +371,75 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutSummaryBw"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+                        <TextView
+                            style="@style/TextAppearance.App.Body1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="B&amp;W Printing"
+                            android:textColor="@color/text_secondary" />
+                        <TextView
+                            android:id="@+id/textTotalBw"
+                            style="@style/TextAppearance.App.Title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="₹ 0.00" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutSummaryColor"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+                        <TextView
+                            style="@style/TextAppearance.App.Body1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Colour Printing"
+                            android:textColor="@color/text_secondary" />
+                        <TextView
+                            android:id="@+id/textTotalColor"
+                            style="@style/TextAppearance.App.Title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="₹ 0.00" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutSummaryOther"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+                        <TextView
+                            style="@style/TextAppearance.App.Body1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Other Expenses"
+                            android:textColor="@color/text_secondary" />
+                        <TextView
+                            android:id="@+id/textTotalOther"
+                            style="@style/TextAppearance.App.Title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="₹ 0.00" />
                     </LinearLayout>
 
                     <LinearLayout

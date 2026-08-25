@@ -71,16 +71,16 @@ class BeautyUpiActivity : AppCompatActivity() {
     private fun showRecordReturnDialog() {
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        input.hint = "Amount Beauty Rani returned to you"
+        input.hint = getString(R.string.upi_withdraw_amount_hint)
 
         AlertDialog.Builder(this)
-            .setTitle("Record Money Returned")
-            .setMessage("Enter the amount Beauty Rani gave back to you:")
+            .setTitle(R.string.record_money_returned)
+            .setMessage(R.string.upi_withdraw_full_message)
             .setView(input)
             .setPositiveButton("Record") { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()
                 if (amount != null && amount > 0) {
-                    viewModel.returnMoney(amount, "Money returned by Beauty Rani")
+                    viewModel.returnMoney(amount, getString(R.string.upi_manual_return_note))
                     Toast.makeText(this, "Recorded successfully", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -91,11 +91,11 @@ class BeautyUpiActivity : AppCompatActivity() {
     private fun showManualCreditDialog() {
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        input.hint = "Amount paid to Beauty UPI"
+        input.hint = getString(R.string.upi_paid_to_hint)
 
         AlertDialog.Builder(this)
-            .setTitle("Manual Credit")
-            .setMessage("Enter amount paid directly to Beauty's account:")
+            .setTitle(R.string.manual_credit)
+            .setMessage(R.string.upi_paid_to_message)
             .setView(input)
             .setPositiveButton("Add Credit") { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()

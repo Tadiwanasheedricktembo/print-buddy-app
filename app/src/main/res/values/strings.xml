@@ -178,8 +178,45 @@
     <string name="order_count_format">%1$d Orders</string>
     <string name="zero_orders">0 Orders</string>
     <string name="credit_orders">Credit Orders</string>
-    <string name="upi_wallet_balance">💳 UPI WALLET BALANCE</string>
+    <string name="upi_wallet_balance">💳 UPI ACCOUNT BALANCE</string>
     <string name="upi_wallet_subtitle">Updated live from digital transactions</string>
+
+    <!-- UPI Account (formerly Beauty Account) -->
+    <string name="upi_account_title">UPI Account</string>
+    <string name="available_upi_balance">AVAILABLE UPI BALANCE</string>
+    <string name="add_upi_money">Add UPI Money</string>
+    <string name="return_upi_money">Withdraw from UPI</string>
+    <string name="upi_transaction_history">Transaction History</string>
+    <string name="upi_insufficient_balance">Insufficient UPI Balance</string>
+    <string name="upi_amount_hint">Amount paid to UPI</string>
+    <string name="upi_withdraw_hint">Amount withdrawn from UPI</string>
+    <string name="upi_add_message">Enter amount received in UPI account:</string>
+    <string name="upi_withdraw_message">Enter the amount withdrawn from UPI account (Max: %1$s):</string>
+    <string name="upi_manual_return_note">Money withdrawn from UPI Account</string>
+    <string name="upi_history_before">History before %1$s</string>
+    <string name="upi_delete_confirm">Are you sure you want to remove this transaction? The balance will be automatically recalculated.</string>
+    <string name="upi_reset_confirm">This will reset all totals. Are you sure?</string>
+    <string name="upi_balance_empty">Balance Empty</string>
+    <string name="upi_transactions_count">%1$d TRANSACTIONS</string>
+
+    <string name="record_money_returned">Record Money Withdrawn</string>
+    <string name="upi_withdraw_amount_hint">Amount withdrawn from UPI</string>
+    <string name="upi_withdraw_full_message">Enter the amount withdrawn from the UPI account:</string>
+    <string name="manual_credit">Manual UPI Credit</string>
+    <string name="upi_paid_to_hint">Amount paid to UPI account</string>
+    <string name="upi_paid_to_message">Enter amount paid directly to UPI account:</string>
+    <string name="upi_account_label">UPI ACCOUNT</string>
+    <string name="upi_history_title">UPI Account History</string>
+
+    <!-- Common Filters -->
+    <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="this_week">This Week</string>
+    <string name="this_month">This Month</string>
+    <string name="last_month">Last Month</string>
+    <string name="last_30_days">Last 30 Days</string>
+    <string name="all_time">All Time</string>
+    <string name="custom_range">Custom Range</string>
 
     <!-- Edit Balance -->
     <string name="edit_balance">Edit Balance</string>

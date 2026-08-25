@@ -378,7 +378,7 @@ class PrintRepository(private val printDao: PrintDao) {
     fun getTotalReceivablesFlow(): Flow<Double?> = printDao.getAuthoritativeTotalReceivablesFlow()
 
     suspend fun recordMoneyReturnedFromExternal(amount: Double, note: String? = null) {
-        insertBeautyTransaction(amount, "RETURN", note ?: "Money returned by Beauty Rani")
+        insertBeautyTransaction(amount, "RETURN", note ?: "Money withdrawn from UPI Account")
     }
 
     suspend fun addManualExternalCredit(amount: Double, note: String? = null) {

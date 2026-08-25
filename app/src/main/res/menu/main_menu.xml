@@ -10,7 +10,7 @@
     <item
         android:id="@+id/action_beauty_account"
         android:icon="@drawable/ic_wallet"
-        android:title="Beauty Account"
+        android:title="@string/upi_account_title"
         app:iconTint="@color/brand_primary"
         app:showAsAction="always" />
     <item

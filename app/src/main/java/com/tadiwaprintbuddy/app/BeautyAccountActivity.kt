@@ -38,7 +38,7 @@ class BeautyAccountActivity : AppCompatActivity() {
         binding = ActivityBeautyAccountBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        transactionAdapter = TransactionAdapter { transaction ->
+        transactionAdapter = TransactionAdapter(this) { transaction ->
             showDeleteConfirmDialog(transaction)
         }
 
@@ -65,13 +65,13 @@ class BeautyAccountActivity : AppCompatActivity() {
 
     private fun showDeleteConfirmDialog(transaction: BeautyTransaction) {
         AlertDialog.Builder(this)
-            .setTitle("Delete Transaction?")
-            .setMessage("Are you sure you want to remove this transaction? The balance will be automatically recalculated.")
-            .setPositiveButton("Delete") { _, _ ->
+            .setTitle(getString(R.string.delete_note) + "?")
+            .setMessage(R.string.upi_delete_confirm)
+            .setPositiveButton(R.string.delete_note) { _, _ ->
                 viewModel.deleteTransaction(transaction)
-                Toast.makeText(this, "Transaction deleted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.note_deleted, Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.close, null)
             .show()
     }
 
@@ -107,12 +107,12 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle("Reset Totals?")
-            .setMessage("This will reset all totals. Are you sure?")
+            .setMessage(R.string.upi_reset_confirm)
             .setPositiveButton("Reset") { _, _ ->
                 viewModel.resetBalance()
                 Toast.makeText(this, "Totals reset recorded", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.close, null)
             .show()
     }
 
@@ -123,14 +123,15 @@ class BeautyAccountActivity : AppCompatActivity() {
         viewModel.balance.observe(this) { balance ->
             val current = balance ?: 0.0
             
+            binding.textCurrentBalance.text = format.format(kotlin.math.abs(current))
+            binding.textCurrentBalance.setTextColor(Color.WHITE)
+            
             if (current == 0.0) {
-                binding.textCurrentBalance.text = "Balance Empty"
-                binding.textCurrentBalance.setTextColor(Color.parseColor("#FF5252"))
-                binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 32f)
+                binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 42f)
+                binding.textCurrentBalance.alpha = 0.5f
             } else {
-                binding.textCurrentBalance.text = format.format(kotlin.math.abs(current))
-                binding.textCurrentBalance.setTextColor(Color.WHITE)
                 binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 48f)
+                binding.textCurrentBalance.alpha = 1.0f
             }
         }
 
@@ -148,18 +149,18 @@ class BeautyAccountActivity : AppCompatActivity() {
             binding.textSummaryNetFlow.setTextColor(if (netFlow >= 0) Color.parseColor("#00C853") else Color.parseColor("#FF5252"))
             
             binding.textSummaryCount.text = summary.count.toString()
-            binding.textTransactionCount.text = "${summary.count} TRANSACTIONS"
+            binding.textTransactionCount.text = getString(R.string.upi_transactions_count, summary.count)
         }
     }
 
     private fun showAddMoneyDialog() {
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        input.hint = "Amount paid to UPI"
+        input.hint = getString(R.string.upi_amount_hint)
 
         AlertDialog.Builder(this)
-            .setTitle("Add UPI Money")
-            .setMessage("Enter amount received in Beauty's account:")
+            .setTitle(R.string.add_upi_money)
+            .setMessage(R.string.upi_add_message)
             .setView(input)
             .setPositiveButton("Add") { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()
@@ -182,17 +183,21 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        input.hint = "Amount returned by Beauty"
+        input.hint = getString(R.string.upi_withdraw_hint)
+
+        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
+        val balanceStr = format.format(currentBalance)
 
         AlertDialog.Builder(this)
-            .setTitle("Return Money")
-            .setMessage("Enter the amount Beauty Rani gave back (Max: $currentBalance):")
+            .setTitle(R.string.return_upi_money)
+            .setMessage(getString(R.string.upi_withdraw_message, balanceStr))
             .setView(input)
             .setPositiveButton("Record") { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()
                 if (amount != null && amount > 0) {
                     if (amount > currentBalance) {
-                        Toast.makeText(this, "Insufficient Beauty Balance", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, R.string.upi_insufficient_balance, Toast.LENGTH_SHORT).show()
                     } else {
                         viewModel.returnMoney(amount, "Manual Return")
                     }
@@ -216,22 +221,20 @@ class BeautyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private class TransactionAdapter(private val onLongPress: (BeautyTransaction) -> Unit) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private class TransactionAdapter(
+        private val context: android.content.Context,
+        private val onLongPress: (BeautyTransaction) -> Unit
+    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var originalTransactions = listOf<BeautyTransaction>()
         private var items = listOf<Any>()
         private val expandedHeaders = mutableSetOf<String>()
 
-        private companion object {
-            const val TYPE_TRANSACTION = 0
-            const val TYPE_HEADER = 1
-        }
+        private data class HeaderData(val title: String, val count: Int)
 
         fun submitList(newItems: List<BeautyTransaction>) {
             originalTransactions = newItems
             updateList()
         }
-
-        private data class HeaderData(val title: String, val count: Int)
 
         private fun updateList() {
             val groupedItems = mutableListOf<Any>()
@@ -245,7 +248,7 @@ class BeautyAccountActivity : AppCompatActivity() {
                     val resetTime = originalTransactions.filter { it.type == "RESET" }
                         .sortedByDescending { it.timestamp }[key - 1].timestamp
                     val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-                    val headerTitle = "History before ${dateFormat.format(Date(resetTime))}"
+                    val headerTitle = context.getString(R.string.upi_history_before, dateFormat.format(Date(resetTime)))
                     
                     groupedItems.add(HeaderData(headerTitle, groupTransactions.size))
                     if (expandedHeaders.contains(headerTitle)) {
@@ -261,11 +264,11 @@ class BeautyAccountActivity : AppCompatActivity() {
         }
 
         override fun getItemViewType(position: Int): Int {
-            return if (items[position] is HeaderData) TYPE_HEADER else TYPE_TRANSACTION
+            return if (items[position] is HeaderData) 1 else 0
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-            return if (viewType == TYPE_HEADER) {
+            return if (viewType == 1) {
                 val view = LayoutInflater.from(parent.context).inflate(R.layout.item_beauty_history_header, parent, false)
                 HeaderViewHolder(view)
             } else {

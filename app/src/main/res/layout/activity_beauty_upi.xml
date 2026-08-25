@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="Beauty UPI Account"
+            app:title="@string/upi_history_title"
             app:titleCentered="true"
             app:titleTextAppearance="@style/TextAppearance.App.Title" />
 
@@ -75,7 +75,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Beauty Rani"
+                                android:text="@string/upi_account_label"
                                 android:textSize="18sp" />
                         </LinearLayout>
 

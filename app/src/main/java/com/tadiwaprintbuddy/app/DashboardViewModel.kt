@@ -145,7 +145,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
         val list = mutableListOf<BusinessInsight>()
         
         list.add(BusinessInsight("💵 Cash in Hand", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "from cash orders"))
-        list.add(BusinessInsight("📱 UPI Wallet", "₹${String.format(Locale.ENGLISH, "%.2f", upiWallet)}", "Beauty Account"))
+        list.add(BusinessInsight("📱 UPI Wallet", "₹${String.format(Locale.ENGLISH, "%.2f", upiWallet)}", "UPI Account"))
         list.add(BusinessInsight("⏳ Credit Owed", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables)}", "$debtorsCount customers"))
 
         if (ordersCount > 0) {

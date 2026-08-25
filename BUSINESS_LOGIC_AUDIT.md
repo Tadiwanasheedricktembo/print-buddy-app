@@ -322,10 +322,10 @@ Display exportable ledger history for customers and support restore/merge of set
 
 ---
 
-## 6. Beauty Account
+## 6. UPI Account (formerly Beauty Account)
 
 ### Purpose
-Track external beauty money flows in a separate ledger, including UPI order receipts and manual adjustments.
+Track external digital money flows (UPI) in a separate ledger, including UPI order receipts and manual adjustments.
 
 ### Entry Points
 - `BeautyAccountActivity` and `BeautyAccountViewModel`
@@ -655,10 +655,10 @@ DAO --> Repo
 Repo --> VM
 ```
 
-### Beauty Account Flow
+### UPI Account Flow
 ```mermaid
 graph LR
-UI[Beauty UI] --> VM[BeautyAccountViewModel]
+UI[UPI UI] --> VM[UPIAccountViewModel]
 VM --> Repo[PrintRepository]
 Repo --> DAO[PrintDao]
 DAO --> Room[beauty_transactions]

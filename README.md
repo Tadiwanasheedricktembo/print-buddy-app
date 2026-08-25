@@ -38,7 +38,7 @@ Instead of adapting generic apps to my workflow, I built my own tailored system.
 - **Financial Dashboard**: Real-time revenue tracking based on actual cash collected.
 - **Net Profit Analysis**: Automatically subtracts expenses and stock costs from earnings.
 - **Revenue Visualization**: Trend charts and payment method breakdowns.
-- **Beauty Account**: Specialized digital ledger for UPI wallet tracking with auto-reconciliation.
+- **UPI Account**: Specialized digital ledger for UPI wallet tracking with auto-reconciliation.
 
 ## Customer Ledger System
 - **Smart customer normalization**: Handles variations in name casing and spacing.

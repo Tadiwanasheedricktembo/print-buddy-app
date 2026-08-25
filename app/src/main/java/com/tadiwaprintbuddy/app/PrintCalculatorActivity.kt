@@ -64,6 +64,7 @@ class PrintCalculatorActivity : AppCompatActivity() {
         binding.editBwRate.addTextChangedListener(watcher)
         binding.editColorPages.addTextChangedListener(watcher)
         binding.editColorRate.addTextChangedListener(watcher)
+        binding.editOtherAmount.addTextChangedListener(watcher)
         binding.editReceived.addTextChangedListener(watcher)
 
         binding.btnAddtoPos.setOnClickListener {
@@ -86,6 +87,8 @@ class PrintCalculatorActivity : AppCompatActivity() {
         val bwRate = (binding.editBwRate.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
         val colorPages = (binding.editColorPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
         val colorRate = (binding.editColorRate.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+        val otherAmount = (binding.editOtherAmount.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+        val otherDesc = binding.editOtherDesc.text.toString().trim()
 
         if (bwPages > 0) {
             batchList.add(PrintBatch(
@@ -107,10 +110,22 @@ class PrintCalculatorActivity : AppCompatActivity() {
             ))
         }
 
-        if (bwPages > 0 || colorPages > 0) {
+        if (otherAmount > 0) {
+            batchList.add(PrintBatch(
+                id = UUID.randomUUID().toString(),
+                description = if (otherDesc.isNotEmpty()) otherDesc else "Other Expense",
+                quantity = 0, // 0 quantity for non-page items
+                unitPrice = otherAmount,
+                totalPrice = otherAmount
+            ))
+        }
+
+        if (bwPages > 0 || colorPages > 0 || otherAmount > 0) {
             // Clear inputs after adding to batch
             binding.editBwPages.setText("")
             binding.editColorPages.setText("")
+            binding.editOtherAmount.setText("")
+            binding.editOtherDesc.setText("")
             batchAdapter.notifyDataSetChanged()
             calculateTotals()
         }
@@ -126,22 +141,32 @@ class PrintCalculatorActivity : AppCompatActivity() {
         val bwRate = (binding.editBwRate.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
         val colorPages = (binding.editColorPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
         val colorRate = (binding.editColorRate.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+        val otherAmount = (binding.editOtherAmount.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
         val received = (binding.editReceived.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
 
-        val bwSubtotal = bwPages * bwRate
-        val colorSubtotal = colorPages * colorRate
+        val bwSubtotal = (bwPages * bwRate) + batchList.filter { it.description == getString(R.string.bw_printing) }.sumOf { it.totalPrice }
+        val colorSubtotal = (colorPages * colorRate) + batchList.filter { it.description == getString(R.string.colour_printing) }.sumOf { it.totalPrice }
+        val otherSubtotal = otherAmount + batchList.filter { it.quantity == 0 }.sumOf { it.totalPrice }
         
-        val batchesTotal = batchList.sumOf { it.totalPrice }
-        val grandTotal = bwSubtotal + colorSubtotal + batchesTotal
+        val grandTotal = bwSubtotal + colorSubtotal + otherSubtotal
         
-        val batchesPages = batchList.sumOf { it.quantity }
-        val totalPages = bwPages + colorPages + batchesPages
+        val totalPages = bwPages + colorPages + batchList.sumOf { it.quantity }
         
         val change = if (received > grandTotal) received - grandTotal else 0.0
 
-        binding.textBwSubtotal.text = getString(R.string.subtotal_label, currencyFormat.format(bwSubtotal))
-        binding.textColorSubtotal.text = getString(R.string.subtotal_label, currencyFormat.format(colorSubtotal))
+        binding.textBwSubtotal.text = getString(R.string.subtotal_label, currencyFormat.format(bwPages * bwRate))
+        binding.textColorSubtotal.text = getString(R.string.subtotal_label, currencyFormat.format(colorPages * colorRate))
         binding.textTotalPages.text = totalPages.toString()
+        
+        binding.textTotalBw.text = currencyFormat.format(bwSubtotal)
+        binding.layoutSummaryBw.visibility = if (bwSubtotal > 0) View.VISIBLE else View.GONE
+        
+        binding.textTotalColor.text = currencyFormat.format(colorSubtotal)
+        binding.layoutSummaryColor.visibility = if (colorSubtotal > 0) View.VISIBLE else View.GONE
+        
+        binding.textTotalOther.text = currencyFormat.format(otherSubtotal)
+        binding.layoutSummaryOther.visibility = if (otherSubtotal > 0) View.VISIBLE else View.GONE
+        
         binding.textGrandTotal.text = currencyFormat.format(grandTotal)
         binding.textChange.text = currencyFormat.format(change)
         
@@ -159,8 +184,10 @@ class PrintCalculatorActivity : AppCompatActivity() {
         val colorPages = (binding.editColorPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
         val bwRate = (binding.editBwRate.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
         val colorRate = (binding.editColorRate.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+        val otherAmount = (binding.editOtherAmount.text.toString().toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+        val otherDesc = binding.editOtherDesc.text.toString().trim()
         
-        val currentSubtotal = (bwPages * bwRate) + (colorPages * colorRate)
+        val currentSubtotal = (bwPages * bwRate) + (colorPages * colorRate) + otherAmount
         val batchesTotal = batchList.sumOf { it.totalPrice }
         val total = currentSubtotal + batchesTotal
         
@@ -176,11 +203,20 @@ class PrintCalculatorActivity : AppCompatActivity() {
         if (batchList.isNotEmpty()) {
             noteBuilder.append(getString(R.string.multi_batch_label))
             batchList.forEach { batch ->
-                noteBuilder.append("${batch.description}(${batch.quantity}), ")
+                if (batch.quantity > 0) {
+                    noteBuilder.append("${batch.description}(${batch.quantity}), ")
+                } else {
+                    noteBuilder.append("${batch.description}, ")
+                }
             }
         }
         if (bwPages > 0 || colorPages > 0) {
             noteBuilder.append(getString(R.string.current_input_label) + "$bwPages B&W, $colorPages Colour")
+        }
+        if (otherAmount > 0) {
+            val desc = if (otherDesc.isNotEmpty()) otherDesc else "Misc"
+            if (noteBuilder.isNotEmpty()) noteBuilder.append(", ")
+            noteBuilder.append("$desc: ${currencyFormat.format(otherAmount)}")
         }
         
         val finalNote = noteBuilder.toString().removeSuffix(", ")
@@ -210,8 +246,13 @@ class PrintCalculatorActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
-            holder.binding.textBatchDescription.text = "${item.quantity} ${item.description}"
-            holder.binding.textBatchDetails.text = getString(R.string.batch_details_format, item.quantity, currencyFormat.format(item.unitPrice))
+            if (item.quantity > 0) {
+                holder.binding.textBatchDescription.text = "${item.quantity} ${item.description}"
+                holder.binding.textBatchDetails.text = getString(R.string.batch_details_format, item.quantity, currencyFormat.format(item.unitPrice))
+            } else {
+                holder.binding.textBatchDescription.text = item.description
+                holder.binding.textBatchDetails.text = currencyFormat.format(item.unitPrice)
+            }
             holder.binding.textBatchTotal.text = currencyFormat.format(item.totalPrice)
             holder.binding.btnRemoveBatch.setOnClickListener { onRemove(item) }
         }

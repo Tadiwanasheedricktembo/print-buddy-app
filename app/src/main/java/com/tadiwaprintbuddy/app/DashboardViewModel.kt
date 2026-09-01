@@ -102,7 +102,8 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             )
 
             // Snapshot Metrics
-            val upiWallet = repository.getCurrentBeautyBalance()
+            val upiNetFlow = repository.getBeautyNetFlowBetween(start, end)
+            val upiTotalBalance = repository.getCurrentBeautyBalance()
             val totalReceivables = repository.getTotalReceivables()
             val debtorsCount = repository.getDebtorsCount()
 
@@ -113,7 +114,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val expenseBreakdown = repository.getExpenseBreakdownBetween(start, end)
 
             // Insights (Using Sales Volume for Avg Order to be accurate)
-            val insights = calculateInsights(salesVolume, ordersCount, upiWallet, totalReceivables, debtorsCount, cashInHand, trend)
+            val insights = calculateInsights(salesVolume, ordersCount, upiNetFlow, totalReceivables, debtorsCount, cashInHand, trend)
 
             _uiState.update {
                 it.copy(
@@ -123,7 +124,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                     serviceBreakdown = services,
                     expenseBreakdown = expenseBreakdown,
                     insights = insights,
-                    upiWalletBalance = upiWallet,
+                    upiWalletBalance = upiTotalBalance,
                     totalReceivables = totalReceivables,
                     debtorsCount = debtorsCount,
                     isLoading = false,
@@ -134,9 +135,9 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     }
 
     private fun calculateInsights(
-        revenue: Double,
+        salesVolume: Double,
         ordersCount: Int,
-        upiWallet: Double,
+        upiNetFlow: Double,
         totalReceivables: Double,
         debtorsCount: Int,
         cashInHand: Double,
@@ -144,13 +145,16 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     ): List<BusinessInsight> {
         val list = mutableListOf<BusinessInsight>()
         
-        list.add(BusinessInsight("💵 Cash in Hand", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "from cash orders"))
-        list.add(BusinessInsight("📱 UPI Wallet", "₹${String.format(Locale.ENGLISH, "%.2f", upiWallet)}", "UPI Account"))
+        list.add(BusinessInsight("💵 Cash in Hand", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "collected this period"))
+        
+        val upiSign = if (upiNetFlow >= 0) "+" else "-"
+        list.add(BusinessInsight("📱 UPI Net Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f", Math.abs(upiNetFlow))}", "this period"))
+        
         list.add(BusinessInsight("⏳ Credit Owed", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables)}", "$debtorsCount customers"))
 
         if (ordersCount > 0) {
-            val avg = revenue / ordersCount
-            list.add(BusinessInsight("📊 Avg Order", "₹${String.format(Locale.ENGLISH, "%.2f", avg)}", "per transaction"))
+            val avg = salesVolume / ordersCount
+            list.add(BusinessInsight("📊 Avg Order", "₹${String.format(Locale.ENGLISH, "%.2f", avg)}", "work value per job"))
         }
 
         // Peak Day
@@ -188,10 +192,11 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 return Pair(start, cal.timeInMillis)
             }
             "This Week" -> {
-                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
                 cal.set(Calendar.HOUR_OF_DAY, 0)
                 cal.set(Calendar.MINUTE, 0)
                 cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
             }
             "This Month" -> {
                 cal.set(Calendar.DAY_OF_MONTH, 1)

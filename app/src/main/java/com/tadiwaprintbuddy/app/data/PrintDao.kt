@@ -68,17 +68,25 @@ interface PrintDao {
     suspend fun getDebtorsCount(): Int
 
     @Query("""
-        SELECT date as timestamp, IFNULL(SUM(paidAmount), 0.0) as amount 
-        FROM `orders` 
-        WHERE orderStatus = 'ACTIVE' 
-        AND (:method = 'ALL' OR paymentMethod = :method) 
-        AND date BETWEEN :start AND :end 
-        GROUP BY date / (24 * 60 * 60 * 1000)
+        SELECT (timestamp / (24 * 60 * 60 * 1000)) * (24 * 60 * 60 * 1000) as timestamp, 
+               IFNULL(SUM(settledAmount), 0.0) as amount 
+        FROM `settlement_history`
+        WHERE timestamp BETWEEN :start AND :end
+        AND ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (:method = 'ALL' OR (:method = 'UPI' AND note LIKE '%UPI%') OR (:method = 'CASH' AND (note IS NULL OR note NOT LIKE '%UPI%')))
+        GROUP BY timestamp / (24 * 60 * 60 * 1000)
     """)
-    suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
+    suspend fun getSettledRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
 
-    @Query("SELECT paymentMethod as type, IFNULL(SUM(paidAmount), 0.0) as total FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end GROUP BY paymentMethod")
-    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
+    @Query("""
+        SELECT CASE WHEN note LIKE '%UPI%' THEN 'UPI' ELSE 'CASH' END as type, 
+               IFNULL(SUM(settledAmount), 0.0) as total 
+        FROM `settlement_history`
+        WHERE timestamp BETWEEN :start AND :end
+        AND ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        GROUP BY type
+    """)
+    suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
 
     @Query("SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total FROM `OrderItem` JOIN `orders` ON orders.id = OrderItem.orderId WHERE orders.orderStatus = 'ACTIVE' AND orders.date BETWEEN :start AND :end GROUP BY serviceName")
     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>

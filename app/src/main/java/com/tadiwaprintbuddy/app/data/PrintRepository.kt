@@ -224,10 +224,10 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getDebtorsCount(): Int = printDao.getDebtorsCount()
 
     suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint> = 
-        printDao.getRevenueTrendByMethod(start, end, method)
+        printDao.getSettledRevenueTrendByMethod(start, end, method)
 
     suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = 
-        printDao.getPaymentBreakdownBetween(start, end)
+        printDao.getSettledPaymentBreakdownBetween(start, end)
 
     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
         printDao.getServiceBreakdownBetween(start, end)

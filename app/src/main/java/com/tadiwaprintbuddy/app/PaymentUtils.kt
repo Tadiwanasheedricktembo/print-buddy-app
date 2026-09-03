@@ -9,8 +9,8 @@ import java.net.URLEncoder
 
 object PaymentUtils {
 
-    const val MERCHANT_UPI_ID = "9217011636@ptaxis"
-    const val MERCHANT_NAME = "Beauty Rani"
+    const val MERCHANT_UPI_ID = "9319994350@ptyes"
+    const val MERCHANT_NAME = "Mr Tadiwanashe Edrick Tembo"
 
     fun generateUpiUri(amount: Double? = null, orderId: String? = null): String {
         val encodedName = URLEncoder.encode(MERCHANT_NAME, "UTF-8")

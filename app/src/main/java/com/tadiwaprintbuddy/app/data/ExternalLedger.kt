@@ -14,6 +14,6 @@ data class ExternalLedger(
     val customerId: Long? = null,
     val orderId: Int? = null,
     val note: String? = null,
-    val accountHolder: String = "Beauty Rani",
-    val upiId: String = "9217011636@ptaxis"
+    val accountHolder: String = "Mr Tadiwanashe Edrick Tembo",
+    val upiId: String = "9319994350@ptyes"
 )

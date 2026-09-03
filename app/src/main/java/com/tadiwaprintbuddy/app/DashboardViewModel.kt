@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 data class BusinessInsight(
     val title: String,
@@ -154,16 +155,19 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     ): List<BusinessInsight> {
         val list = mutableListOf<BusinessInsight>()
         
-        list.add(BusinessInsight("💵 Cash in Hand", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "collected this period"))
+        list.add(BusinessInsight("📊 Work Value", "₹${String.format(Locale.ENGLISH, "%.2f", salesVolume)}", "Total jobs this period"))
+        list.add(BusinessInsight("💵 Cash Flow", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "Net cash collected"))
         
         val upiSign = if (upiNetFlow >= 0) "+" else "-"
-        list.add(BusinessInsight("📱 UPI Net Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f", Math.abs(upiNetFlow))}", "this period"))
+        list.add(BusinessInsight("📱 UPI Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f",
+            abs(upiNetFlow)
+        )}", "Net digital movement"))
         
-        list.add(BusinessInsight("⏳ Credit Owed", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables)}", "$debtorsCount customers"))
+        list.add(BusinessInsight("⏳ Outstanding", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables)}", "Debt from $debtorsCount customers"))
 
         if (ordersCount > 0) {
             val avg = salesVolume / ordersCount
-            list.add(BusinessInsight("📊 Avg Order", "₹${String.format(Locale.ENGLISH, "%.2f", avg)}", "work value per job"))
+            list.add(BusinessInsight("📈 Avg Job", "₹${String.format(Locale.ENGLISH, "%.2f", avg)}", "Value per order"))
         }
 
         // Peak Day

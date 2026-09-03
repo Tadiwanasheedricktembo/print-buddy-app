@@ -49,7 +49,7 @@ interface PrintDao {
         AND (:method = 'ALL' 
              OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
              OR (:method = 'UPI' AND sh.note LIKE '%UPI%') 
-             OR (:method = 'CASH' AND (sh.note IS NULL OR sh.note NOT LIKE '%UPI%'))
+             OR (:method = 'CASH' AND (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%'))
              OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
     """)
     suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): Double
@@ -86,13 +86,18 @@ interface PrintDao {
         AND (:method = 'ALL' 
              OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
              OR (:method = 'UPI' AND sh.note LIKE '%UPI%') 
-             OR (:method = 'CASH' AND (sh.note IS NULL OR sh.note NOT LIKE '%UPI%')))
+             OR (:method = 'CASH' AND (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%'))
+             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
         GROUP BY strftime('%Y-%m-%d', datetime(sh.timestamp / 1000, 'unixepoch', 'localtime'))
     """)
     suspend fun getSettledRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
 
     @Query("""
-        SELECT CASE WHEN sh.note LIKE '%UPI%' THEN 'UPI' ELSE 'CASH' END as type, 
+        SELECT CASE 
+                 WHEN sh.ledgerEntryType = 'CREDIT' THEN 'CREDIT'
+                 WHEN sh.note LIKE '%UPI%' THEN 'UPI' 
+                 ELSE 'CASH' 
+               END as type, 
                IFNULL(SUM(sh.settledAmount), 0.0) as total 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id

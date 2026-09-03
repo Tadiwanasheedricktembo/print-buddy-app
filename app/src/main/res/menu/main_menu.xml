@@ -11,7 +11,7 @@
         android:id="@+id/action_beauty_account"
         android:icon="@drawable/ic_wallet"
         android:title="@string/upi_account_title"
-        app:iconTint="@color/brand_primary"
+        app:iconTint="@color/badge_upi_text"
         app:showAsAction="always" />
     <item
         android:id="@+id/action_expenses"

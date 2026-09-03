@@ -205,7 +205,7 @@
     <string name="manual_credit">Manual UPI Credit</string>
     <string name="upi_paid_to_hint">Amount paid to UPI account</string>
     <string name="upi_paid_to_message">Enter amount paid directly to UPI account:</string>
-    <string name="upi_account_label">UPI ACCOUNT</string>
+    <string name="upi_account_label">Mr Tadiwanashe Edrick Tembo</string>
     <string name="upi_history_title">UPI Account History</string>
 
     <!-- Common Filters -->

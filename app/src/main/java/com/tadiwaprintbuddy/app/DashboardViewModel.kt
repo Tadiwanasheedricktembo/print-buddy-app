@@ -62,21 +62,30 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val method = state.paymentMethod.uppercase()
 
             // 1. Revenue (Authoritative Collection - Money In)
-            // Using settlement_history as source of truth for money flow to avoid doubling with orders.paidAmount
+            // Logic: Include only settlements for orders that are still ACTIVE/LEGACY
             val revenue = repository.getSettledRevenueByMethodBetween(start, end, method)
             val prevRevenue = repository.getSettledRevenueByMethodBetween(prevStart, prevEnd, method)
 
-            // 2. Sales Volume (Value of all work done)
-            // Used for Average Order calculations to represent business throughput accurately
+            // 2. Sales Volume (Value of all active work done)
             val salesVolume = repository.getSalesVolumeBetween(start, end)
 
             // 3. Expenses
-            val expenses = if (method == "ALL") repository.getExpensesBetween(start, end) else repository.getExpensesByMethodBetween(start, end, method)
-            val prevExpenses = if (method == "ALL") repository.getExpensesBetween(prevStart, prevEnd) else repository.getExpensesByMethodBetween(prevStart, prevEnd, method)
+            val expenses = if (method == "ALL" || method == "ALL_PAYMENTS") repository.getExpensesBetween(start, end) else repository.getExpensesByMethodBetween(start, end, method)
+            val prevExpenses = if (method == "ALL" || method == "ALL_PAYMENTS") repository.getExpensesBetween(prevStart, prevEnd) else repository.getExpensesByMethodBetween(prevStart, prevEnd, method)
 
             // 4. Orders & Counts
-            val ordersCount = if (method == "ALL") repository.getOrdersCountBetween(start, end) else repository.getOrdersCountByMethodBetween(start, end, method)
-            val prevOrdersCount = if (method == "ALL") repository.getOrdersCountBetween(prevStart, prevEnd) else repository.getOrdersCountByMethodBetween(prevStart, prevEnd, method)
+            // Logic: Analytics All matches All Orders (including Credit)
+            // Logic: Analytics All_Payments matches All Payments (excluding Credit)
+            val ordersCount = when (method) {
+                "ALL" -> repository.getOrdersCountBetween(start, end)
+                "ALL_PAYMENTS" -> repository.getOrdersCountByMethodBetween(start, end, "PAID_ONLY")
+                else -> repository.getOrdersCountByMethodBetween(start, end, method)
+            }
+            val prevOrdersCount = when (method) {
+                "ALL" -> repository.getOrdersCountBetween(prevStart, prevEnd)
+                "ALL_PAYMENTS" -> repository.getOrdersCountByMethodBetween(prevStart, prevEnd, "PAID_ONLY")
+                else -> repository.getOrdersCountByMethodBetween(prevStart, prevEnd, method)
+            }
 
             // 5. Cash in Hand (Period Specific Flow)
             // Robust calculation: (Cash from orders + Cash from debt) - Cash expenses

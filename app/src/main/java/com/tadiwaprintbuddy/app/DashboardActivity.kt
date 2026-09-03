@@ -63,6 +63,7 @@ class DashboardActivity : AppCompatActivity() {
             val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
             val method = when (checkedId) {
                 R.id.chipAllMethods -> "All"
+                R.id.chipAllPayments -> "All_Payments"
                 R.id.chipCashOnly -> "Cash"
                 R.id.chipUpiOnly -> "UPI"
                 R.id.chipCreditOnly -> "Credit"

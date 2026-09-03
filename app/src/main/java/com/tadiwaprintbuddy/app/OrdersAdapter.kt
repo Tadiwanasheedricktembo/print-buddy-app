@@ -35,33 +35,17 @@ class OrdersAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val order = orders[position]
-        
-        // Handle deleted order gaps
-        val previousOrder = if (position > 0) orders[position - 1] else null
-        val gap = if (previousOrder != null) previousOrder.id - order.id - 1 else 0
-        
-        holder.bind(order, gap)
+        holder.bind(order)
     }
 
     override fun getItemCount(): Int = orders.size
 
     inner class ViewHolder(private val binding: ItemOrderBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(order: Order, gap: Int) {
+        fun bind(order: Order) {
             val context = itemView.context
             
-            // Gap indicator
-            if (gap > 0) {
-                binding.textDeletedIndicator.visibility = View.VISIBLE
-                val gapText = if (gap == 1) {
-                    "─── Order #${order.id + 1} deleted ───"
-                } else {
-                    "─── Orders #${order.id + 1} to #${order.id + gap} deleted ───"
-                }
-                binding.textDeletedIndicator.text = gapText
-            } else {
-                binding.textDeletedIndicator.visibility = View.GONE
-            }
+            binding.textDeletedIndicator.visibility = View.GONE
 
             binding.textOrderId.text = "Order #${order.id}"
             val amountStr = currencyFormat.format(order.totalAmount).replace(" ", "")

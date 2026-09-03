@@ -21,32 +21,40 @@ interface PrintDao {
     @Query("SELECT * FROM `OrderItem` WHERE orderId = :orderId")
     suspend fun getItemsForOrder(orderId: Int): List<OrderItem>
 
-    @Query("SELECT SUM(paidAmount) FROM `orders` WHERE orderStatus = 'ACTIVE'")
+    @Query("SELECT SUM(paidAmount) FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
     fun getTotalRevenueFlow(): Flow<Double?>
 
-    @Query("SELECT COUNT(*) FROM `orders` WHERE orderStatus = 'ACTIVE'")
+    @Query("SELECT COUNT(*) FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
     fun getTotalOrdersFlow(): Flow<Int>
 
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end")
+    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
     suspend fun getRevenueBetween(start: Long, end: Long): Double?
 
     // Actual revenue collected (excluding credit sales)
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end AND paymentMethod != 'NONE'")
+    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod != 'NONE'")
     suspend fun getSalesRevenueBetween(start: Long, end: Long): Double
 
-    @Query("SELECT IFNULL(SUM(totalAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end")
+    @Query("SELECT IFNULL(SUM(totalAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
     suspend fun getSalesVolumeBetween(start: Long, end: Long): Double
 
     // Revenue from collection (authoritative money in)
+    // Joined with orders to ensure only payments for existing active/legacy orders are counted
     @Query("""
-        SELECT IFNULL(SUM(settledAmount), 0.0) FROM `settlement_history` 
-        WHERE timestamp BETWEEN :start AND :end 
-        AND ledgerEntryType IN ('PAYMENT', 'CREDIT')
-        AND (:method = 'ALL' OR (:method = 'UPI' AND note LIKE '%UPI%') OR (:method = 'CASH' AND (note IS NULL OR note NOT LIKE '%UPI%')))
+        SELECT IFNULL(SUM(sh.settledAmount), 0.0) 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end 
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND sh.note LIKE '%UPI%') 
+             OR (:method = 'CASH' AND (sh.note IS NULL OR sh.note NOT LIKE '%UPI%'))
+             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
     """)
     suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): Double
 
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end AND paymentMethod = :method")
+    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod = :method")
     suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double
 
     @Query("SELECT IFNULL(SUM(amount), 0.0) FROM `expenses` WHERE timestamp BETWEEN :start AND :end")
@@ -55,40 +63,54 @@ interface PrintDao {
     @Query("SELECT IFNULL(SUM(amount), 0.0) FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method")
     suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): Double
 
-    @Query("SELECT COUNT(*) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end")
+    @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
     suspend fun getOrdersCountBetween(start: Long, end: Long): Int
 
-    @Query("SELECT COUNT(*) FROM `orders` WHERE orderStatus = 'ACTIVE' AND date BETWEEN :start AND :end AND paymentMethod = :method")
+    @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (:method = 'ALL' OR (:method = 'PAID_ONLY' AND paymentMethod != 'NONE') OR paymentMethod = :method)")
     suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int
 
-    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE orderStatus = 'ACTIVE'")
+    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
     suspend fun getTotalReceivables(): Double
 
     @Query("SELECT COUNT(*) FROM debtor_credits WHERE amount > 0")
     suspend fun getDebtorsCount(): Int
 
     @Query("""
-        SELECT (timestamp / (24 * 60 * 60 * 1000)) * (24 * 60 * 60 * 1000) as timestamp, 
-               IFNULL(SUM(settledAmount), 0.0) as amount 
-        FROM `settlement_history`
-        WHERE timestamp BETWEEN :start AND :end
-        AND ledgerEntryType IN ('PAYMENT', 'CREDIT')
-        AND (:method = 'ALL' OR (:method = 'UPI' AND note LIKE '%UPI%') OR (:method = 'CASH' AND (note IS NULL OR note NOT LIKE '%UPI%')))
-        GROUP BY timestamp / (24 * 60 * 60 * 1000)
+        SELECT MIN(sh.timestamp) as timestamp, 
+               IFNULL(SUM(sh.settledAmount), 0.0) as amount 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND sh.note LIKE '%UPI%') 
+             OR (:method = 'CASH' AND (sh.note IS NULL OR sh.note NOT LIKE '%UPI%')))
+        GROUP BY strftime('%Y-%m-%d', datetime(sh.timestamp / 1000, 'unixepoch', 'localtime'))
     """)
     suspend fun getSettledRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
 
     @Query("""
-        SELECT CASE WHEN note LIKE '%UPI%' THEN 'UPI' ELSE 'CASH' END as type, 
-               IFNULL(SUM(settledAmount), 0.0) as total 
-        FROM `settlement_history`
-        WHERE timestamp BETWEEN :start AND :end
-        AND ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        SELECT CASE WHEN sh.note LIKE '%UPI%' THEN 'UPI' ELSE 'CASH' END as type, 
+               IFNULL(SUM(sh.settledAmount), 0.0) as total 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         GROUP BY type
     """)
     suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
 
-    @Query("SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total FROM `OrderItem` JOIN `orders` ON orders.id = OrderItem.orderId WHERE orders.orderStatus = 'ACTIVE' AND orders.date BETWEEN :start AND :end GROUP BY serviceName")
+    @Query("""
+        SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total 
+        FROM `OrderItem` 
+        JOIN `orders` ON orders.id = OrderItem.orderId 
+        WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
+        AND orders.date BETWEEN :start AND :end 
+        GROUP BY serviceName
+    """)
     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
 
     @Query("SELECT category as category, SUM(amount) as total FROM `expenses` WHERE timestamp BETWEEN :start AND :end GROUP BY category")
@@ -109,19 +131,25 @@ interface PrintDao {
     @Query("SELECT COUNT(*) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
     suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int
 
-    @Query("SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total FROM `OrderItem` JOIN `orders` ON orders.id = OrderItem.orderId WHERE orders.orderStatus = 'ACTIVE' GROUP BY serviceName")
+    @Query("""
+        SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total 
+        FROM `OrderItem` 
+        JOIN `orders` ON orders.id = OrderItem.orderId 
+        WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
+        GROUP BY serviceName
+    """)
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>>
 
-    @Query("SELECT * FROM `orders` WHERE paidAmount < totalAmount AND orderStatus = 'ACTIVE'")
+    @Query("SELECT * FROM `orders` WHERE paidAmount < totalAmount AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
     suspend fun getUnpaidOrders(): List<Order>
 
     @Query("UPDATE `orders` SET paidAmount = :newPaidAmount, paymentStatus = :status, paymentMethod = :method WHERE id = :orderId")
     suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: Double, status: String, method: String): Int
 
-    @Query("SELECT customerId, customerName, IFNULL(SUM(totalAmount - paidAmount), 0.0) as totalBalance, 'OWES' as type FROM `orders` WHERE orderStatus = 'ACTIVE' GROUP BY customerId HAVING totalBalance > 0")
+    @Query("SELECT customerId, customerName, IFNULL(SUM(totalAmount - paidAmount), 0.0) as totalBalance, 'OWES' as type FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') GROUP BY customerId HAVING totalBalance > 0")
     suspend fun getDebtors(): List<DebtorSummary>
 
-    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND paidAmount < totalAmount AND orderStatus = 'ACTIVE' ORDER BY date ASC")
+    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND paidAmount < totalAmount AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') ORDER BY date ASC")
     suspend fun getUnpaidOrdersForCustomer(customerId: Long): List<Order>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -172,7 +200,7 @@ interface PrintDao {
     @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId")
     suspend fun getLatestBalanceForCustomer(customerId: Long): Double
 
-    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE customerId = :customerId AND orderStatus = 'ACTIVE'")
+    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE customerId = :customerId AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
     suspend fun getUnpaidTotalForCustomer(customerId: Long): Double
 
     @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized WHERE id = :customerId")

@@ -4,9 +4,9 @@
 
 I built Tadiwa Print Buddy because managing orders, customer balances, and payments with notebooks and spreadsheets became chaotic. I needed something fast, offline, and reliable that worked entirely on my phone.
 
-No cloud.  
+**Offline-First with Cloud Sync in progress.**  
 No subscriptions.  
-No internet dependency.  
+Full control over your data.  
 Just my printer, my customers, and complete control over my business.
 
 ---
@@ -28,17 +28,17 @@ Instead of adapting generic apps to my workflow, I built my own tailored system.
 
 # Core Features
 
-## Order Management
+## Order Management & POS
 - **Quick order entry**: Validated system preventing zero-value or empty orders.
+- **Enhanced Print Calculator**: Calculate costs for B&W/Colour pages and add miscellaneous "Other Expenses" like **Binding, Lamination, or Transport**.
 - **Payment support**: Full lifecycle for CASH, UPI, and CREDIT payments.
 - **Order Status Tracking**: Distinguish between ACTIVE and CANCELLED orders with full financial reversal (stock restoration and debt reduction).
-- **Atomic Operations**: Single-transaction database writes ensuring no partial data corruption.
 
 ## Earnings & Analytics
-- **Financial Dashboard**: Real-time revenue tracking based on actual cash collected.
-- **Net Profit Analysis**: Automatically subtracts expenses and stock costs from earnings.
-- **Revenue Visualization**: Trend charts and payment method breakdowns.
-- **UPI Account**: Specialized digital ledger for UPI wallet tracking with auto-reconciliation.
+- **Financial Dashboard**: Real-time revenue tracking based on authoritative ledger collection.
+- **Work Value Analysis**: Track the total value of all jobs performed, regardless of payment status.
+- **Local Timezone Sync**: Precision trend charts grouped by your local business day.
+- **UPI Account**: Specialized digital ledger for tracking digital payments (formerly Beauty Account) with auto-reconciliation.
 
 ## Customer Ledger System
 - **Smart customer normalization**: Handles variations in name casing and spacing.
@@ -46,16 +46,17 @@ Instead of adapting generic apps to my workflow, I built my own tailored system.
 - **Deterministic Transaction Sorting**: View history sorted by "Newest First" or "Oldest First" with ID-based tie-breaking.
 - **Authoritative Balances**: Derived from chronological settlement history for 100% accuracy.
 
-## Inventory & Expenses
+## Inventory & Business Tools
 - **Stock Management**: Track physical units (paper, ink) with low-stock alerts.
 - **Expense Logging**: Categorized business costs for accurate profit calculation.
+- **Business Notes**: A dedicated module for storing plain-text business reminders and supplier info.
 
 ---
 
 # Daily Workflow
 
 1. Customer places an order.
-2. Enter service type, quantity, and price.
+2. Use the calculator to sum pages and binding/lamination costs.
 3. Validation ensures quantity/price > 0 and stock is available.
 4. Payment is recorded as CASH, UPI, or CREDIT.
 5. Order saved instantly across all ledgers (Orders, Settlements, Stock).
@@ -67,11 +68,10 @@ Instead of adapting generic apps to my workflow, I built my own tailored system.
 
 ## Architecture
 - **MVVM (Model-View-ViewModel)**: Clean separation of UI and business logic.
-- **Room Database (v27)**: Robust local storage with explicit migration paths.
+- **Room Database (v31)**: Robust local storage with explicit migration paths.
 - **Repository Pattern**: Authoritative business rule enforcement.
-- **ViewBinding**: Type-safe UI interaction.
 - **Coroutines & Flow**: High-performance asynchronous data streams.
-- **WorkManager**: Background tasks for daily database backups.
+- **Sync Architecture (In Progress)**: Moving towards a FastAPI/PostgreSQL cloud layer for Web access.
 
 ## Data Integrity & Security
 - **Atomic Transactions**: `@Transaction` boundaries for all critical financial writes.
@@ -80,8 +80,8 @@ Instead of adapting generic apps to my workflow, I built my own tailored system.
 - **Biometric Security**: Integrated SecurityManager for PIN/Biometric app locking.
 
 ## Reliability
-- **Fully Offline-First**: No server dependency.
-- **Automated Backups**: 24-hour periodic database exports.
+- **Fully Offline-First**: No server dependency for core operations.
+- **Automated Backups**: 24-hour periodic database exports via WorkManager.
 - **Unit Tested**: Comprehensive test suite for order validation, sorting, and database integrity.
 
 ---
@@ -131,4 +131,4 @@ The goal was simple: **Build software that is genuinely useful in daily life.**
 
 ---
 
-*Last Updated: July 2026*
+*Last Updated: September 2026*

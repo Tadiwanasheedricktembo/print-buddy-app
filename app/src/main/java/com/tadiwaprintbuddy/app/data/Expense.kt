@@ -3,6 +3,7 @@ package com.tadiwaprintbuddy.app.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 enum class ExpenseCategory {
     PAPER,
@@ -24,5 +25,11 @@ data class Expense(
     val amount: Double,
     val timestamp: Long = System.currentTimeMillis(),
     val note: String? = null,
-    val paymentMethod: String = "CASH" // "CASH", "UPI"
+    val paymentMethod: String = "CASH", // "CASH", "UPI"
+
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
+    val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

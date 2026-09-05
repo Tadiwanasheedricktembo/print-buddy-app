@@ -16,15 +16,15 @@ class NoteRepository(private val noteDao: NoteDao) {
     }
 
     suspend fun insertNote(note: Note): Long {
-        return noteDao.insertNote(note)
+        return noteDao.insertNoteWithSync(note)
     }
 
     suspend fun updateNote(note: Note): Int {
-        return noteDao.updateNote(note)
+        return noteDao.updateNoteWithSync(note)
     }
 
     suspend fun deleteNote(note: Note): Int {
-        return noteDao.deleteNote(note)
+        return noteDao.deleteNoteWithSync(note)
     }
 
     suspend fun getNoteById(id: Int): Note? {

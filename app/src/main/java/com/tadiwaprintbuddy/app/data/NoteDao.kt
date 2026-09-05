@@ -15,13 +15,37 @@ interface NoteDao {
     fun searchNotes(query: String): Flow<List<Note>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNote(note: Note): Long
+    suspend fun insertNoteInternal(note: Note): Long
 
     @Update
-    suspend fun updateNote(note: Note): Int
+    suspend fun updateNoteInternal(note: Note): Int
 
     @Delete
-    suspend fun deleteNote(note: Note): Int
+    suspend fun deleteNoteInternal(note: Note): Int
+
+    @Insert
+    suspend fun insertSyncEvent(entry: SyncOutbox): Long
+
+    @Transaction
+    suspend fun insertNoteWithSync(note: Note): Long {
+        val id = insertNoteInternal(note)
+        insertSyncEvent(SyncOutbox(entityType = "NOTE", entitySyncId = note.syncId, operation = "CREATE"))
+        return id
+    }
+
+    @Transaction
+    suspend fun updateNoteWithSync(note: Note): Int {
+        val rows = updateNoteInternal(note)
+        insertSyncEvent(SyncOutbox(entityType = "NOTE", entitySyncId = note.syncId, operation = "UPDATE"))
+        return rows
+    }
+
+    @Transaction
+    suspend fun deleteNoteWithSync(note: Note): Int {
+        val rows = deleteNoteInternal(note)
+        insertSyncEvent(SyncOutbox(entityType = "NOTE", entitySyncId = note.syncId, operation = "DELETE"))
+        return rows
+    }
 
     @Query("SELECT * FROM notes WHERE id = :id")
     suspend fun getNoteById(id: Int): Note?

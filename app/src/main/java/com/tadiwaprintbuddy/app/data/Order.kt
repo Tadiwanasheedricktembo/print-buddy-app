@@ -3,6 +3,7 @@ package com.tadiwaprintbuddy.app.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "orders",
@@ -25,5 +26,11 @@ data class Order(
     val newBalance: Double = 0.0,
     val paymentStatus: String = "PAID", // PAID, UNPAID, PARTIALLY_PAID
     val orderStatus: String = "ACTIVE", // ACTIVE, CANCELLED
-    val receivedAmount: Double? = null
+    val receivedAmount: Double? = null,
+
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
+    val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

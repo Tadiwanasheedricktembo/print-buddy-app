@@ -309,50 +309,56 @@ interface PrintDao {
         val itemsWithOrderId = items.map { it.copy(orderId = orderId) }
         insertOrderItems(itemsWithOrderId)
 
+        // 3.5. Outbox for Order
+        insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "CREATE"))
+        for (item in itemsWithOrderId) {
+            insertSyncEvent(SyncOutbox(entityType = "ORDER_ITEM", entitySyncId = item.syncId, operation = "CREATE"))
+        }
+
         // 4. Ledger Entries
         // Entry 1: The Order (Revenue/Debt Creation)
         val orderBalanceBefore = previousBalance
         val orderBalanceAfter = previousBalance + total
         
-        insertSettlement(
-            SettlementHistory(
-                customerName = order.customerName,
-                customerId = order.customerId,
-                balanceBefore = orderBalanceBefore,
-                amountPaid = creditUsed, // Mark credit as "paid" for this order audit
-                balanceAfter = orderBalanceAfter,
-                timestamp = currentTime,
-                type = "ORDER",
-                note = "Order #$orderId (Total: ₹$total" + (if (creditUsed > 0) ", Credit used: ₹$creditUsed" else "") + ")",
-                transactionAmount = total,
-                newBalance = orderBalanceAfter,
-                originId = orderId,
-                ledgerEntryType = "ORDER_POST"
-            )
+        val settlement1 = SettlementHistory(
+            customerName = order.customerName,
+            customerId = order.customerId,
+            balanceBefore = orderBalanceBefore,
+            amountPaid = creditUsed, // Mark credit as "paid" for this order audit
+            balanceAfter = orderBalanceAfter,
+            timestamp = currentTime,
+            type = "ORDER",
+            note = "Order #$orderId (Total: ₹$total" + (if (creditUsed > 0) ", Credit used: ₹$creditUsed" else "") + ")",
+            transactionAmount = total,
+            newBalance = orderBalanceAfter,
+            originId = orderId,
+            ledgerEntryType = "ORDER_POST"
         )
+        insertSettlement(settlement1)
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
 
         // Entry 2: Payment at counter (if any)
         if (cashPaid > 0) {
             val paymentBalanceBefore = orderBalanceAfter
             val paymentBalanceAfter = orderBalanceAfter - cashPaid
             
-            insertSettlement(
-                SettlementHistory(
-                    customerName = order.customerName,
-                    customerId = order.customerId,
-                    balanceBefore = paymentBalanceBefore,
-                    amountPaid = cashPaid,
-                    balanceAfter = paymentBalanceAfter,
-                    timestamp = currentTime,
-                    type = "PAYMENT",
-                    ledgerEntryType = "PAYMENT",
-                    note = "Payment for Order #$orderId via $requestedPaymentMethod",
-                    transactionAmount = -cashPaid,
-                    newBalance = paymentBalanceAfter,
-                    originId = orderId,
-                    receivedAmount = receivedAmount
-                )
+            val settlement2 = SettlementHistory(
+                customerName = order.customerName,
+                customerId = order.customerId,
+                balanceBefore = paymentBalanceBefore,
+                amountPaid = cashPaid,
+                balanceAfter = paymentBalanceAfter,
+                timestamp = currentTime,
+                type = "PAYMENT",
+                ledgerEntryType = "PAYMENT",
+                note = "Payment for Order #$orderId via $requestedPaymentMethod",
+                transactionAmount = -cashPaid,
+                newBalance = paymentBalanceAfter,
+                originId = orderId,
+                receivedAmount = receivedAmount
             )
+            insertSettlement(settlement2)
+            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement2.syncId, operation = "CREATE"))
         }
 
         // Entry 3: Credit usage note (Implicit in Entry 1, but we can add a comment to it or a shadow entry)
@@ -367,6 +373,14 @@ interface PrintDao {
     suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: Double, status: String, method: String, settlement: SettlementHistory): Boolean {
         updateOrderPaymentStatus(orderId, newPaidAmount, status, method)
         insertSettlement(settlement)
+        
+        // Outbox
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+        val updatedOrder = getOrderById(orderId)
+        if (updatedOrder != null) {
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = updatedOrder.syncId, operation = "UPDATE"))
+        }
+
         rebuildCustomerProjection(settlement.customerId)
         return true
     }
@@ -376,9 +390,21 @@ interface PrintDao {
         val items = getItemsForOrder(orderId)
         for (item in items) {
             restoreStock(item.serviceName, item.quantity)
+            val stock = getStockItemByName(item.serviceName)
+            if (stock != null) {
+                insertSyncEvent(SyncOutbox(entityType = "STOCK", entitySyncId = stock.syncId, operation = "UPDATE"))
+            }
         }
         updateOrderStatus(orderId, status)
         insertSettlement(settlement)
+
+        // Outbox
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+        val updatedOrder = getOrderById(orderId)
+        if (updatedOrder != null) {
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = updatedOrder.syncId, operation = "UPDATE"))
+        }
+
         rebuildCustomerProjection(settlement.customerId)
         return true
     }
@@ -759,4 +785,7 @@ interface PrintDao {
 
     @Query("UPDATE `orders` SET orderStatus = :status WHERE id = :orderId")
     suspend fun updateOrderStatus(orderId: Int, status: String): Int
+
+    @Insert
+    suspend fun insertSyncEvent(entry: SyncOutbox): Long
 }

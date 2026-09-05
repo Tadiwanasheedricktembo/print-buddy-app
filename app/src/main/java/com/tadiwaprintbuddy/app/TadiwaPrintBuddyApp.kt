@@ -31,6 +31,7 @@ class TadiwaPrintBuddyApp : Application(), Application.ActivityLifecycleCallback
         ThemeManager(this).applyTheme()
         SecurityManager.getInstance(this).lockApp() // Guaranteed cold-start lock
         scheduleBackup()
+        SyncManager.getInstance(this).scheduleSync()
         
         registerActivityLifecycleCallbacks(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)

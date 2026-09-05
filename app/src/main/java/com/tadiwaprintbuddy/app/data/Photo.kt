@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "photos",
@@ -20,5 +21,8 @@ import androidx.room.PrimaryKey
 data class Photo(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val orderId: Int,
-    val filePath: String
+    val filePath: String,
+    
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString()
 )

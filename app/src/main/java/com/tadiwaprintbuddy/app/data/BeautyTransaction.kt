@@ -3,6 +3,7 @@ package com.tadiwaprintbuddy.app.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "beauty_transactions",
@@ -17,5 +18,10 @@ data class BeautyTransaction(
     val timestamp: Long = System.currentTimeMillis(),
     val previousBalance: Double = 0.0,
     val transactionAmount: Double = 0.0,
-    val newBalance: Double = 0.0
+    val newBalance: Double = 0.0,
+
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "settlement_history",
@@ -33,5 +34,10 @@ data class SettlementHistory(
     val ledgerEntryType: String = "",  // "ORDER_POST", "PAYMENT", "ADJUSTMENT"
     val isShadowDuplicate: Boolean = false, // True if flagged during reconciliation
     val reconciliationStatus: String = "VERIFIED", // "VERIFIED", "SHADOW_PURGED", "FLAGGED"
-    val receivedAmount: Double? = null
+    val receivedAmount: Double? = null,
+
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

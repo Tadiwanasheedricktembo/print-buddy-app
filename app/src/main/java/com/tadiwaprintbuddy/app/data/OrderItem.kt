@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "OrderItem",
@@ -23,5 +24,8 @@ data class OrderItem(
     val orderId: Int,
     val serviceName: String,
     val price: Double,
-    val quantity: Int
+    val quantity: Int,
+    
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString()
 )

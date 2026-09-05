@@ -68,6 +68,12 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.gson)
     
+    // Networking
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    
     // Compose dependencies (Required for Theme.kt)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

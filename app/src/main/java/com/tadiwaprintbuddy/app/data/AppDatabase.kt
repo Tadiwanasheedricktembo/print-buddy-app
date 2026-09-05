@@ -11,8 +11,8 @@ import androidx.room.TypeConverters
 import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
-    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class],
-    version = 31,
+    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class],
+    version = 32,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -21,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun printDao(): PrintDao
     abstract fun integrityCheckDao(): IntegrityCheckDao
     abstract fun noteDao(): NoteDao
+    abstract fun syncDao(): SyncDao
 
     companion object {
         @Volatile
@@ -37,7 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
-                    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31
+                    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32
                 )
 
                 if (BuildConfig.DEBUG) {
@@ -47,6 +48,50 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        private val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 1. Create Sync Outbox
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `sync_outbox` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `entityType` TEXT NOT NULL, 
+                        `entitySyncId` TEXT NOT NULL, 
+                        `operation` TEXT NOT NULL, 
+                        `createdAt` INTEGER NOT NULL, 
+                        `attemptCount` INTEGER NOT NULL, 
+                        `lastError` TEXT, 
+                        `idempotencyKey` TEXT NOT NULL, 
+                        `status` TEXT NOT NULL
+                    )
+                """.trimIndent())
+
+                // 2. Add columns to synchronizable entities
+                val tablesWithMetadata = listOf("customers", "orders", "expenses", "stock_items", "notes", "printer_references")
+                for (table in tablesWithMetadata) {
+                    database.execSQL("ALTER TABLE `$table` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
+                    database.execSQL("ALTER TABLE `$table` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                    database.execSQL("ALTER TABLE `$table` ADD COLUMN `deletedAt` INTEGER")
+                    database.execSQL("ALTER TABLE `$table` ADD COLUMN `syncStatus` TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
+                }
+
+                // Tables with partial metadata (Append-only or linked)
+                database.execSQL("ALTER TABLE `OrderItem` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE `photos` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
+
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `syncStatus` TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
+
+                database.execSQL("ALTER TABLE `beauty_transactions` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE `beauty_transactions` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE `beauty_transactions` ADD COLUMN `syncStatus` TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
+
+                database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `syncStatus` TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
             }
         }
 

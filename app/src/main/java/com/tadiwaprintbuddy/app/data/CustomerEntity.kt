@@ -3,6 +3,7 @@ package com.tadiwaprintbuddy.app.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "customers",
@@ -15,5 +16,10 @@ data class CustomerEntity(
     val normalizedName: String, // LOWER(TRIM(displayName))
     val phoneNumber: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString(),
+    val deletedAt: Long? = null,
+    val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

@@ -10,4 +10,6 @@ object DebugTags {
     const val ORDER_CREATION = "OrderCreation"
     const val DATABASE_INTEGRITY = "DatabaseIntegrity"
     const val PERFORMANCE_WARNING = "PerfWarning"
+    const val SYNC_PROCESS = "SyncProcess"
+    const val SYNC_INIT = "SyncInit"
 }

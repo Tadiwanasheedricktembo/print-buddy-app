@@ -12,7 +12,7 @@ import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class],
-    version = 32,
+    version = 33,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -38,7 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, 
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
-                    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32
+                    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33
                 )
 
                 if (BuildConfig.DEBUG) {
@@ -92,6 +92,20 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
                 database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `syncStatus` TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
+            }
+        }
+
+        private val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 1. Orders -> customerSyncId
+                database.execSQL("ALTER TABLE `orders` ADD COLUMN `customerSyncId` TEXT NOT NULL DEFAULT ''")
+                
+                // 2. OrderItem -> orderSyncId
+                database.execSQL("ALTER TABLE `OrderItem` ADD COLUMN `orderSyncId` TEXT NOT NULL DEFAULT ''")
+                
+                // 3. SettlementHistory -> customerSyncId, originSyncId
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `customerSyncId` TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `originSyncId` TEXT")
             }
         }
 

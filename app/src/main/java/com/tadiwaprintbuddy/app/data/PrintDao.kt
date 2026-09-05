@@ -302,11 +302,12 @@ interface PrintDao {
             transactionAmount = transactionAmount,
             newBalance = newBalance,
             paymentStatus = finalPaymentStatus,
-            orderStatus = "ACTIVE"
+            orderStatus = "ACTIVE",
+            customerSyncId = customer.syncId
         )
         
         val orderId = insertOrder(order).toInt()
-        val itemsWithOrderId = items.map { it.copy(orderId = orderId) }
+        val itemsWithOrderId = items.map { it.copy(orderId = orderId, orderSyncId = order.syncId) }
         insertOrderItems(itemsWithOrderId)
 
         // 3.5. Outbox for Order
@@ -332,7 +333,9 @@ interface PrintDao {
             transactionAmount = total,
             newBalance = orderBalanceAfter,
             originId = orderId,
-            ledgerEntryType = "ORDER_POST"
+            ledgerEntryType = "ORDER_POST",
+            customerSyncId = customer.syncId,
+            originSyncId = order.syncId
         )
         insertSettlement(settlement1)
         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
@@ -355,7 +358,9 @@ interface PrintDao {
                 transactionAmount = -cashPaid,
                 newBalance = paymentBalanceAfter,
                 originId = orderId,
-                receivedAmount = receivedAmount
+                receivedAmount = receivedAmount,
+                customerSyncId = customer.syncId,
+                originSyncId = order.syncId
             )
             insertSettlement(settlement2)
             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement2.syncId, operation = "CREATE"))
@@ -372,13 +377,19 @@ interface PrintDao {
     @Transaction
     suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: Double, status: String, method: String, settlement: SettlementHistory): Boolean {
         updateOrderPaymentStatus(orderId, newPaidAmount, status, method)
-        insertSettlement(settlement)
+        
+        val order = getOrderById(orderId)
+        val customer = getCustomerById(settlement.customerId)
+        val enrichedSettlement = settlement.copy(
+            customerSyncId = customer?.syncId ?: "",
+            originSyncId = order?.syncId
+        )
+        insertSettlement(enrichedSettlement)
         
         // Outbox
-        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
-        val updatedOrder = getOrderById(orderId)
-        if (updatedOrder != null) {
-            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = updatedOrder.syncId, operation = "UPDATE"))
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enrichedSettlement.syncId, operation = "CREATE"))
+        if (order != null) {
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
         }
 
         rebuildCustomerProjection(settlement.customerId)
@@ -396,13 +407,19 @@ interface PrintDao {
             }
         }
         updateOrderStatus(orderId, status)
-        insertSettlement(settlement)
+        
+        val order = getOrderById(orderId)
+        val customer = getCustomerById(settlement.customerId)
+        val enrichedSettlement = settlement.copy(
+            customerSyncId = customer?.syncId ?: "",
+            originSyncId = order?.syncId
+        )
+        insertSettlement(enrichedSettlement)
 
         // Outbox
-        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
-        val updatedOrder = getOrderById(orderId)
-        if (updatedOrder != null) {
-            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = updatedOrder.syncId, operation = "UPDATE"))
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enrichedSettlement.syncId, operation = "CREATE"))
+        if (order != null) {
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
         }
 
         rebuildCustomerProjection(settlement.customerId)
@@ -444,23 +461,27 @@ interface PrintDao {
 
             android.util.Log.d("PaymentProcess", "Allocating $paymentForThisOrder to Order #${order.id}. New Order Paid: $newPaidAmount, Order Status: $newStatus")
 
-            insertSettlement(
-                SettlementHistory(
-                    customerName = customer.displayName,
-                    customerId = customer.id,
-                    balanceBefore = balanceBefore,
-                    amountPaid = paymentForThisOrder,
-                    balanceAfter = runningBalance,
-                    timestamp = System.currentTimeMillis(),
-                    type = "PAYMENT",
-                    ledgerEntryType = "PAYMENT",
-                    note = "Debt Payment for Order #${order.id} via $paymentMethod",
-                    transactionAmount = -paymentForThisOrder,
-                    newBalance = runningBalance,
-                    originId = order.id,
-                    receivedAmount = if (!tenderAccountedFor) receivedAmount else null
-                )
+            val settlement = SettlementHistory(
+                customerName = customer.displayName,
+                customerId = customer.id,
+                balanceBefore = balanceBefore,
+                amountPaid = paymentForThisOrder,
+                balanceAfter = runningBalance,
+                timestamp = System.currentTimeMillis(),
+                type = "PAYMENT",
+                ledgerEntryType = "PAYMENT",
+                note = "Debt Payment for Order #${order.id} via $paymentMethod",
+                transactionAmount = -paymentForThisOrder,
+                newBalance = runningBalance,
+                originId = order.id,
+                receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
+                customerSyncId = customer.syncId,
+                originSyncId = order.syncId
             )
+            insertSettlement(settlement)
+            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
+            
             tenderAccountedFor = true
 
             remainingPayment -= paymentForThisOrder
@@ -472,40 +493,42 @@ interface PrintDao {
 
             android.util.Log.d("PaymentProcess", "Creating overpayment credit: $remainingPayment. New Balance: $runningBalance")
 
-            insertSettlement(
-                SettlementHistory(
-                    customerName = customer.displayName,
-                    customerId = customer.id,
-                    balanceBefore = balanceBefore,
-                    amountPaid = remainingPayment,
-                    balanceAfter = runningBalance,
-                    timestamp = System.currentTimeMillis(),
-                    type = "PAYMENT",
-                    ledgerEntryType = "CREDIT",
-                    note = "Overpayment Credit via $paymentMethod",
-                    transactionAmount = -remainingPayment,
-                    newBalance = runningBalance,
-                    receivedAmount = if (!tenderAccountedFor) receivedAmount else null
-                )
+            val settlement = SettlementHistory(
+                customerName = customer.displayName,
+                customerId = customer.id,
+                balanceBefore = balanceBefore,
+                amountPaid = remainingPayment,
+                balanceAfter = runningBalance,
+                timestamp = System.currentTimeMillis(),
+                type = "PAYMENT",
+                ledgerEntryType = "CREDIT",
+                note = "Overpayment Credit via $paymentMethod",
+                transactionAmount = -remainingPayment,
+                newBalance = runningBalance,
+                receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
+                customerSyncId = customer.syncId
             )
+            insertSettlement(settlement)
+            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
         } else if (!tenderAccountedFor && receivedAmount != null) {
             // Case where debt was 0 or something but money was received (unlikely in this flow but for safety)
-            insertSettlement(
-                SettlementHistory(
-                    customerName = customer.displayName,
-                    customerId = customer.id,
-                    balanceBefore = runningBalance,
-                    amountPaid = 0.0,
-                    balanceAfter = runningBalance,
-                    timestamp = System.currentTimeMillis(),
-                    type = "PAYMENT",
-                    ledgerEntryType = "PAYMENT",
-                    note = "Physical Tender recorded",
-                    transactionAmount = 0.0,
-                    newBalance = runningBalance,
-                    receivedAmount = receivedAmount
-                )
+            val settlement = SettlementHistory(
+                customerName = customer.displayName,
+                customerId = customer.id,
+                balanceBefore = runningBalance,
+                amountPaid = 0.0,
+                balanceAfter = runningBalance,
+                timestamp = System.currentTimeMillis(),
+                type = "PAYMENT",
+                ledgerEntryType = "PAYMENT",
+                note = "Physical Tender recorded",
+                transactionAmount = 0.0,
+                newBalance = runningBalance,
+                receivedAmount = receivedAmount,
+                customerSyncId = customer.syncId
             )
+            insertSettlement(settlement)
+            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
         }
         
         rebuildCustomerProjection(customer.id)
@@ -557,7 +580,12 @@ interface PrintDao {
 
     @Transaction
     suspend fun adjustBalanceAtomic(settlement: SettlementHistory): Boolean {
-        insertSettlement(settlement)
+        val customer = getCustomerById(settlement.customerId)
+        val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "")
+        insertSettlement(enriched)
+        
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+        
         rebuildCustomerProjection(settlement.customerId)
         return true
     }

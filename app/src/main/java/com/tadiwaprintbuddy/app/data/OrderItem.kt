@@ -26,6 +26,9 @@ data class OrderItem(
     val price: Double,
     val quantity: Int,
     
+    // Global Identity
+    val orderSyncId: String = "",
+
     // Sync Metadata
     val syncId: String = UUID.randomUUID().toString()
 )

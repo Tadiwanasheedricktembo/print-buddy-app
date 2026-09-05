@@ -59,7 +59,7 @@ class TransactionSortingTest {
         val t2 = createSettlement(2, 1, now + 1000)
         
         val settlements = listOf(t1, t2)
-        val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.NEWEST_FIRST, "", emptySet())
+        val groups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.NEWEST_FIRST, "", emptySet())
         val events = groups[0].events
         
         assertEquals(2, events.size)
@@ -74,7 +74,7 @@ class TransactionSortingTest {
         val t2 = createSettlement(2, 1, now + 1000)
         
         val settlements = listOf(t1, t2)
-        val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.OLDEST_FIRST, "", emptySet())
+        val groups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.OLDEST_FIRST, "", emptySet())
         val events = groups[0].events
         
         assertEquals(2, events.size)
@@ -92,7 +92,7 @@ class TransactionSortingTest {
         
         val settlements = listOf(t1, t2)
         
-        val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.NEWEST_FIRST, "", emptySet())
+        val groups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.NEWEST_FIRST, "", emptySet())
         assertEquals(1, groups[0].events.size)
         assertEquals(2, groups[0].events[0].details.size)
         assertEquals(1, groups[0].events[0].details[0].id) 
@@ -107,7 +107,7 @@ class TransactionSortingTest {
         
         val settlements = listOf(t1, t2)
         
-        val groups = viewModel.groupAndSort(settlements, TransactionSortOrder.OLDEST_FIRST, "Tes", emptySet())
+        val groups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.OLDEST_FIRST, "Tes", emptySet())
         assertEquals(now, groups[0].events[0].timestamp)
     }
 
@@ -119,10 +119,10 @@ class TransactionSortingTest {
         
         val settlements = listOf(t1, t2)
         
-        val newestGroups = viewModel.groupAndSort(settlements, TransactionSortOrder.NEWEST_FIRST, "", emptySet())
+        val newestGroups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.NEWEST_FIRST, "", emptySet())
         assertEquals(20.0, newestGroups[0].totalOwed, 0.0)
         
-        val oldestGroups = viewModel.groupAndSort(settlements, TransactionSortOrder.OLDEST_FIRST, "", emptySet())
+        val oldestGroups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.OLDEST_FIRST, "", emptySet())
         assertEquals(20.0, oldestGroups[0].totalOwed, 0.0)
     }
 

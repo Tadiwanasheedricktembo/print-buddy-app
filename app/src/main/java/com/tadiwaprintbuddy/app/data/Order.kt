@@ -28,6 +28,9 @@ data class Order(
     val orderStatus: String = "ACTIVE", // ACTIVE, CANCELLED
     val receivedAmount: Double? = null,
 
+    // Global Identity
+    val customerSyncId: String = "",
+
     // Sync Metadata
     val syncId: String = UUID.randomUUID().toString(),
     val updatedAt: Long = System.currentTimeMillis(),

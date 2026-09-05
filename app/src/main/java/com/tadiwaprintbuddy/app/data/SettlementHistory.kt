@@ -36,6 +36,10 @@ data class SettlementHistory(
     val reconciliationStatus: String = "VERIFIED", // "VERIFIED", "SHADOW_PURGED", "FLAGGED"
     val receivedAmount: Double? = null,
 
+    // Global Identity
+    val customerSyncId: String = "",
+    val originSyncId: String? = null,
+
     // Sync Metadata
     val syncId: String = UUID.randomUUID().toString(),
     val updatedAt: Long = System.currentTimeMillis(),

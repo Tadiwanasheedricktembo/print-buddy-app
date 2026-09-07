@@ -2,6 +2,7 @@ package com.tadiwaprintbuddy.app
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.tadiwaprintbuddy.app.data.DebtorSummary
 import com.tadiwaprintbuddy.app.databinding.ItemDebtorBinding
@@ -38,19 +39,19 @@ class DebtorsAdapter(
             binding.textCustomerName.text = debtor.customerName.uppercase(Locale.getDefault())
 
             if (debtor.type == "CHANGE") {
-                val absBalance = Math.abs(debtor.totalBalance)
-                val amountText = "-${format.format(absBalance)}"
+                val absBalance = debtor.totalBalance.abs()
+                val amountText = "-${format.format(absBalance.toDouble())}"
                 binding.textAmountOwed.text = amountText
-                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.primary_accent))
+                binding.textAmountOwed.setTextColor(ContextCompat.getColor(context, R.color.primary_accent))
                 binding.textLabelOwed.text = "CHANGE DUE"
-                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.icon_bg_blue))
+                binding.cardIcon.setCardBackgroundColor(ContextCompat.getColor(context, R.color.icon_bg_blue))
             } else {
-                binding.textAmountOwed.text = format.format(debtor.totalBalance)
-                binding.textAmountOwed.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.destructive))
+                binding.textAmountOwed.text = format.format(debtor.totalBalance.toDouble())
+                binding.textAmountOwed.setTextColor(ContextCompat.getColor(context, R.color.destructive))
                 binding.textLabelOwed.text = "AMOUNT OWED"
                 
                 val iconBg = if (bindingAdapterPosition % 2 == 0) R.color.icon_bg_purple else R.color.icon_bg_blue
-                binding.cardIcon.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(context, iconBg))
+                binding.cardIcon.setCardBackgroundColor(ContextCompat.getColor(context, iconBg))
             }
 
             binding.buttonReceivePayment.setOnClickListener {

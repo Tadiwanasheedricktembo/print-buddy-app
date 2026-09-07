@@ -7,8 +7,10 @@ import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.data.SettlementHistory
 import com.tadiwaprintbuddy.app.data.BusinessEvent
 import com.tadiwaprintbuddy.app.data.BusinessEventMapper
+import com.tadiwaprintbuddy.app.data.CustomerEntity
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 enum class TransactionSortOrder {
     OLDEST_FIRST,
@@ -18,7 +20,7 @@ enum class TransactionSortOrder {
 data class GroupedSettlement(
     val customerId: Long,
     val customerName: String,
-    val totalOwed: Double,
+    val totalOwed: BigDecimal,
     val events: List<BusinessEvent>,
     val rawTransactions: List<SettlementHistory>,
     var isExpanded: Boolean = false
@@ -32,7 +34,7 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
     val sortOrder: StateFlow<TransactionSortOrder> = _sortOrder.asStateFlow()
 
     private val _allSettlements = MutableStateFlow<List<SettlementHistory>>(emptyList())
-    private val _allCustomers = MutableStateFlow<List<com.tadiwaprintbuddy.app.data.CustomerEntity>>(emptyList())
+    private val _allCustomers = MutableStateFlow<List<CustomerEntity>>(emptyList())
     private val _searchQuery = MutableStateFlow("")
     private val _expandedCustomerIds = MutableStateFlow<Set<Long>>(emptySet())
     
@@ -47,9 +49,9 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun groupAndSort(
-        settlements: List<SettlementHistory>, 
-        customers: List<com.tadiwaprintbuddy.app.data.CustomerEntity>,
-        order: TransactionSortOrder, 
+        settlements: List<SettlementHistory>,
+        customers: List<CustomerEntity>,
+        order: TransactionSortOrder,
         query: String,
         expandedIds: Set<Long>
     ): List<GroupedSettlement> {
@@ -63,8 +65,8 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
                 // Authoritative balance derived from the most recent transaction (by time then ID)
                 val mostRecent = trans.maxWithOrNull(compareBy<SettlementHistory> { it.timestamp }.thenBy { it.id })
                 val balance = mostRecent?.let { 
-                    if (it.newBalance != 0.0 || it.transactionAmount != 0.0) it.newBalance else it.balanceAfter 
-                } ?: 0.0
+                    if (it.newBalance.compareTo(BigDecimal.ZERO) != 0 || it.transactionAmount.compareTo(BigDecimal.ZERO) != 0) it.newBalance else it.balanceAfter 
+                } ?: BigDecimal.ZERO
 
                 val businessEvents = mapper.map(trans).let { events ->
                     when (order) {

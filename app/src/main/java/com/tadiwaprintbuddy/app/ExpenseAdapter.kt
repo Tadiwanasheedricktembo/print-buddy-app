@@ -39,7 +39,7 @@ class ExpenseAdapter(
 
             binding.textCategory.text = expense.category.name
             binding.textNote.text = expense.title // Use title as primary info
-            binding.textAmount.text = format.format(expense.amount)
+            binding.textAmount.text = format.format(expense.amount.toDouble())
             binding.textDate.text = dateFormat.format(Date(expense.timestamp))
             binding.textPaymentMethod.text = expense.paymentMethod
 

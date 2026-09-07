@@ -1,5 +1,6 @@
 package com.tadiwaprintbuddy.app
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -18,6 +19,7 @@ import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.BeautyTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityBeautyUpiBinding
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,7 +57,7 @@ class BeautyUpiActivity : AppCompatActivity() {
         viewModel.balance.observe(this) { balance ->
             val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
             val format = NumberFormat.getCurrencyInstance(locale)
-            binding.textCurrentBalance.text = format.format(balance ?: 0.0)
+            binding.textCurrentBalance.text = format.format(balance?.toDouble() ?: 0.0)
         }
 
         viewModel.transactions.observe(this) { history ->
@@ -78,8 +80,9 @@ class BeautyUpiActivity : AppCompatActivity() {
             .setMessage(R.string.upi_withdraw_full_message)
             .setView(input)
             .setPositiveButton("Record") { _, _ ->
-                val amount = input.text.toString().toDoubleOrNull()
-                if (amount != null && amount > 0) {
+                val amountStr = input.text.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
+                if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
                     viewModel.returnMoney(amount, getString(R.string.upi_manual_return_note))
                     Toast.makeText(this, "Recorded successfully", Toast.LENGTH_SHORT).show()
                 }
@@ -98,8 +101,9 @@ class BeautyUpiActivity : AppCompatActivity() {
             .setMessage(R.string.upi_paid_to_message)
             .setView(input)
             .setPositiveButton("Add Credit") { _, _ ->
-                val amount = input.text.toString().toDoubleOrNull()
-                if (amount != null && amount > 0) {
+                val amountStr = input.text.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
+                if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
                     viewModel.addMoney(amount, "Manual Entry")
                     Toast.makeText(this, "Credit added", Toast.LENGTH_SHORT).show()
                 }
@@ -130,10 +134,10 @@ class BeautyUpiActivity : AppCompatActivity() {
             val isAdd = item.type == "ADD" || item.type == "RESET"
             val typePrefix = if (isAdd) "+" else "-"
             
-            holder.textAmount.text = "${typePrefix} ${format.format(item.amount)}"
+            holder.textAmount.text = "${typePrefix} ${format.format(item.amount.toDouble())}"
             holder.textNote.text = item.note ?: (if (isAdd) "Credit Entry" else "Withdrawal")
             holder.textDate.text = dateFormat.format(Date(item.timestamp))
-            holder.textNewBalance.text = format.format(item.newBalance)
+            holder.textNewBalance.text = format.format(item.newBalance.toDouble())
             
             holder.textLabel.text = when(item.type) {
                 "ADD" -> "CREDIT RECEIVED"
@@ -146,7 +150,7 @@ class BeautyUpiActivity : AppCompatActivity() {
             holder.textAmount.setTextColor(color)
             holder.textLabel.setTextColor(color)
             holder.imageIcon.setColorFilter(color)
-            holder.circleIcon.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+            holder.circleIcon.backgroundTintList = ColorStateList.valueOf(color)
             
             // Timeline line visibility
             holder.lineTop.visibility = if (position == 0) View.INVISIBLE else View.VISIBLE

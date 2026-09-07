@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.math.BigDecimal
 import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
@@ -39,42 +40,40 @@ class DatabaseIntegrityTest {
 
     @Test
     fun customerNamesAreNormalizedToOneIdentity() = runTest {
-        repository.confirmOrder(" Rahul ", listOf(CartItem("G", 100.0, 1)), "OWES_ME")
-        repository.confirmOrder("rahul", listOf(CartItem("G", 50.0, 1)), "OWES_ME")
-        // To get paidAmount = 25.0 for a 75.0 order, we apply 50.0 credit (or vice versa depending on logic)
-        // Here confirmOrder logic is: paidAmount = total - appliedCredit
-        repository.confirmOrder("RAHUL", listOf(CartItem("G", 75.0, 1)), "CASH", 50.0)
+        repository.confirmOrder(" Rahul ", listOf(CartItem("G", BigDecimal("100.0"), 1)), "OWES_ME")
+        repository.confirmOrder("rahul", listOf(CartItem("G", BigDecimal("50.0"), 1)), "OWES_ME")
+        repository.confirmOrder("RAHUL", listOf(CartItem("G", BigDecimal("75.0"), 1)), "CASH", BigDecimal("50.0"))
 
         val customers = dao.getAllCustomers()
         assertEquals(1, customers.size)
         assertEquals("Rahul", customers.single().displayName)
-        assertEquals(200.0, repository.getCustomerBalance(" rahul "), 0.1)
+        assertEquals(0, BigDecimal("200.0").compareTo(repository.getCustomerBalance(" rahul ")))
     }
 
     @Test
     fun newCustomerBalanceFallsBackToUnpaidOrdersWhenNoSettlementExists() = runTest {
         val customerId = dao.insertCustomer(CustomerEntity(displayName = "Maya", normalizedName = "maya"))
         dao.insertOrder(
-            Order(customerId = customerId, customerName = "Maya", totalAmount = 120.0, paidAmount = 20.0, date = now, paymentStatus = "PARTIALLY_PAID")
+            Order(customerId = customerId, customerName = "Maya", totalAmount = BigDecimal("120.0"), paidAmount = BigDecimal("20.0"), date = now, paymentStatus = "PARTIALLY_PAID")
         )
         dao.insertOrder(
-            Order(customerId = customerId, customerName = "Maya", totalAmount = 80.0, paidAmount = 0.0, date = now + 1000, paymentStatus = "UNPAID")
+            Order(customerId = customerId, customerName = "Maya", totalAmount = BigDecimal("80.0"), paidAmount = BigDecimal.ZERO, date = now + 1000, paymentStatus = "UNPAID")
         )
 
-        assertEquals(180.0, repository.getCustomerBalanceById(customerId))
+        assertEquals(0, BigDecimal("180.0").compareTo(repository.getCustomerBalanceById(customerId)))
     }
 
     @Test
     fun paymentIsAllocatedOldestDebtFirst() = runTest {
-        repository.confirmOrder("Nia", listOf(CartItem("G", 100.0, 1)), "OWES_ME")
-        repository.confirmOrder("nia", listOf(CartItem("G", 50.0, 1)), "OWES_ME")
-        repository.confirmOrder(" NIA ", listOf(CartItem("G", 30.0, 1)), "OWES_ME")
+        repository.confirmOrder("Nia", listOf(CartItem("G", BigDecimal("100.0"), 1)), "OWES_ME")
+        repository.confirmOrder("nia", listOf(CartItem("G", BigDecimal("50.0"), 1)), "OWES_ME")
+        repository.confirmOrder(" NIA ", listOf(CartItem("G", BigDecimal("30.0"), 1)), "OWES_ME")
 
         val customerId = dao.getCustomerByNormalizedName("nia")!!.id
-        repository.applyPaymentToCustomerId(customerId, 120.0)
+        repository.applyPaymentToCustomerId(customerId, BigDecimal("120.0"))
 
         val unpaid = dao.getUnpaidOrdersForCustomer(customerId)
-        assertEquals(listOf(30.0, 30.0), unpaid.map { it.totalAmount - it.paidAmount })
-        assertEquals(60.0, repository.getCustomerBalanceById(customerId))
+        assertEquals(listOf(BigDecimal("30.0"), BigDecimal("30.0")), unpaid.map { it.totalAmount.subtract(it.paidAmount) })
+        assertEquals(0, BigDecimal("60.0").compareTo(repository.getCustomerBalanceById(customerId)))
     }
 }

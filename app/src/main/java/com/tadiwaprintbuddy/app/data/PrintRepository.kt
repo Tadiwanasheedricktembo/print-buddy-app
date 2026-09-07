@@ -1,7 +1,9 @@
 package com.tadiwaprintbuddy.app.data
 
+import android.util.Log
 import com.tadiwaprintbuddy.app.CartItem
 import kotlinx.coroutines.flow.Flow
+import java.math.BigDecimal
 import java.util.Calendar
 
 class PrintRepository(private val printDao: PrintDao) {
@@ -11,15 +13,15 @@ class PrintRepository(private val printDao: PrintDao) {
     private suspend fun getOrCreateCustomer(name: String): CustomerEntity {
         val trimmedName = name.trim()
         val normalized = trimmedName.lowercase()
-        android.util.Log.d(DebugTags.CUSTOMER_LOOKUP, "getOrCreateCustomer: name='$name' normalized='$normalized'")
+        Log.d(DebugTags.CUSTOMER_LOOKUP, "getOrCreateCustomer: name='$name' normalized='$normalized'")
         return printDao.getCustomerByNormalizedName(normalized) ?: run {
-            android.util.Log.i(DebugTags.CUSTOMER_CREATION, "Creating new customer: '$trimmedName'")
+            Log.i(DebugTags.CUSTOMER_CREATION, "Creating new customer: '$trimmedName'")
             val newCustomer = CustomerEntity(
                 displayName = trimmedName,
                 normalizedName = normalized
             )
             val id = printDao.insertCustomer(newCustomer)
-            android.util.Log.i(DebugTags.CUSTOMER_CREATION, "Created customer with ID: $id")
+            Log.i(DebugTags.CUSTOMER_CREATION, "Created customer with ID: $id")
             newCustomer.copy(id = id)
         }
     }
@@ -32,11 +34,11 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // --- Orders ---
 
-    fun getTotalRevenueFlow(): Flow<Double?> = printDao.getTotalRevenueFlow()
+    fun getTotalRevenueFlow(): Flow<BigDecimal?> = printDao.getTotalRevenueFlow()
 
     fun getTotalOrdersFlow(): Flow<Int> = printDao.getTotalOrdersFlow()
 
-    suspend fun getTodaysRevenue(): Double? {
+    suspend fun getTodaysRevenue(): BigDecimal? {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
@@ -54,19 +56,23 @@ class PrintRepository(private val printDao: PrintDao) {
         customerName: String, 
         cartItems: List<CartItem>, 
         paymentMethod: String = "CASH",
-        appliedCredit: Double = 0.0,
-        receivedAmount: Double? = null
+        appliedCredit: BigDecimal = BigDecimal.ZERO,
+        receivedAmount: BigDecimal? = null
     ): OrderResult {
-        android.util.Log.i(DebugTags.ORDER_CREATION, "confirmOrder: customer='$customerName', items=${cartItems.size}, method=$paymentMethod")
+        Log.i(DebugTags.ORDER_CREATION, "confirmOrder: customer='$customerName', items=${cartItems.size}, method=$paymentMethod")
         // Authoritative Repository Validation
         if (cartItems.isEmpty()) return OrderResult.ValidationError("Add at least one item")
         
-        val total = cartItems.sumOf { it.price * it.quantity }
-        if (total <= 0.0) return OrderResult.ValidationError("Enter a valid amount greater than ₹0")
+        var total = BigDecimal.ZERO
+        for (item in cartItems) {
+            total = total.add(item.getSubtotal())
+        }
+
+        if (total <= BigDecimal.ZERO) return OrderResult.ValidationError("Enter a valid amount greater than ₹0")
 
         for (item in cartItems) {
             if (item.quantity <= 0) return OrderResult.ValidationError("Invalid quantity for ${item.serviceName}")
-            if (item.price < 0) return OrderResult.ValidationError("Invalid price for ${item.serviceName}")
+            if (item.price < BigDecimal.ZERO) return OrderResult.ValidationError("Invalid price for ${item.serviceName}")
         }
 
         // 1. Stock Pre-Check
@@ -101,7 +107,7 @@ class PrintRepository(private val printDao: PrintDao) {
             )
             OrderResult.Success(orderId)
         } catch (e: Exception) {
-            android.util.Log.e(DebugTags.ORDER_CREATION, "Failed to record order", e)
+            Log.e(DebugTags.ORDER_CREATION, "Failed to record order", e)
             OrderResult.Error(e.message ?: "Failed to save order")
         }
     }
@@ -110,18 +116,18 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
 
-    suspend fun updatePayment(orderId: Int, newPaidAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
-        android.util.Log.i(DebugTags.PAYMENT_PROCESS, "updatePayment: orderId=$orderId, newPaidAmount=$newPaidAmount, method=$paymentMethod")
+    suspend fun updatePayment(orderId: Int, newPaidAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
+        Log.i(DebugTags.PAYMENT_PROCESS, "updatePayment: orderId=$orderId, newPaidAmount=$newPaidAmount, method=$paymentMethod")
         val order = printDao.getOrderById(orderId) ?: run {
-            android.util.Log.w(DebugTags.PAYMENT_PROCESS, "updatePayment: Order #$orderId not found")
+            Log.w(DebugTags.PAYMENT_PROCESS, "updatePayment: Order #$orderId not found")
             return
         }
-        val delta = newPaidAmount - order.paidAmount
-        if (delta <= 0.0) return
+        val delta = newPaidAmount.subtract(order.paidAmount)
+        if (delta <= BigDecimal.ZERO) return
 
         val status = when {
             newPaidAmount >= order.totalAmount -> "PAID"
-            newPaidAmount > 0 -> "PARTIALLY_PAID"
+            newPaidAmount > BigDecimal.ZERO -> "PARTIALLY_PAID"
             else -> "UNPAID"
         }
 
@@ -133,7 +139,7 @@ class PrintRepository(private val printDao: PrintDao) {
 
         val customerId = order.customerId
         val currentBalance = getCustomerBalanceById(customerId)
-        val newBalance = currentBalance - delta
+        val newBalance = currentBalance.subtract(delta)
 
         val settlement = SettlementHistory(
             customerName = order.customerName,
@@ -145,7 +151,7 @@ class PrintRepository(private val printDao: PrintDao) {
             type = "PAYMENT",
             ledgerEntryType = "PAYMENT",
             note = "Additional payment for Order #${order.id} via $paymentMethod",
-            transactionAmount = -delta,
+            transactionAmount = delta.negate(),
             newBalance = newBalance,
             originId = orderId,
             receivedAmount = receivedAmount
@@ -162,25 +168,25 @@ class PrintRepository(private val printDao: PrintDao) {
         val currentBalance = getCustomerBalanceById(customerId)
         
         // Reverse debt = total - paid
-        val amountToReverse = order.totalAmount - order.paidAmount
-        val newBalance = currentBalance - amountToReverse
+        val amountToReverse = order.totalAmount.subtract(order.paidAmount)
+        val newBalance = currentBalance.subtract(amountToReverse)
 
         val settlement = SettlementHistory(
             customerName = order.customerName,
             customerId = customerId,
             balanceBefore = currentBalance,
-            amountPaid = 0.0,
+            amountPaid = BigDecimal.ZERO,
             balanceAfter = newBalance,
             timestamp = System.currentTimeMillis(),
             type = "CANCEL",
             ledgerEntryType = "ORDER_CANCEL",
             note = "Cancelled Order #$orderId",
-            transactionAmount = -amountToReverse,
+            transactionAmount = amountToReverse.negate(),
             newBalance = newBalance,
             originId = orderId
         )
 
-        val walletReturn = if (order.paymentMethod == "UPI") order.paidAmount else 0.0
+        val walletReturn = if (order.paymentMethod == "UPI") order.paidAmount else BigDecimal.ZERO
         printDao.cancelOrderWithWalletAtomic(orderId, "CANCELLED", settlement, walletReturn)
     }
 
@@ -194,23 +200,23 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
 
-    suspend fun getRevenueBetween(start: Long, end: Long): Double? = printDao.getRevenueBetween(start, end)
+    suspend fun getRevenueBetween(start: Long, end: Long): BigDecimal? = printDao.getRevenueBetween(start, end)
 
-    suspend fun getExpensesBetween(start: Long, end: Long): Double = printDao.getExpensesBetween(start, end)
+    suspend fun getExpensesBetween(start: Long, end: Long): BigDecimal = printDao.getExpensesBetween(start, end)
 
-    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): Double = 
+    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
         printDao.getExpensesByMethodBetween(start, end, method)
 
-    suspend fun getSalesRevenueBetween(start: Long, end: Long): Double = 
+    suspend fun getSalesRevenueBetween(start: Long, end: Long): BigDecimal = 
         printDao.getSalesRevenueBetween(start, end)
 
-    suspend fun getSalesVolumeBetween(start: Long, end: Long): Double = 
+    suspend fun getSalesVolumeBetween(start: Long, end: Long): BigDecimal = 
         printDao.getSalesVolumeBetween(start, end)
 
-    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): Double = 
+    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
         printDao.getSettledRevenueByMethodBetween(start, end, method)
 
-    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double = 
+    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
         printDao.getRevenueByMethodBetween(start, end, method)
 
     suspend fun getOrdersCountBetween(start: Long, end: Long): Int = 
@@ -219,7 +225,7 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int = 
         printDao.getOrdersCountByMethodBetween(start, end, method)
 
-    suspend fun getTotalReceivables(): Double = printDao.getTotalReceivables()
+    suspend fun getTotalReceivables(): BigDecimal = printDao.getTotalReceivables()
 
     suspend fun getDebtorsCount(): Int = printDao.getDebtorsCount()
 
@@ -238,13 +244,13 @@ class PrintRepository(private val printDao: PrintDao) {
     fun getFilteredBeautyTransactions(start: Long, end: Long) = 
         printDao.getFilteredBeautyTransactions(start, end)
 
-    suspend fun getBeautyReceivedBetween(start: Long, end: Long): Double = 
+    suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal = 
         printDao.getBeautyReceivedBetween(start, end)
 
-    suspend fun getBeautyReturnedBetween(start: Long, end: Long): Double = 
+    suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal = 
         printDao.getBeautyReturnedBetween(start, end)
 
-    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): Double =
+    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): BigDecimal =
         printDao.getBeautyNetFlowBetween(start, end)
 
     suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int = 
@@ -254,41 +260,41 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // --- Debt & Settlements ---
 
-    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
+    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
         val customer = getOrCreateCustomer(customerName)
         applyPaymentToCustomerId(customer.id, paymentAmount, paymentMethod, receivedAmount)
     }
 
-    suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: Double, paymentMethod: String = "CASH", receivedAmount: Double? = null) {
-        android.util.Log.i(DebugTags.PAYMENT_PROCESS, "applyPaymentToCustomerId: customerId=$customerId, amount=$paymentAmount, method=$paymentMethod")
+    suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
+        Log.i(DebugTags.PAYMENT_PROCESS, "applyPaymentToCustomerId: customerId=$customerId, amount=$paymentAmount, method=$paymentMethod")
         printDao.applyPaymentToCustomerIdWithWalletAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
     }
 
-    suspend fun getCustomerBalanceById(customerId: Long): Double {
+    suspend fun getCustomerBalanceById(customerId: Long): BigDecimal {
         val balance = printDao.getAuthoritativeCustomerBalance(customerId)
-        android.util.Log.d(DebugTags.DEBT_CALC, "getCustomerBalanceById: ID=$customerId, balance=$balance")
+        Log.d(DebugTags.DEBT_CALC, "getCustomerBalanceById: ID=$customerId, balance=$balance")
         return balance
     }
 
-    suspend fun getCustomerBalance(customerName: String): Double {
+    suspend fun getCustomerBalance(customerName: String): BigDecimal {
         val customer = printDao.getCustomerByNormalizedName(customerName.trim().lowercase())
-        return if (customer != null) getCustomerBalanceById(customer.id) else 0.0
+        return if (customer != null) getCustomerBalanceById(customer.id) else BigDecimal.ZERO
     }
 
     suspend fun getCustomerSummaries(): List<DebtorSummary> = printDao.getDebtors()
 
-    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: Double, note: String? = null, receivedAmount: Double? = null) {
+    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: BigDecimal, note: String? = null, receivedAmount: BigDecimal? = null) {
         val customer = getOrCreateCustomer(customerName)
         val previousBalance = getCustomerBalanceById(customer.id)
-        val newBalance = previousBalance + amountDelta
+        val newBalance = previousBalance.add(amountDelta)
 
-        val isPayment = amountDelta < 0
-        val amount = if (isPayment) -amountDelta else amountDelta
+        val isPayment = amountDelta < BigDecimal.ZERO
+        val amount = if (isPayment) amountDelta.negate() else amountDelta
 
         val finalNote = note ?: when {
-            previousBalance == 0.0 && amountDelta > 0 -> "New Debt Added"
-            previousBalance == 0.0 && amountDelta < 0 -> "Initial Change Recorded"
-            amountDelta > 0 -> "Added to Balance"
+            previousBalance == BigDecimal.ZERO && amountDelta > BigDecimal.ZERO -> "New Debt Added"
+            previousBalance == BigDecimal.ZERO && amountDelta < BigDecimal.ZERO -> "Initial Change Recorded"
+            amountDelta > BigDecimal.ZERO -> "Added to Balance"
             else -> "Settlement Payment"
         }
         
@@ -297,7 +303,7 @@ class PrintRepository(private val printDao: PrintDao) {
                 customerName = customer.displayName,
                 customerId = customer.id,
                 balanceBefore = previousBalance,
-                amountPaid = if (isPayment) amount else 0.0,
+                amountPaid = if (isPayment) amount else BigDecimal.ZERO,
                 balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(),
                 type = if (isPayment) "PAYMENT" else "ADJUSTMENT",
@@ -320,13 +326,13 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun verifyCustomerBalance(customerId: Long): Boolean = printDao.verifyCustomerBalance(customerId)
 
-    suspend fun adjustCustomerBalance(customerId: Long, newAmountOwing: Double, reason: String? = null) {
+    suspend fun adjustCustomerBalance(customerId: Long, newAmountOwing: BigDecimal, reason: String? = null) {
         val customer = printDao.getCustomerById(customerId) ?: return
         val currentBalance = getCustomerBalanceById(customerId)
-        val adjustmentDelta = newAmountOwing - currentBalance
+        val adjustmentDelta = newAmountOwing.subtract(currentBalance)
 
         // Skip if no actual change
-        if (Math.abs(adjustmentDelta) < 0.001) return
+        if (adjustmentDelta.abs() < BigDecimal("0.001")) return
 
         val now = System.currentTimeMillis()
         
@@ -334,7 +340,7 @@ class PrintRepository(private val printDao: PrintDao) {
             customerName = customer.displayName,
             customerId = customer.id,
             balanceBefore = currentBalance,
-            amountPaid = 0.0, 
+            amountPaid = BigDecimal.ZERO, 
             balanceAfter = newAmountOwing,
             timestamp = now,
             type = "ADJUSTMENT",
@@ -373,20 +379,20 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     // Money Tracking
-    fun getCashInHandFlow(): Flow<Double?> = printDao.getAuthoritativeCashInHandFlow()
+    fun getCashInHandFlow(): Flow<BigDecimal?> = printDao.getAuthoritativeCashInHandFlow()
     
-    fun getTotalReceivablesFlow(): Flow<Double?> = printDao.getAuthoritativeTotalReceivablesFlow()
+    fun getTotalReceivablesFlow(): Flow<BigDecimal?> = printDao.getAuthoritativeTotalReceivablesFlow()
 
-    suspend fun recordMoneyReturnedFromExternal(amount: Double, note: String? = null) {
+    suspend fun recordMoneyReturnedFromExternal(amount: BigDecimal, note: String? = null) {
         insertBeautyTransaction(amount, "RETURN", note ?: "Money withdrawn from UPI Account")
     }
 
-    suspend fun addManualExternalCredit(amount: Double, note: String? = null) {
+    suspend fun addManualExternalCredit(amount: BigDecimal, note: String? = null) {
         insertBeautyTransaction(amount, "ADD", note ?: "Manual Entry")
     }
 
     // Beauty Account Logic
-    suspend fun insertBeautyTransaction(amount: Double, type: String, note: String? = null) {
+    suspend fun insertBeautyTransaction(amount: BigDecimal, type: String, note: String? = null) {
         printDao.insertBeautyTransactionAtomic(amount, type, note)
     }
 
@@ -394,11 +400,11 @@ class PrintRepository(private val printDao: PrintDao) {
     
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction> = printDao.getAllBeautyTransactions()
 
-    fun getBeautyBalanceFlow(): Flow<Double?> = printDao.getBeautyBalanceFlow()
+    fun getBeautyBalanceFlow(): Flow<BigDecimal?> = printDao.getBeautyBalanceFlow()
     
-    suspend fun getBeautyBalance(): Double? = printDao.getBeautyBalance()
+    suspend fun getBeautyBalance(): BigDecimal? = printDao.getBeautyBalance()
 
-    suspend fun getCurrentBeautyBalance(): Double {
+    suspend fun getCurrentBeautyBalance(): BigDecimal {
         return printDao.getAuthoritativeWalletBalance()
     }
 
@@ -411,7 +417,7 @@ class PrintRepository(private val printDao: PrintDao) {
         printDao.reconcileBeautyAccountAtomic()
     }
 
-    suspend fun getExternalBalance(): Double? = getBeautyBalance()
+    suspend fun getExternalBalance(): BigDecimal? = getBeautyBalance()
     suspend fun getAllExternalLedgerEntries(): List<BeautyTransaction> = getAllBeautyTransactions()
 
     // --- Expenses ---
@@ -423,7 +429,7 @@ class PrintRepository(private val printDao: PrintDao) {
         }
     }
 
-    suspend fun addExpense(amount: Double, category: String, note: String?, paymentMethod: String = "CASH") {
+    suspend fun addExpense(amount: BigDecimal, category: String, note: String?, paymentMethod: String = "CASH") {
         val cat = when(category) {
             "Paper" -> ExpenseCategory.PAPER
             "Ink" -> ExpenseCategory.INK
@@ -436,7 +442,7 @@ class PrintRepository(private val printDao: PrintDao) {
 
     fun getAllExpensesFlow(): Flow<List<Expense>> = printDao.getAllExpensesFlow()
 
-    suspend fun getTotalExpenses(): Double = printDao.getTotalExpenses() ?: 0.0
+    suspend fun getTotalExpenses(): BigDecimal = printDao.getTotalExpenses() ?: BigDecimal.ZERO
 
     suspend fun deleteExpense(expenseId: Int) = printDao.deleteExpense(expenseId)
 
@@ -463,10 +469,10 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // --- Profit Analysis ---
 
-    suspend fun getNetProfit(): Double {
-        val totalRevenue = printDao.getRevenueBetween(0, Long.MAX_VALUE) ?: 0.0
-        val totalExpenses = printDao.getTotalExpenses() ?: 0.0
-        return totalRevenue - totalExpenses
+    suspend fun getNetProfit(): BigDecimal {
+        val totalRevenue = printDao.getRevenueBetween(0, Long.MAX_VALUE) ?: BigDecimal.ZERO
+        val totalExpenses = printDao.getTotalExpenses() ?: BigDecimal.ZERO
+        return totalRevenue.subtract(totalExpenses)
     }
 
     suspend fun reconcileAll() {
@@ -475,10 +481,10 @@ class PrintRepository(private val printDao: PrintDao) {
         for (order in orders) {
             val status = when {
                 order.paidAmount >= order.totalAmount -> "PAID"
-                order.paidAmount > 0 -> "PARTIALLY_PAID"
+                order.paidAmount > BigDecimal.ZERO -> "PARTIALLY_PAID"
                 else -> "UNPAID"
             }
-            val method = if (order.paymentMethod == "CASH" && order.paidAmount == 0.0) "NONE" else order.paymentMethod
+            val method = if (order.paymentMethod == "CASH" && order.paidAmount == BigDecimal.ZERO) "NONE" else order.paymentMethod
             if (order.paymentStatus != status || order.paymentMethod != method) {
                 printDao.updateOrderPaymentStatus(order.id, order.paidAmount, status, method)
             }

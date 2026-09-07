@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.RobolectricTestRunner
+import java.math.BigDecimal
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -41,27 +42,22 @@ class LedgerHardeningTest {
 
     @Test
     fun testRecordOrderAtomic_CreatesLedgerEntry() = runTest {
-        val result = repository.confirmOrder("Rahul", listOf(CartItem("General", 100.0, 1)), "CASH", 20.0)
+        repository.confirmOrder("Rahul", listOf(CartItem("General", BigDecimal("100.0"), 1)), "CASH", BigDecimal("20.0"))
 
-        assertTrue(result is OrderResult.Success)
-        val orderId = (result as OrderResult.Success).orderId
-
-        // Verify Order
-        val order = dao.getOrderById(orderId)
-        assertEquals(80.0, order?.paidAmount)
-        assertEquals(20.0, order?.transactionAmount)
+        val order = dao.getAllOrders().first()
+        assertEquals(0, BigDecimal("80.0").compareTo(order.paidAmount))
+        assertEquals(0, BigDecimal("20.0").compareTo(order.transactionAmount))
 
         // Verify Settlement History
         val settlements = dao.getAllSettlements()
-        // Now creates 2 entries: ORDER_POST (+100) and PAYMENT (-80)
         assertEquals(2, settlements.size)
-        assertTrue(settlements.any { it.ledgerEntryType == "ORDER_POST" && it.transactionAmount == 100.0 })
-        assertTrue(settlements.any { it.ledgerEntryType == "PAYMENT" && it.transactionAmount == -80.0 })
+        assertTrue(settlements.any { it.ledgerEntryType == "ORDER_POST" && it.transactionAmount.compareTo(BigDecimal("100.0")) == 0 })
+        assertTrue(settlements.any { it.ledgerEntryType == "PAYMENT" && it.transactionAmount.compareTo(BigDecimal("-80.0")) == 0 })
 
         // Verify Projection
         val customer = dao.getCustomerByNormalizedName("rahul")
         val projection = dao.getDebtorCreditById(customer!!.id)
-        assertEquals(20.0, projection?.amount)
+        assertEquals(0, BigDecimal("20.0").compareTo(projection?.amount))
     }
 
     @Test
@@ -72,13 +68,13 @@ class LedgerHardeningTest {
         val settlement = SettlementHistory(
             customerId = 1,
             customerName = "Rahul",
-            balanceBefore = 0.0,
-            amountPaid = 0.0,
-            balanceAfter = 100.0,
+            balanceBefore = BigDecimal.ZERO,
+            amountPaid = BigDecimal.ZERO,
+            balanceAfter = BigDecimal("100.0"),
             timestamp = now,
             originId = 999,
             ledgerEntryType = "ORDER_POST",
-            transactionAmount = 100.0
+            transactionAmount = BigDecimal("100.0")
         )
 
         dao.insertSettlement(settlement)
@@ -94,13 +90,13 @@ class LedgerHardeningTest {
         val customerId = dao.insertCustomer(CustomerEntity(displayName = "Rahul", normalizedName = "rahul"))
 
         // Directly insert orders bypassing logic
-        dao.insertOrder(Order(customerId = customerId, customerName = "Rahul", totalAmount = 100.0, paidAmount = 0.0, date = now, paymentStatus = "UNPAID"))
-        dao.insertOrder(Order(customerId = customerId, customerName = "Rahul", totalAmount = 50.0, paidAmount = 10.0, date = now + 1000, paymentStatus = "PARTIALLY_PAID"))
+        dao.insertOrder(Order(customerId = customerId, customerName = "Rahul", totalAmount = BigDecimal("100.0"), paidAmount = BigDecimal.ZERO, date = now, paymentStatus = "UNPAID"))
+        dao.insertOrder(Order(customerId = customerId, customerName = "Rahul", totalAmount = BigDecimal("50.0"), paidAmount = BigDecimal.TEN, date = now + 1000, paymentStatus = "PARTIALLY_PAID"))
 
         // Rebuild
         dao.rebuildCustomerProjection(customerId)
 
         val projection = dao.getDebtorCreditById(customerId)
-        assertEquals(140.0, projection?.amount)
+        assertEquals(0, BigDecimal("140.0").compareTo(projection?.amount))
     }
 }

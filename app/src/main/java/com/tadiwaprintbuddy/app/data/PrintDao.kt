@@ -1,7 +1,9 @@
 package com.tadiwaprintbuddy.app.data
 
+import android.util.Log
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import java.math.BigDecimal
 
 @Dao
 interface PrintDao {
@@ -22,25 +24,25 @@ interface PrintDao {
     suspend fun getItemsForOrder(orderId: Int): List<OrderItem>
 
     @Query("SELECT SUM(paidAmount) FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
-    fun getTotalRevenueFlow(): Flow<Double?>
+    fun getTotalRevenueFlow(): Flow<BigDecimal?>
 
     @Query("SELECT COUNT(*) FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
     fun getTotalOrdersFlow(): Flow<Int>
 
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
-    suspend fun getRevenueBetween(start: Long, end: Long): Double?
+    @Query("SELECT IFNULL(SUM(paidAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
+    suspend fun getRevenueBetween(start: Long, end: Long): BigDecimal?
 
     // Actual revenue collected (excluding credit sales)
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod != 'NONE'")
-    suspend fun getSalesRevenueBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(paidAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod != 'NONE'")
+    suspend fun getSalesRevenueBetween(start: Long, end: Long): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(totalAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
-    suspend fun getSalesVolumeBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(totalAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
+    suspend fun getSalesVolumeBetween(start: Long, end: Long): BigDecimal
 
     // Revenue from collection (authoritative money in)
     // Joined with orders to ensure only payments for existing active/legacy orders are counted
     @Query("""
-        SELECT IFNULL(SUM(sh.settledAmount), 0.0) 
+        SELECT IFNULL(SUM(CAST(sh.settledAmount AS REAL)), 0.0) 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end 
@@ -52,16 +54,16 @@ interface PrintDao {
              OR (:method = 'CASH' AND (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%'))
              OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
     """)
-    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): Double
+    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod = :method")
-    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): Double
+    @Query("SELECT IFNULL(SUM(paidAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM `expenses` WHERE timestamp BETWEEN :start AND :end")
-    suspend fun getExpensesBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(amount), '0') FROM `expenses` WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getExpensesBetween(start: Long, end: Long): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method")
-    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): Double
+    @Query("SELECT IFNULL(SUM(amount), '0') FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): BigDecimal
 
     @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
     suspend fun getOrdersCountBetween(start: Long, end: Long): Int
@@ -69,15 +71,15 @@ interface PrintDao {
     @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (:method = 'ALL' OR (:method = 'PAID_ONLY' AND paymentMethod != 'NONE') OR paymentMethod = :method)")
     suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int
 
-    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
-    suspend fun getTotalReceivables(): Double
+    @Query("SELECT IFNULL(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
+    suspend fun getTotalReceivables(): BigDecimal
 
-    @Query("SELECT COUNT(*) FROM debtor_credits WHERE amount > 0")
+    @Query("SELECT COUNT(*) FROM debtor_credits WHERE CAST(amount AS REAL) > 0")
     suspend fun getDebtorsCount(): Int
 
     @Query("""
         SELECT MIN(sh.timestamp) as timestamp, 
-               IFNULL(SUM(sh.settledAmount), 0.0) as amount 
+               IFNULL(SUM(CAST(sh.settledAmount AS REAL)), 0.0) as amount 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end
@@ -98,7 +100,7 @@ interface PrintDao {
                  WHEN sh.note LIKE '%UPI%' THEN 'UPI' 
                  ELSE 'CASH' 
                END as type, 
-               IFNULL(SUM(sh.settledAmount), 0.0) as total 
+               IFNULL(SUM(CAST(sh.settledAmount AS REAL)), 0.0) as total 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end
@@ -109,7 +111,7 @@ interface PrintDao {
     suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
 
     @Query("""
-        SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total 
+        SELECT serviceName as category, IFNULL(SUM(CAST(price AS REAL) * quantity), 0.0) as total 
         FROM `OrderItem` 
         JOIN `orders` ON orders.id = OrderItem.orderId 
         WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
@@ -118,26 +120,26 @@ interface PrintDao {
     """)
     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
 
-    @Query("SELECT category as category, SUM(amount) as total FROM `expenses` WHERE timestamp BETWEEN :start AND :end GROUP BY category")
+    @Query("SELECT category as category, SUM(CAST(amount AS REAL)) as total FROM `expenses` WHERE timestamp BETWEEN :start AND :end GROUP BY category")
     suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
 
     @Query("SELECT * FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp DESC")
     fun getFilteredBeautyTransactions(start: Long, end: Long): Flow<List<BeautyTransaction>>
 
-    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end")
-    suspend fun getBeautyReceivedBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(CAST(amount AS REAL)), 0.0) FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end")
+    suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(amount), 0.0) FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end")
-    suspend fun getBeautyReturnedBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(CAST(amount AS REAL)), 0.0) FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end")
+    suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
-    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): Double
+    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): BigDecimal
 
     @Query("SELECT COUNT(*) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
     suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int
 
     @Query("""
-        SELECT serviceName as category, IFNULL(SUM(price * quantity), 0.0) as total 
+        SELECT serviceName as category, IFNULL(SUM(CAST(price AS REAL) * quantity), 0.0) as total 
         FROM `OrderItem` 
         JOIN `orders` ON orders.id = OrderItem.orderId 
         WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
@@ -145,16 +147,16 @@ interface PrintDao {
     """)
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>>
 
-    @Query("SELECT * FROM `orders` WHERE paidAmount < totalAmount AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
+    @Query("SELECT * FROM `orders` WHERE CAST(paidAmount AS REAL) < CAST(totalAmount AS REAL) AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
     suspend fun getUnpaidOrders(): List<Order>
 
     @Query("UPDATE `orders` SET paidAmount = :newPaidAmount, paymentStatus = :status, paymentMethod = :method WHERE id = :orderId")
-    suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: Double, status: String, method: String): Int
+    suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String): Int
 
-    @Query("SELECT customerId, customerName, IFNULL(SUM(totalAmount - paidAmount), 0.0) as totalBalance, 'OWES' as type FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') GROUP BY customerId HAVING totalBalance > 0")
+    @Query("SELECT customerId, customerName, IFNULL(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)), 0.0) as totalBalance, 'OWES' as type FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') GROUP BY customerId HAVING totalBalance > 0")
     suspend fun getDebtors(): List<DebtorSummary>
 
-    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND paidAmount < totalAmount AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') ORDER BY date ASC")
+    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND CAST(paidAmount AS REAL) < CAST(totalAmount AS REAL) AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') ORDER BY date ASC")
     suspend fun getUnpaidOrdersForCustomer(customerId: Long): List<Order>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -202,11 +204,11 @@ interface PrintDao {
     @Query("SELECT * FROM customers")
     suspend fun getAllCustomers(): List<CustomerEntity>
 
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId")
-    suspend fun getLatestBalanceForCustomer(customerId: Long): Double
+    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM settlement_history WHERE customerId = :customerId")
+    suspend fun getLatestBalanceForCustomer(customerId: Long): BigDecimal
 
-    @Query("SELECT IFNULL(SUM(totalAmount - paidAmount), 0.0) FROM `orders` WHERE customerId = :customerId AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
-    suspend fun getUnpaidTotalForCustomer(customerId: Long): Double
+    @Query("SELECT IFNULL(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)), 0.0) FROM `orders` WHERE customerId = :customerId AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
+    suspend fun getUnpaidTotalForCustomer(customerId: Long): BigDecimal
 
     @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized WHERE id = :customerId")
     suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String): Int
@@ -252,11 +254,11 @@ interface PrintDao {
     suspend fun recordOrderAtomic(
         customer: CustomerEntity,
         items: List<OrderItem>,
-        total: Double,
+        total: BigDecimal,
         requestedPaymentMethod: String,
-        appliedCredit: Double,
+        appliedCredit: BigDecimal,
         currentTime: Long,
-        receivedAmount: Double? = null
+        receivedAmount: BigDecimal? = null
     ): Int {
         // 1. Stock Deduction
         for (item in items) {
@@ -269,24 +271,24 @@ interface PrintDao {
 
         // 2. Authoritative Financial Calculation (Inside Transaction)
         val previousBalance = getAuthoritativeCustomerBalance(customer.id)
-        val availableCredit = if (previousBalance < 0) -previousBalance else 0.0
+        val availableCredit = if (previousBalance < BigDecimal.ZERO) previousBalance.negate() else BigDecimal.ZERO
         
-        val cashPaid = if (requestedPaymentMethod == "OWES_ME") 0.0 else total - appliedCredit
-        val creditUsed = Math.min(availableCredit, Math.max(0.0, total - cashPaid))
+        val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
+        val creditUsed = availableCredit.min(total.subtract(cashPaid).max(BigDecimal.ZERO))
         
-        val finalPaidAmount = cashPaid + creditUsed
-        val transactionAmount = total - cashPaid // The amount added to the customer's account (Revenue)
-        val newBalance = previousBalance + transactionAmount
+        val finalPaidAmount = cashPaid.add(creditUsed)
+        val transactionAmount = total.subtract(cashPaid) // The amount added to the customer's account (Revenue)
+        val newBalance = previousBalance.add(transactionAmount)
         
         val finalPaymentMethod = if (requestedPaymentMethod == "OWES_ME") {
-            if (creditUsed > 0) "CREDIT" else "NONE"
+            if (creditUsed > BigDecimal.ZERO) "CREDIT" else "NONE"
         } else {
-            if (creditUsed > 0) "${requestedPaymentMethod}_MIXED" else requestedPaymentMethod
+            if (creditUsed > BigDecimal.ZERO) "${requestedPaymentMethod}_MIXED" else requestedPaymentMethod
         }
         
         val finalPaymentStatus = when {
             finalPaidAmount >= total -> "PAID"
-            finalPaidAmount > 0 -> "PARTIALLY_PAID"
+            finalPaidAmount > BigDecimal.ZERO -> "PARTIALLY_PAID"
             else -> "UNPAID"
         }
 
@@ -319,7 +321,7 @@ interface PrintDao {
         // 4. Ledger Entries
         // Entry 1: The Order (Revenue/Debt Creation)
         val orderBalanceBefore = previousBalance
-        val orderBalanceAfter = previousBalance + total
+        val orderBalanceAfter = previousBalance.add(total)
         
         val settlement1 = SettlementHistory(
             customerName = order.customerName,
@@ -329,7 +331,7 @@ interface PrintDao {
             balanceAfter = orderBalanceAfter,
             timestamp = currentTime,
             type = "ORDER",
-            note = "Order #$orderId (Total: ₹$total" + (if (creditUsed > 0) ", Credit used: ₹$creditUsed" else "") + ")",
+            note = "Order #$orderId (Total: ₹$total" + (if (creditUsed > BigDecimal.ZERO) ", Credit used: ₹$creditUsed" else "") + ")",
             transactionAmount = total,
             newBalance = orderBalanceAfter,
             originId = orderId,
@@ -341,9 +343,9 @@ interface PrintDao {
         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
 
         // Entry 2: Payment at counter (if any)
-        if (cashPaid > 0) {
+        if (cashPaid > BigDecimal.ZERO) {
             val paymentBalanceBefore = orderBalanceAfter
-            val paymentBalanceAfter = orderBalanceAfter - cashPaid
+            val paymentBalanceAfter = orderBalanceAfter.subtract(cashPaid)
             
             val settlement2 = SettlementHistory(
                 customerName = order.customerName,
@@ -355,7 +357,7 @@ interface PrintDao {
                 type = "PAYMENT",
                 ledgerEntryType = "PAYMENT",
                 note = "Payment for Order #$orderId via $requestedPaymentMethod",
-                transactionAmount = -cashPaid,
+                transactionAmount = cashPaid.negate(),
                 newBalance = paymentBalanceAfter,
                 originId = orderId,
                 receivedAmount = receivedAmount,
@@ -375,7 +377,7 @@ interface PrintDao {
     }
 
     @Transaction
-    suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: Double, status: String, method: String, settlement: SettlementHistory): Boolean {
+    suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String, settlement: SettlementHistory): Boolean {
         updateOrderPaymentStatus(orderId, newPaidAmount, status, method)
         
         val order = getOrderById(orderId)
@@ -429,9 +431,9 @@ interface PrintDao {
     @Transaction
     suspend fun applyPaymentToCustomerIdAtomic(
         customerId: Long, 
-        paymentAmount: Double, 
+        paymentAmount: BigDecimal, 
         paymentMethod: String,
-        receivedAmount: Double? = null
+        receivedAmount: BigDecimal? = null
     ): Boolean {
         val customer = getCustomerById(customerId) ?: return false
         val currentBalance = getAuthoritativeCustomerBalance(customerId)
@@ -441,15 +443,15 @@ interface PrintDao {
         var runningBalance = currentBalance
         var tenderAccountedFor = false
 
-        android.util.Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Start - Customer: ${customer.displayName}, Payment: $paymentAmount, Initial Balance: $currentBalance")
+        Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Start - Customer: ${customer.displayName}, Payment: $paymentAmount, Initial Balance: $currentBalance")
 
         for (order in unpaidOrders) {
-            if (remainingPayment <= 0) break
+            if (remainingPayment <= BigDecimal.ZERO) break
 
-            val amountOwed = order.totalAmount - order.paidAmount
+            val amountOwed = order.totalAmount.subtract(order.paidAmount)
             val paymentForThisOrder = if (remainingPayment >= amountOwed) amountOwed else remainingPayment
 
-            val newPaidAmount = order.paidAmount + paymentForThisOrder
+            val newPaidAmount = order.paidAmount.add(paymentForThisOrder)
             
             val newStatus = if (newPaidAmount >= order.totalAmount) "PAID" else "PARTIALLY_PAID"
             val newMethod = if (order.paymentMethod == "NONE" || order.paymentMethod == "") paymentMethod else if (order.paymentMethod == paymentMethod) paymentMethod else "MIXED"
@@ -457,9 +459,9 @@ interface PrintDao {
             updateOrderPaymentStatus(order.id, newPaidAmount, newStatus, newMethod)
 
             val balanceBefore = runningBalance
-            runningBalance -= paymentForThisOrder
+            runningBalance = runningBalance.subtract(paymentForThisOrder)
 
-            android.util.Log.d("PaymentProcess", "Allocating $paymentForThisOrder to Order #${order.id}. New Order Paid: $newPaidAmount, Order Status: $newStatus")
+            Log.d("PaymentProcess", "Allocating $paymentForThisOrder to Order #${order.id}. New Order Paid: $newPaidAmount, Order Status: $newStatus")
 
             val settlement = SettlementHistory(
                 customerName = customer.displayName,
@@ -471,7 +473,7 @@ interface PrintDao {
                 type = "PAYMENT",
                 ledgerEntryType = "PAYMENT",
                 note = "Debt Payment for Order #${order.id} via $paymentMethod",
-                transactionAmount = -paymentForThisOrder,
+                transactionAmount = paymentForThisOrder.negate(),
                 newBalance = runningBalance,
                 originId = order.id,
                 receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
@@ -484,14 +486,14 @@ interface PrintDao {
             
             tenderAccountedFor = true
 
-            remainingPayment -= paymentForThisOrder
+            remainingPayment = remainingPayment.subtract(paymentForThisOrder)
         }
 
-        if (remainingPayment > 0.001) {
+        if (remainingPayment > BigDecimal("0.001")) {
             val balanceBefore = runningBalance
-            runningBalance -= remainingPayment
+            runningBalance = runningBalance.subtract(remainingPayment)
 
-            android.util.Log.d("PaymentProcess", "Creating overpayment credit: $remainingPayment. New Balance: $runningBalance")
+            Log.d("PaymentProcess", "Creating overpayment credit: $remainingPayment. New Balance: $runningBalance")
 
             val settlement = SettlementHistory(
                 customerName = customer.displayName,
@@ -503,7 +505,7 @@ interface PrintDao {
                 type = "PAYMENT",
                 ledgerEntryType = "CREDIT",
                 note = "Overpayment Credit via $paymentMethod",
-                transactionAmount = -remainingPayment,
+                transactionAmount = remainingPayment.negate(),
                 newBalance = runningBalance,
                 receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
                 customerSyncId = customer.syncId
@@ -516,13 +518,13 @@ interface PrintDao {
                 customerName = customer.displayName,
                 customerId = customer.id,
                 balanceBefore = runningBalance,
-                amountPaid = 0.0,
+                amountPaid = BigDecimal.ZERO,
                 balanceAfter = runningBalance,
                 timestamp = System.currentTimeMillis(),
                 type = "PAYMENT",
                 ledgerEntryType = "PAYMENT",
                 note = "Physical Tender recorded",
-                transactionAmount = 0.0,
+                transactionAmount = BigDecimal.ZERO,
                 newBalance = runningBalance,
                 receivedAmount = receivedAmount,
                 customerSyncId = customer.syncId
@@ -532,7 +534,7 @@ interface PrintDao {
         }
         
         rebuildCustomerProjection(customer.id)
-        android.util.Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Finished - Final Balance: $runningBalance")
+        Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Finished - Final Balance: $runningBalance")
         return true
     }
 
@@ -556,17 +558,17 @@ interface PrintDao {
     @Transaction
     suspend fun reconcileBeautyAccountAtomic() {
         val all = getAllBeautyTransactions().sortedBy { it.timestamp }
-        var runningBalance = 0.0
+        var runningBalance = BigDecimal.ZERO
 
         for (item in all) {
             val previousBalance = runningBalance
             val transactionAmount = when (item.type) {
                 "ADD" -> item.amount
-                "RETURN" -> -item.amount
-                "RESET" -> -previousBalance
+                "RETURN" -> item.amount.negate()
+                "RESET" -> previousBalance.negate()
                 else -> item.transactionAmount
             }
-            val newBalance = if (item.type == "RESET") 0.0 else previousBalance + transactionAmount
+            val newBalance = if (item.type == "RESET") BigDecimal.ZERO else previousBalance.add(transactionAmount)
 
             val updated = item.copy(
                 previousBalance = previousBalance,
@@ -594,17 +596,17 @@ interface PrintDao {
     suspend fun recordOrderWithWalletAtomic(
         customer: CustomerEntity,
         items: List<OrderItem>,
-        total: Double,
+        total: BigDecimal,
         requestedPaymentMethod: String,
-        appliedCredit: Double,
+        appliedCredit: BigDecimal,
         currentTime: Long,
-        receivedAmount: Double? = null,
+        receivedAmount: BigDecimal? = null,
         walletNote: String? = null
     ): Int {
         val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
         
-        val cashPaid = if (requestedPaymentMethod == "OWES_ME") 0.0 else total - appliedCredit
-        if (requestedPaymentMethod == "UPI" && cashPaid > 0) {
+        val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
+        if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
             insertBeautyTransactionAtomic(cashPaid, "ADD", walletNote ?: "Direct Pay - Order #$orderId - ${customer.displayName}")
         }
         
@@ -612,15 +614,15 @@ interface PrintDao {
     }
 
     @Transaction
-    suspend fun insertBeautyTransactionAtomic(amount: Double, type: String, note: String? = null) {
+    suspend fun insertBeautyTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
         val previousBalance = getAuthoritativeWalletBalance()
         val transactionAmount = when (type) {
             "ADD" -> amount
-            "RETURN" -> -amount
-            "RESET" -> -previousBalance
+            "RETURN" -> amount.negate()
+            "RESET" -> previousBalance.negate()
             else -> amount
         }
-        val newBalance = if (type == "RESET") 0.0 else previousBalance + transactionAmount
+        val newBalance = if (type == "RESET") BigDecimal.ZERO else previousBalance.add(transactionAmount)
 
         insertBeautyTransaction(
             BeautyTransaction(
@@ -637,9 +639,9 @@ interface PrintDao {
     @Transaction
     suspend fun applyPaymentToCustomerIdWithWalletAtomic(
         customerId: Long, 
-        paymentAmount: Double, 
+        paymentAmount: BigDecimal, 
         paymentMethod: String,
-        receivedAmount: Double? = null
+        receivedAmount: BigDecimal? = null
     ): Boolean {
         val success = applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
         if (success && paymentMethod == "UPI") {
@@ -652,14 +654,14 @@ interface PrintDao {
     @Transaction
     suspend fun recordPaymentWithWalletAtomic(
         orderId: Int, 
-        newPaidAmount: Double, 
+        newPaidAmount: BigDecimal, 
         status: String, 
         method: String, 
         settlement: SettlementHistory,
-        walletDelta: Double
+        walletDelta: BigDecimal
     ): Boolean {
         recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
-        if (method == "UPI" && walletDelta > 0) {
+        if (method == "UPI" && walletDelta > BigDecimal.ZERO) {
             insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId - ${settlement.customerName}")
         }
         return true
@@ -670,10 +672,10 @@ interface PrintDao {
         orderId: Int, 
         status: String, 
         settlement: SettlementHistory,
-        walletReturnAmount: Double
+        walletReturnAmount: BigDecimal
     ): Boolean {
         cancelOrderAtomic(orderId, status, settlement)
-        if (walletReturnAmount > 0) {
+        if (walletReturnAmount > BigDecimal.ZERO) {
              insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId - ${settlement.customerName}")
         }
         return true
@@ -681,9 +683,9 @@ interface PrintDao {
 
     @Query("""
         SELECT (
-            SELECT amount FROM debtor_credits WHERE customerId = :customerId
+            SELECT CAST(amount AS REAL) FROM debtor_credits WHERE customerId = :customerId
         ) == (
-            SELECT IFNULL(SUM(transactionAmount), 0.0) FROM settlement_history WHERE customerId = :customerId
+            SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM settlement_history WHERE customerId = :customerId
         )
     """)
     suspend fun verifyCustomerBalance(customerId: Long): Boolean
@@ -703,41 +705,41 @@ interface PrintDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExternalLedger(entry: ExternalLedger): Long
 
-    @Query("SELECT SUM(amount) FROM external_ledger")
-    suspend fun getExternalBalance(): Double?
+    @Query("SELECT SUM(CAST(amount AS REAL)) FROM external_ledger")
+    suspend fun getExternalBalance(): BigDecimal?
 
     // --- Authoritative customer balance derived from full ledger ---
     @Query("""
         SELECT CASE 
             WHEN EXISTS (SELECT 1 FROM settlement_history WHERE customerId = :customerId)
-            THEN IFNULL((SELECT SUM(transactionAmount) FROM settlement_history WHERE customerId = :customerId), 0.0)
-            ELSE IFNULL((SELECT SUM(totalAmount - paidAmount) FROM orders WHERE customerId = :customerId AND orderStatus = 'ACTIVE'), 0.0)
+            THEN IFNULL((SELECT SUM(CAST(transactionAmount AS REAL)) FROM settlement_history WHERE customerId = :customerId), 0.0)
+            ELSE IFNULL((SELECT SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)) FROM orders WHERE customerId = :customerId AND orderStatus = 'ACTIVE'), 0.0)
         END
     """)
-    suspend fun getAuthoritativeCustomerBalance(customerId: Long): Double
+    suspend fun getAuthoritativeCustomerBalance(customerId: Long): BigDecimal
 
     // --- Authoritative wallet/beauty balance derived from full digital history ---
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM beauty_transactions")
-    suspend fun getAuthoritativeWalletBalance(): Double
+    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM beauty_transactions")
+    suspend fun getAuthoritativeWalletBalance(): BigDecimal
 
     // --- Corrected cash-in-hand that includes ledger payments and subtracts cash expenses ---
     @Query("""
         SELECT (
-            IFNULL((SELECT SUM(settledAmount) FROM settlement_history WHERE ledgerEntryType IN ('PAYMENT', 'CREDIT') AND (note IS NULL OR note NOT LIKE '%UPI%')), 0.0)
-            - IFNULL((SELECT SUM(amount) FROM expenses WHERE paymentMethod = 'CASH'), 0.0)
+            IFNULL((SELECT SUM(CAST(settledAmount AS REAL)) FROM settlement_history WHERE ledgerEntryType IN ('PAYMENT', 'CREDIT') AND (note IS NULL OR note NOT LIKE '%UPI%')), 0.0)
+            - IFNULL((SELECT SUM(CAST(amount AS REAL)) FROM expenses WHERE paymentMethod = 'CASH'), 0.0)
         )
     """)
-    fun getAuthoritativeCashInHandFlow(): Flow<Double?>
+    fun getAuthoritativeCashInHandFlow(): Flow<BigDecimal?>
 
     // --- Corrected receivables derived from full ledger ---
     @Query("""
         SELECT CASE 
             WHEN EXISTS (SELECT 1 FROM settlement_history)
-            THEN IFNULL((SELECT SUM(transactionAmount) FROM settlement_history), 0.0)
-            ELSE IFNULL((SELECT SUM(totalAmount - paidAmount) FROM orders WHERE orderStatus = 'ACTIVE'), 0.0)
+            THEN IFNULL((SELECT SUM(CAST(transactionAmount AS REAL)) FROM settlement_history), 0.0)
+            ELSE IFNULL((SELECT SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)) FROM orders WHERE orderStatus = 'ACTIVE'), 0.0)
         END
     """)
-    fun getAuthoritativeTotalReceivablesFlow(): Flow<Double?>
+    fun getAuthoritativeTotalReceivablesFlow(): Flow<BigDecimal?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBeautyTransaction(transaction: BeautyTransaction): Long
@@ -748,14 +750,14 @@ interface PrintDao {
     @Query("SELECT * FROM `beauty_transactions`")
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction>
 
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions`")
-    fun getBeautyBalanceFlow(): Flow<Double?>
+    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions`")
+    fun getBeautyBalanceFlow(): Flow<BigDecimal?>
 
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions`")
-    suspend fun getBeautyBalance(): Double?
+    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions`")
+    suspend fun getBeautyBalance(): BigDecimal?
 
-    @Query("SELECT IFNULL(SUM(transactionAmount), 0.0) FROM `beauty_transactions`")
-    suspend fun getCurrentBeautyBalance(): Double
+    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions`")
+    suspend fun getCurrentBeautyBalance(): BigDecimal
 
     @Delete
     suspend fun deleteBeautyTransaction(transaction: BeautyTransaction): Int
@@ -767,7 +769,7 @@ interface PrintDao {
     suspend fun updateBeautyTransaction(transaction: BeautyTransaction): Int
 
     @Query("SELECT newBalance FROM `beauty_transactions` WHERE timestamp < :timestamp OR (timestamp = :timestamp AND id < :id) ORDER BY timestamp DESC, id DESC LIMIT 1")
-    suspend fun getBeautyBalanceBefore(timestamp: Long, id: Int): Double?
+    suspend fun getBeautyBalanceBefore(timestamp: Long, id: Int): BigDecimal?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExpense(expense: Expense): Long
@@ -775,8 +777,8 @@ interface PrintDao {
     @Query("SELECT * FROM `expenses` ORDER BY timestamp DESC")
     fun getAllExpensesFlow(): Flow<List<Expense>>
 
-    @Query("SELECT SUM(amount) FROM `expenses`")
-    suspend fun getTotalExpenses(): Double?
+    @Query("SELECT SUM(CAST(amount AS REAL)) FROM `expenses`")
+    suspend fun getTotalExpenses(): BigDecimal?
 
     @Query("DELETE FROM `expenses` WHERE id = :id")
     suspend fun deleteExpense(id: Int): Int

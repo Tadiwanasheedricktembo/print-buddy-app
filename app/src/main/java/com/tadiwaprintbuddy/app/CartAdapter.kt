@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.tadiwaprintbuddy.app.databinding.ItemCartBinding
+import java.math.BigDecimal
 
 class CartAdapter(
     private val items: MutableList<CartItem>,
@@ -11,7 +12,7 @@ class CartAdapter(
 ) : RecyclerView.Adapter<CartAdapter.ViewHolder>() {
 
     interface OnCartChangedListener {
-        fun onCartUpdated(total: Double)
+        fun onCartUpdated(total: BigDecimal)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -25,7 +26,13 @@ class CartAdapter(
 
     override fun getItemCount(): Int = items.size
 
-    fun getTotal(): Double = items.sumOf { it.getSubtotal().toDouble() }
+    fun getTotal(): BigDecimal {
+        var total = BigDecimal.ZERO
+        for (item in items) {
+            total = total.add(item.getSubtotal())
+        }
+        return total
+    }
 
     private fun notifyTotalChanged() {
         listener.onCartUpdated(getTotal())
@@ -42,7 +49,7 @@ class CartAdapter(
             binding.buttonPlus.setOnClickListener {
                 item.quantity++
                 binding.textCartQuantity.text = item.quantity.toString()
-                binding.textCartSubtotal.text = "Subtotal: R %.2f".format(item.getSubtotal())
+                binding.textCartSubtotal.text = "Subtotal: ₹ %.2f".format(item.getSubtotal())
                 notifyTotalChanged()
             }
 
@@ -50,7 +57,7 @@ class CartAdapter(
                 if (item.quantity > 1) {
                     item.quantity--
                     binding.textCartQuantity.text = item.quantity.toString()
-                    binding.textCartSubtotal.text = "Subtotal: R %.2f".format(item.getSubtotal())
+                    binding.textCartSubtotal.text = "Subtotal: ₹ %.2f".format(item.getSubtotal())
                     notifyTotalChanged()
                 }
             }

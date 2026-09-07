@@ -14,10 +14,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.tadiwaprintbuddy.app.databinding.BottomSheetPaymentBinding
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
-class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Unit) : BottomSheetDialogFragment() {
+class PaymentBottomSheet(private val onConfirm: (String, String, BigDecimal?) -> Unit) : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetPaymentBinding? = null
     private val binding get() = _binding!!
@@ -43,8 +44,8 @@ class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Uni
         
         // Pre-fill tender if available from calculator
         val received = viewModel.uiState.value.receivedAmount
-        if (received != null && received > 0) {
-            binding.editAmountReceived.setText(received.toString())
+        if (received != null && received.compareTo(BigDecimal.ZERO) > 0) {
+            binding.editAmountReceived.setText(received.toPlainString())
         }
     }
 
@@ -70,7 +71,8 @@ class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Uni
 
         binding.editAmountReceived.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                val amount = s?.toString()?.toDoubleOrNull()
+                val amountStr = s?.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
                 viewModel.onReceivedAmountChanged(amount)
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -86,7 +88,8 @@ class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Uni
             }
             
             val receivedAmount = if (isPaidSelected && method == "CASH") {
-                binding.editAmountReceived.text.toString().toDoubleOrNull()
+                val str = binding.editAmountReceived.text.toString()
+                try { BigDecimal(str) } catch (e: Exception) { null }
             } else if (isPaidSelected && method == "UPI") {
                 viewModel.uiState.value.balanceToPay
             } else null
@@ -100,7 +103,7 @@ class PaymentBottomSheet(private val onConfirm: (String, String, Double?) -> Uni
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
-                    binding.textChangeAmount.text = currencyFormat.format(state.changeAmount)
+                    binding.textChangeAmount.text = currencyFormat.format(state.changeAmount.toDouble())
                 }
             }
         }

@@ -1,9 +1,9 @@
 package com.tadiwaprintbuddy.app
 
+import android.R
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +15,7 @@ import com.tadiwaprintbuddy.app.data.Order
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityOrderDetailsBinding
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -61,12 +62,12 @@ class OrderDetailsActivity : AppCompatActivity() {
         val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
         binding.textOrderId.text = "Order #${order.id}"
         binding.textOrderDate.text = dateFormat.format(order.date)
-        binding.textOrderTotal.text = "Total: ₹ %.2f".format(order.totalAmount)
+        binding.textOrderTotal.text = "Total: ₹ %.2f".format(order.totalAmount.toDouble())
 
-        val pendingAmount = order.totalAmount - order.paidAmount
-        if (pendingAmount > 0) {
+        val pendingAmount = order.totalAmount.subtract(order.paidAmount)
+        if (pendingAmount.compareTo(BigDecimal.ZERO) > 0) {
             binding.textPaymentStatus.visibility = View.VISIBLE
-            binding.textPaymentStatus.text = "Pending: ₹ %.2f".format(pendingAmount)
+            binding.textPaymentStatus.text = "Pending: ₹ %.2f".format(pendingAmount.toDouble())
             binding.buttonPayNow.visibility = View.VISIBLE
             binding.buttonPayNow.setOnClickListener {
                 showPaymentMethodDialog(pendingAmount, order)
@@ -77,9 +78,9 @@ class OrderDetailsActivity : AppCompatActivity() {
         }
     }
 
-    private fun showPaymentMethodDialog(amount: Double, order: Order) {
+    private fun showPaymentMethodDialog(amount: BigDecimal, order: Order) {
         val methods = arrayOf("CASH", "UPI")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, methods)
+        val adapter = ArrayAdapter(this, R.layout.simple_list_item_1, methods)
         
         AlertDialog.Builder(this)
             .setTitle("Select Payment Method")
@@ -95,25 +96,22 @@ class OrderDetailsActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun processCashPayment(amount: Double, order: Order) {
+    private fun processCashPayment(amount: BigDecimal, order: Order) {
         lifecycleScope.launch {
-            // Updating existing order. In a real repository we might have a specific method for this.
-            // For now we use the general logic: update order paid amount and set method to CASH
-            repository.updatePayment(order.id, order.paidAmount + amount)
+            repository.updatePayment(order.id, order.paidAmount.add(amount))
             Toast.makeText(this@OrderDetailsActivity, "Payment received in Cash", Toast.LENGTH_SHORT).show()
             finish()
             startActivity(intent)
         }
     }
 
-    private fun showPaymentQr(amount: Double, orderId: Int) {
+    private fun showPaymentQr(amount: BigDecimal, orderId: Int) {
         val paymentDialog = PaymentDialogFragment.newInstance(amount, orderId)
         paymentDialog.setOnPaymentConfirmedListener {
             lifecycleScope.launch {
                 val currentOrder = viewModel.order.value
                 if (currentOrder != null) {
-                    // Pass the NEW total paid amount
-                    repository.updatePayment(orderId, currentOrder.paidAmount + amount, "UPI")
+                    repository.updatePayment(orderId, currentOrder.paidAmount.add(amount), "UPI")
                 }
                 finish() 
                 startActivity(intent)

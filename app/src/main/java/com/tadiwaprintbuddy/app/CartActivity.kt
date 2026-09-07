@@ -5,6 +5,8 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
@@ -12,6 +14,7 @@ import com.tadiwaprintbuddy.app.data.OrderResult
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityCartBinding
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
 
@@ -95,8 +98,8 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
                     
                     paymentDialog.show(supportFragmentManager, "payment_qr")
                     
-                    supportFragmentManager.registerFragmentLifecycleCallbacks(object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
-                        override fun onFragmentDestroyed(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+                    supportFragmentManager.registerFragmentLifecycleCallbacks(object : FragmentManager.FragmentLifecycleCallbacks() {
+                        override fun onFragmentDestroyed(fm: FragmentManager, f: Fragment) {
                             if (f is PaymentDialogFragment) {
                                 finish()
                                 supportFragmentManager.unregisterFragmentLifecycleCallbacks(this)
@@ -120,12 +123,13 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
         }
     }
 
-    override fun onCartUpdated(total: Double) {
+    override fun onCartUpdated(total: BigDecimal) {
         updateTotal(total)
         binding.buttonCompleteOrder.isEnabled = cartItems.isNotEmpty()
     }
 
-    private fun updateTotal(total: Double) {
-        binding.textTotal.text = getString(R.string.cart_total_format, total)
+    private fun updateTotal(total: BigDecimal) {
+        // Use toDouble() for formatting in UI if needed, but the value is exact BigDecimal
+        binding.textTotal.text = getString(R.string.cart_total_format, total.toDouble())
     }
 }

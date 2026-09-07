@@ -1,25 +1,30 @@
 package com.tadiwaprintbuddy.app
 
+import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.card.MaterialCardView
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.BeautyTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityBeautyAccountBinding
-import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -78,7 +83,7 @@ class BeautyAccountActivity : AppCompatActivity() {
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener { 
             finish() 
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, android.R.anim.fade_in, android.R.anim.fade_out)
             } else {
                 @Suppress("DEPRECATION")
@@ -99,8 +104,8 @@ class BeautyAccountActivity : AppCompatActivity() {
     }
 
     private fun showResetConfirmDialog() {
-        val currentBalance = viewModel.balance.value ?: 0.0
-        if (currentBalance == 0.0) {
+        val currentBalance = viewModel.balance.value ?: BigDecimal.ZERO
+        if (currentBalance.compareTo(BigDecimal.ZERO) == 0) {
             Toast.makeText(this, "Balance is already zero", Toast.LENGTH_SHORT).show()
             return
         }
@@ -121,16 +126,16 @@ class BeautyAccountActivity : AppCompatActivity() {
         val format = NumberFormat.getCurrencyInstance(locale)
 
         viewModel.balance.observe(this) { balance ->
-            val current = balance ?: 0.0
+            val current = balance ?: BigDecimal.ZERO
             
-            binding.textCurrentBalance.text = format.format(kotlin.math.abs(current))
+            binding.textCurrentBalance.text = format.format(current.abs().toDouble())
             binding.textCurrentBalance.setTextColor(Color.WHITE)
             
-            if (current == 0.0) {
-                binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 42f)
+            if (current.compareTo(BigDecimal.ZERO) == 0) {
+                binding.textCurrentBalance.setTextSize(TypedValue.COMPLEX_UNIT_SP, 42f)
                 binding.textCurrentBalance.alpha = 0.5f
             } else {
-                binding.textCurrentBalance.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 48f)
+                binding.textCurrentBalance.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48f)
                 binding.textCurrentBalance.alpha = 1.0f
             }
         }
@@ -141,12 +146,12 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         viewModel.periodSummary.observe(this) { summary ->
             binding.textSummaryPeriodName.text = viewModel.filterPeriod.value?.uppercase()
-            binding.textSummaryReceived.text = format.format(kotlin.math.abs(summary.received))
-            binding.textSummaryReturned.text = format.format(kotlin.math.abs(summary.returned))
+            binding.textSummaryReceived.text = format.format(summary.received.abs().toDouble())
+            binding.textSummaryReturned.text = format.format(summary.returned.abs().toDouble())
             
             val netFlow = summary.netFlow
-            binding.textSummaryNetFlow.text = format.format(kotlin.math.abs(netFlow))
-            binding.textSummaryNetFlow.setTextColor(if (netFlow >= 0) Color.parseColor("#00C853") else Color.parseColor("#FF5252"))
+            binding.textSummaryNetFlow.text = format.format(netFlow.abs().toDouble())
+            binding.textSummaryNetFlow.setTextColor(if (netFlow.compareTo(BigDecimal.ZERO) >= 0) Color.parseColor("#00C853") else Color.parseColor("#FF5252"))
             
             binding.textSummaryCount.text = summary.count.toString()
             binding.textTransactionCount.text = getString(R.string.upi_transactions_count, summary.count)
@@ -163,8 +168,9 @@ class BeautyAccountActivity : AppCompatActivity() {
             .setMessage(R.string.upi_add_message)
             .setView(input)
             .setPositiveButton("Add") { _, _ ->
-                val amount = input.text.toString().toDoubleOrNull()
-                if (amount != null && amount > 0) {
+                val amountStr = input.text.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
+                if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
                     viewModel.addMoney(amount, "Manual Entry")
                 } else {
                     Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show()
@@ -175,8 +181,8 @@ class BeautyAccountActivity : AppCompatActivity() {
     }
 
     private fun showReturnMoneyDialog() {
-        val currentBalance = viewModel.balance.value ?: 0.0
-        if (currentBalance <= 0) {
+        val currentBalance = viewModel.balance.value ?: BigDecimal.ZERO
+        if (currentBalance.compareTo(BigDecimal.ZERO) <= 0) {
             Toast.makeText(this, "No balance to return", Toast.LENGTH_SHORT).show()
             return
         }
@@ -187,16 +193,17 @@ class BeautyAccountActivity : AppCompatActivity() {
 
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
-        val balanceStr = format.format(currentBalance)
+        val balanceStr = format.format(currentBalance.toDouble())
 
         AlertDialog.Builder(this)
             .setTitle(R.string.return_upi_money)
             .setMessage(getString(R.string.upi_withdraw_message, balanceStr))
             .setView(input)
             .setPositiveButton("Record") { _, _ ->
-                val amount = input.text.toString().toDoubleOrNull()
-                if (amount != null && amount > 0) {
-                    if (amount > currentBalance) {
+                val amountStr = input.text.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
+                if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
+                    if (amount.compareTo(currentBalance) > 0) {
                         Toast.makeText(this, R.string.upi_insufficient_balance, Toast.LENGTH_SHORT).show()
                     } else {
                         viewModel.returnMoney(amount, "Manual Return")
@@ -213,7 +220,7 @@ class BeautyAccountActivity : AppCompatActivity() {
     override fun onBackPressed() {
         @Suppress("DEPRECATION")
         super.onBackPressed()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, android.R.anim.fade_in, android.R.anim.fade_out)
         } else {
             @Suppress("DEPRECATION")
@@ -222,7 +229,7 @@ class BeautyAccountActivity : AppCompatActivity() {
     }
 
     private class TransactionAdapter(
-        private val context: android.content.Context,
+        private val context: Context,
         private val onLongPress: (BeautyTransaction) -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var originalTransactions = listOf<BeautyTransaction>()
@@ -300,32 +307,32 @@ class BeautyAccountActivity : AppCompatActivity() {
 
                 when (item.type) {
                     "ADD" -> {
-                        holder.textAmount.text = format.format(kotlin.math.abs(item.amount))
+                        holder.textAmount.text = format.format(item.amount.abs().toDouble())
                         holder.textAmount.setTextColor(0xFF00C853.toInt()) // primary_accent
                         holder.imageTransactionType.setImageResource(R.drawable.ic_check)
-                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                        holder.imageTransactionType.imageTintList = ColorStateList.valueOf(Color.WHITE)
                         holder.cardIcon.setCardBackgroundColor(0xFF00C853.toInt())
                     }
                     "RETURN" -> {
-                        holder.textAmount.text = format.format(kotlin.math.abs(item.amount))
+                        holder.textAmount.text = format.format(item.amount.abs().toDouble())
                         holder.textAmount.setTextColor(0xFFFF5252.toInt()) // destructive
                         holder.imageTransactionType.setImageResource(R.drawable.ic_history)
-                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                        holder.imageTransactionType.imageTintList = ColorStateList.valueOf(Color.WHITE)
                         holder.cardIcon.setCardBackgroundColor(0xFFFF5252.toInt())
                     }
                     "RESET" -> {
-                        holder.textAmount.text = format.format(kotlin.math.abs(item.amount))
+                        holder.textAmount.text = format.format(item.amount.abs().toDouble())
                         holder.textAmount.setTextColor(0xFFFFB300.toInt()) // warning
                         holder.imageTransactionType.setImageResource(android.R.drawable.ic_menu_delete)
-                        holder.imageTransactionType.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                        holder.imageTransactionType.imageTintList = ColorStateList.valueOf(Color.WHITE)
                         holder.cardIcon.setCardBackgroundColor(0xFFFFB300.toInt())
                     }
                 }
 
                 // Balance Clarity
-                if (item.newBalance != 0.0 || item.previousBalance != 0.0) {
+                if (item.newBalance.compareTo(BigDecimal.ZERO) != 0 || item.previousBalance.compareTo(BigDecimal.ZERO) != 0) {
                     holder.layoutClarity.visibility = View.VISIBLE
-                    val flowText = "Balance: ${format.format(kotlin.math.abs(item.previousBalance))} → ${format.format(kotlin.math.abs(item.newBalance))}"
+                    val flowText = "Balance: ${format.format(item.previousBalance.abs().toDouble())} → ${format.format(item.newBalance.abs().toDouble())}"
                     holder.textBalanceFlow.text = flowText
                 } else {
                     holder.layoutClarity.visibility = View.GONE
@@ -344,8 +351,8 @@ class BeautyAccountActivity : AppCompatActivity() {
             val textNote: TextView = view.findViewById(R.id.textNote)
             val textTimestamp: TextView = view.findViewById(R.id.textTimestamp)
             val textAmount: TextView = view.findViewById(R.id.textAmount)
-            val imageTransactionType: android.widget.ImageView = view.findViewById(R.id.imageTransactionType)
-            val cardIcon: com.google.android.material.card.MaterialCardView = view.findViewById(R.id.cardIcon)
+            val imageTransactionType: ImageView = view.findViewById(R.id.imageTransactionType)
+            val cardIcon: MaterialCardView = view.findViewById(R.id.cardIcon)
             val layoutClarity: View = view.findViewById(R.id.layoutClarity)
             val textBalanceFlow: TextView = view.findViewById(R.id.textBalanceFlow)
         }
@@ -353,7 +360,7 @@ class BeautyAccountActivity : AppCompatActivity() {
         class HeaderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val textHeaderTitle: TextView = view.findViewById(R.id.textHeaderTitle)
             val textItemCount: TextView = view.findViewById(R.id.textItemCount)
-            val imageChevron: android.widget.ImageView = view.findViewById(R.id.imageChevron)
+            val imageChevron: ImageView = view.findViewById(R.id.imageChevron)
         }
     }
 }

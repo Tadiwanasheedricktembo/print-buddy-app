@@ -1,15 +1,16 @@
 package com.tadiwaprintbuddy.app
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileWriter
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -190,8 +192,8 @@ class DebtorCreditActivity : AppCompatActivity() {
         // 1. Apply category filter
         filteredList = when (currentFilter) {
             FilterMode.ALL -> filteredList
-            FilterMode.OWES_ME -> filteredList.filter { it.amount > 0 }
-            FilterMode.I_OWE_CHANGE -> filteredList.filter { it.amount < 0 }
+            FilterMode.OWES_ME -> filteredList.filter { it.amount.compareTo(BigDecimal.ZERO) > 0 }
+            FilterMode.I_OWE_CHANGE -> filteredList.filter { it.amount.compareTo(BigDecimal.ZERO) < 0 }
         }
         
         // 2. Apply search filter
@@ -220,7 +222,7 @@ class DebtorCreditActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_debtors, menu)
         return true
     }
@@ -256,8 +258,8 @@ class DebtorCreditActivity : AppCompatActivity() {
 
                 // Data
                 allDebtorCredits.forEach { debtor ->
-                    val status = if (debtor.amount > 0) "OWES ME" else "I OWE CHANGE"
-                    val displayAmount = if (debtor.amount > 0) debtor.amount else -debtor.amount
+                    val status = if (debtor.amount.compareTo(BigDecimal.ZERO) > 0) "OWES ME" else "I OWE CHANGE"
+                    val displayAmount = debtor.amount.abs()
                     val lastUpdated = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(debtor.lastUpdated))
                     
                     writer.append("${debtor.customerName.replace(",", " ")},$status,$displayAmount,$lastUpdated\n")
@@ -296,13 +298,13 @@ class DebtorCreditActivity : AppCompatActivity() {
     }
 
     private fun updateTotals(debtorCredits: List<DebtorCredit>) {
-        val totalOwedToMe = debtorCredits.filter { it.amount > 0 }.sumOf { it.amount }
-        val totalIOwe = debtorCredits.filter { it.amount < 0 }.sumOf { -it.amount }
+        val totalOwedToMe = debtorCredits.filter { it.amount.compareTo(BigDecimal.ZERO) > 0 }.fold(BigDecimal.ZERO) { acc, d -> acc.add(d.amount) }
+        val totalIOwe = debtorCredits.filter { it.amount.compareTo(BigDecimal.ZERO) < 0 }.fold(BigDecimal.ZERO) { acc, d -> acc.add(d.amount.negate()) }
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
 
-        binding.textTotalOwedToMe.text = format.format(totalOwedToMe)
-        binding.textTotalIOwe.text = format.format(totalIOwe)
+        binding.textTotalOwedToMe.text = format.format(totalOwedToMe.toDouble())
+        binding.textTotalIOwe.text = format.format(totalIOwe.toDouble())
     }
 
     private fun showSettlePaymentDialog(debtorCredit: DebtorCredit) {
@@ -315,16 +317,18 @@ class DebtorCreditActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Apply Payment") { _, _ ->
 
-                val paymentAmount = editPaymentAmount.text.toString().toDoubleOrNull()
-                val receivedAmount = editReceivedAmount.text.toString().toDoubleOrNull()
+                val paymentAmountStr = editPaymentAmount.text.toString()
+                val paymentAmount = try { BigDecimal(paymentAmountStr) } catch (e: Exception) { null }
+                val receivedAmountStr = editReceivedAmount.text.toString()
+                val receivedAmount = try { BigDecimal(receivedAmountStr) } catch (e: Exception) { null }
 
-                if (paymentAmount == null || paymentAmount <= 0.0) {
+                if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
                     Toast.makeText(this, "Enter a valid amount", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
                 val currentAmount = debtorCredit.amount
-                val amountDelta = if (currentAmount >= 0) -paymentAmount else paymentAmount
+                val amountDelta = if (currentAmount.compareTo(BigDecimal.ZERO) >= 0) paymentAmount.negate() else paymentAmount
 
                 lifecycleScope.launch {
                     repository.addOrUpdateDebtorCredit(debtorCredit.customerName, amountDelta, receivedAmount = receivedAmount)
@@ -355,15 +359,16 @@ class DebtorCreditActivity : AppCompatActivity() {
             .setPositiveButton("Save") { _, _ ->
 
                 val customerName = editCustomerName.text.toString()
-                val amount = editAmount.text.toString().toDoubleOrNull()
+                val amountStr = editAmount.text.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
 
-                if (customerName.isBlank() || amount == null || amount <= 0.0) {
+                if (customerName.isBlank() || amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
                     Toast.makeText(this, "Enter valid details", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
                 val selectedType = spinnerType.selectedItem.toString()
-                val finalAmount = if (selectedType == "I Owe Change") -amount else amount
+                val finalAmount = if (selectedType == "I Owe Change") amount.negate() else amount
 
                 lifecycleScope.launch {
                     repository.addOrUpdateDebtorCredit(customerName, finalAmount)
@@ -376,25 +381,26 @@ class DebtorCreditActivity : AppCompatActivity() {
 
     private fun showEditBalanceDialog(debtorCredit: DebtorCredit) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_edit_balance, null)
-        val textCurrentBalance = dialogView.findViewById<android.widget.TextView>(R.id.textCurrentBalance)
+        val textCurrentBalance = dialogView.findViewById<TextView>(R.id.textCurrentBalance)
         val editNewBalance = dialogView.findViewById<EditText>(R.id.editNewBalance)
-        val textAdjustment = dialogView.findViewById<android.widget.TextView>(R.id.textAdjustment)
+        val textAdjustment = dialogView.findViewById<TextView>(R.id.textAdjustment)
         val editReason = dialogView.findViewById<EditText>(R.id.editReason)
 
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
 
         val currentBalance = debtorCredit.amount
-        textCurrentBalance.text = format.format(currentBalance)
-        editNewBalance.setText(currentBalance.toString())
+        textCurrentBalance.text = format.format(currentBalance.toDouble())
+        editNewBalance.setText(currentBalance.toPlainString())
 
         val updateAdjustment = {
-            val newVal = editNewBalance.text.toString().toDoubleOrNull() ?: 0.0
-            val delta = newVal - currentBalance
-            textAdjustment.text = format.format(delta)
-            if (delta > 0) {
+            val newValStr = editNewBalance.text.toString()
+            val newVal = try { BigDecimal(newValStr) } catch (e: Exception) { BigDecimal.ZERO }
+            val delta = newVal.subtract(currentBalance)
+            textAdjustment.text = format.format(delta.toDouble())
+            if (delta.compareTo(BigDecimal.ZERO) > 0) {
                 textAdjustment.setTextColor(ContextCompat.getColor(this, R.color.brand_error))
-            } else if (delta < 0) {
+            } else if (delta.compareTo(BigDecimal.ZERO) < 0) {
                 textAdjustment.setTextColor(ContextCompat.getColor(this, R.color.brand_primary))
             } else {
                 textAdjustment.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
@@ -415,7 +421,8 @@ class DebtorCreditActivity : AppCompatActivity() {
             .setTitle("Edit Balance for ${debtorCredit.customerName}")
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
-                val newBalance = editNewBalance.text.toString().toDoubleOrNull()
+                val newBalanceStr = editNewBalance.text.toString()
+                val newBalance = try { BigDecimal(newBalanceStr) } catch (e: Exception) { null }
                 if (newBalance == null) {
                     Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton

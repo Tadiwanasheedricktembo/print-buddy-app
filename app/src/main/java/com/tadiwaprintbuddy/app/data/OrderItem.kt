@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.math.BigDecimal
 import java.util.UUID
 
 @Entity(
@@ -23,7 +24,7 @@ data class OrderItem(
     val id: Int = 0,
     val orderId: Int,
     val serviceName: String,
-    val price: Double,
+    val price: BigDecimal,
     val quantity: Int,
     
     // Global Identity

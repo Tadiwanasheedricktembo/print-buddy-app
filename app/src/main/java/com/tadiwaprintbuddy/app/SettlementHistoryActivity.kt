@@ -6,6 +6,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.LayoutInflater
@@ -29,6 +31,7 @@ import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.data.SettlementHistory
 import com.tadiwaprintbuddy.app.data.BusinessEvent
 import com.tadiwaprintbuddy.app.databinding.ActivitySettlementHistoryBinding
+import com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding
 import com.tadiwaprintbuddy.app.databinding.ItemSettlementBinding
 import com.tadiwaprintbuddy.app.databinding.ItemSettlementGroupBinding
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +42,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileWriter
 import java.io.InputStreamReader
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,7 +59,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
     private var allSettlements: List<SettlementHistory> = emptyList()
 
     private val restorePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
+        if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
                 showRestoreConfirmDialog(uri)
             }
@@ -121,12 +125,12 @@ class SettlementHistoryActivity : AppCompatActivity() {
     }
 
     private fun setupSearch() {
-        binding.editSearch.addTextChangedListener(object : android.text.TextWatcher {
+        binding.editSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 viewModel.setSearchQuery(s?.toString() ?: "")
             }
-            override fun afterTextChanged(s: android.text.Editable?) {}
+            override fun afterTextChanged(s: Editable?) {}
         })
     }
 
@@ -252,9 +256,9 @@ class SettlementHistoryActivity : AppCompatActivity() {
                 // Data
                 data.forEach {
                     writer.append("${it.customerName},")
-                    writer.append("${it.balanceBefore},")
-                    writer.append("${it.amountPaid},")
-                    writer.append("${it.balanceAfter},")
+                    writer.append("${it.balanceBefore.toPlainString()},")
+                    writer.append("${it.amountPaid.toPlainString()},")
+                    writer.append("${it.balanceAfter.toPlainString()},")
                     writer.append("${it.type},")
                     writer.append("${it.note.replace(",", " ")},")
                     writer.append("${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(it.timestamp))}\n")
@@ -315,13 +319,13 @@ class GroupedSettlementAdapter(
         holder.binding.textTransactionCount.text = "${group.events.size} activities"
         
         val balance = group.totalOwed
-        if (balance > 0) {
-            holder.binding.textTotalOwed.text = format.format(balance)
+        if (balance.compareTo(BigDecimal.ZERO) > 0) {
+            holder.binding.textTotalOwed.text = format.format(balance.toDouble())
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
             holder.binding.textBalanceLabel.text = "AMOUNT DUE"
             holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
-        } else if (balance < 0) {
-            holder.binding.textTotalOwed.text = format.format(Math.abs(balance))
+        } else if (balance.compareTo(BigDecimal.ZERO) < 0) {
+            holder.binding.textTotalOwed.text = format.format(balance.abs().toDouble())
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
             holder.binding.textBalanceLabel.text = "CUSTOMER CREDIT"
             holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
@@ -333,15 +337,15 @@ class GroupedSettlementAdapter(
         }
 
         // Business Oriented Summary Metrics
-        val ordersTotal = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.sumOf { it.transactionAmount }
-        val cashReceived = group.rawTransactions.filter { it.ledgerEntryType in listOf("PAYMENT", "CREDIT") }.sumOf { it.amountPaid }
-        val outstandingDebt = if (balance > 0) balance else 0.0
-        val customerCredit = if (balance < 0) -balance else 0.0
+        val ordersTotal = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.transactionAmount) }
+        val cashReceived = group.rawTransactions.filter { it.ledgerEntryType in listOf("PAYMENT", "CREDIT") }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.amountPaid) }
+        val outstandingDebt = if (balance.compareTo(BigDecimal.ZERO) > 0) balance else BigDecimal.ZERO
+        val customerCredit = if (balance.compareTo(BigDecimal.ZERO) < 0) balance.negate() else BigDecimal.ZERO
 
-        holder.binding.textOrdersTotal.text = format.format(ordersTotal)
-        holder.binding.textCashReceived.text = format.format(cashReceived)
-        holder.binding.textOutstandingDebt.text = format.format(outstandingDebt)
-        holder.binding.textCustomerCredit.text = format.format(customerCredit)
+        holder.binding.textOrdersTotal.text = format.format(ordersTotal.toDouble())
+        holder.binding.textCashReceived.text = format.format(cashReceived.toDouble())
+        holder.binding.textOutstandingDebt.text = format.format(outstandingDebt.toDouble())
+        holder.binding.textCustomerCredit.text = format.format(customerCredit.toDouble())
 
         holder.binding.recyclerTransactions.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
         holder.binding.layoutSummary.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
@@ -402,7 +406,7 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
             val view = inflater.inflate(R.layout.item_ledger_date_header, parent, false)
             DateHeaderViewHolder(view)
         } else {
-            EventViewHolder(com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding.inflate(inflater, parent, false))
+            EventViewHolder(ItemLedgerEntryBinding.inflate(inflater, parent, false))
         }
     }
 
@@ -428,8 +432,8 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
         val balAfter = event.balanceAfter
         val context = holder.itemView.context
         binding.textNewBalance.text = when {
-            balAfter < 0 -> "${context.getString(R.string.customer_credit_label)}: ${format.format(Math.abs(balAfter))}"
-            balAfter > 0 -> "${context.getString(R.string.amount_due)}: ${format.format(balAfter)}"
+            balAfter.compareTo(BigDecimal.ZERO) < 0 -> "${context.getString(R.string.customer_credit_label)}: ${format.format(balAfter.abs().toDouble())}"
+            balAfter.compareTo(BigDecimal.ZERO) > 0 -> "${context.getString(R.string.amount_due)}: ${format.format(balAfter.toDouble())}"
             else -> context.getString(R.string.no_outstanding_balance)
         }
         binding.lineTop.visibility = if (position > 0 && timelineItems[position-1] !is String) View.VISIBLE else View.INVISIBLE
@@ -437,58 +441,58 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
         when (event) {
             is BusinessEvent.PaymentReceived -> {
                 binding.textLabel.text = "Payment Received"
-                binding.textNote.text = "Paid ${format.format(event.totalPaid)}"
-                binding.textAmount.text = "− ${format.format(event.totalPaid)}"
+                binding.textNote.text = "Paid ${format.format(event.totalPaid.toDouble())}"
+                binding.textAmount.text = "− ${format.format(event.totalPaid.toDouble())}"
                 binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_success))
                 
                 binding.textEventBreakdown.text = buildString {
-                    if (event.debtCleared > 0) {
-                        append("✓ Applied to outstanding debt .. ${format.format(event.debtCleared)}\n")
+                    if (event.debtCleared.compareTo(BigDecimal.ZERO) > 0) {
+                        append("✓ Applied to outstanding debt .. ${format.format(event.debtCleared.toDouble())}\n")
                     }
-                    if (event.creditCreated > 0) {
-                        append("✓ Added to customer credit ...... ${format.format(event.creditCreated)}\n")
+                    if (event.creditCreated.compareTo(BigDecimal.ZERO) > 0) {
+                        append("✓ Added to customer credit ...... ${format.format(event.creditCreated.toDouble())}\n")
                     }
                     
                     append("\nStatus: ")
-                    if (event.balanceAfter < 0) append("${context.getString(R.string.customer_credit_label)} ${format.format(Math.abs(event.balanceAfter))}")
-                    else if (event.balanceAfter > 0) append("${context.getString(R.string.amount_due)} ${format.format(event.balanceAfter)}")
+                    if (event.balanceAfter.compareTo(BigDecimal.ZERO) < 0) append("${context.getString(R.string.customer_credit_label)} ${format.format(event.balanceAfter.abs().toDouble())}")
+                    else if (event.balanceAfter.compareTo(BigDecimal.ZERO) > 0) append("${context.getString(R.string.amount_due)} ${format.format(event.balanceAfter.toDouble())}")
                     else append("Account Cleared")
                 }
             }
             is BusinessEvent.NewOrder -> {
-                binding.textLabel.text = if (event.outstanding > 0) "Partial Payment" else "New Order"
-                binding.textNote.text = "Order Total: ${format.format(event.orderTotal)}"
-                binding.textAmount.text = "+ ${format.format(event.orderTotal)}"
+                binding.textLabel.text = if (event.outstanding.compareTo(BigDecimal.ZERO) > 0) "Partial Payment" else "New Order"
+                binding.textNote.text = "Order Total: ${format.format(event.orderTotal.toDouble())}"
+                binding.textAmount.text = "+ ${format.format(event.orderTotal.toDouble())}"
                 binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
 
                 binding.textEventBreakdown.text = buildString {
-                    if (event.creditUsed > 0) append("• Used Credit ............ ${format.format(event.creditUsed)}\n")
-                    if (event.cashPaid > 0) append("• Cash Paid .............. ${format.format(event.cashPaid)}\n")
+                    if (event.creditUsed.compareTo(BigDecimal.ZERO) > 0) append("• Used Credit ............ ${format.format(event.creditUsed.toDouble())}\n")
+                    if (event.cashPaid.compareTo(BigDecimal.ZERO) > 0) append("• Cash Paid .............. ${format.format(event.cashPaid.toDouble())}\n")
 
                     // Show Physical Tender for initial sale
                     event.receivedAmount?.let { received ->
-                        if (received > event.cashPaid) {
-                            append("• Cash Received ............ ${format.format(received)}\n")
-                            append("• Change Given ............. ${format.format(received - event.cashPaid)}\n")
+                        if (received.compareTo(event.cashPaid) > 0) {
+                            append("• Cash Received ............ ${format.format(received.toDouble())}\n")
+                            append("• Change Given ............. ${format.format(received.subtract(event.cashPaid).toDouble())}\n")
                         }
                     }
 
-                    if (event.outstanding > 0) append("• Outstanding ............ ${format.format(event.outstanding)}")
+                    if (event.outstanding.compareTo(BigDecimal.ZERO) > 0) append("• Outstanding ............ ${format.format(event.outstanding.toDouble())}")
                     else append("• Outstanding ............ Cleared")
                 }
             }
             is BusinessEvent.DebtAdded -> {
                 binding.textLabel.text = "Debt Added"
                 binding.textNote.text = event.note
-                binding.textAmount.text = "+ ${format.format(event.amount)}"
+                binding.textAmount.text = "+ ${format.format(event.amount.toDouble())}"
                 binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
                 binding.textEventBreakdown.text = "Customer purchased on credit."
             }
             is BusinessEvent.Adjustment -> {
                 binding.textLabel.text = "Adjustment"
                 binding.textNote.text = event.note
-                val prefix = if (event.amount >= 0) "+ " else "− "
-                binding.textAmount.text = "$prefix${format.format(Math.abs(event.amount))}"
+                val prefix = if (event.amount.compareTo(BigDecimal.ZERO) >= 0) "+ " else "− "
+                binding.textAmount.text = "$prefix${format.format(event.amount.abs().toDouble())}"
                 binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.text_secondary))
                 binding.textEventBreakdown.text = "Manual account adjustment."
             }
@@ -514,5 +518,5 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
     override fun getItemCount() = timelineItems.size
 
     class DateHeaderViewHolder(view: View) : RecyclerView.ViewHolder(view)
-    class EventViewHolder(val binding: com.tadiwaprintbuddy.app.databinding.ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
+    class EventViewHolder(val binding: ItemLedgerEntryBinding) : RecyclerView.ViewHolder(binding.root)
 }

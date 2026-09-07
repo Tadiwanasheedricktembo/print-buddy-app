@@ -1,10 +1,12 @@
 package com.tadiwaprintbuddy.app
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.tadiwaprintbuddy.app.data.Order
 import com.tadiwaprintbuddy.app.databinding.ItemDebtBinding
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -33,23 +35,23 @@ class DebtAdapter(
         fun bind(order: Order) {
             val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
             val format = NumberFormat.getCurrencyInstance(locale)
-            val remainingAmount = order.totalAmount - order.paidAmount
+            val remainingAmount = order.totalAmount.subtract(order.paidAmount)
 
             binding.textCustomerName.text = order.customerName
             binding.textOrderId.text = "Order #${order.id}"
-            binding.textTotalAmount.text = "Total: ${format.format(order.totalAmount)}"
-            binding.textPaidAmount.text = "Paid: ${format.format(order.paidAmount)}"
-            binding.textRemainingAmount.text = "Remaining: ${format.format(remainingAmount)}"
+            binding.textTotalAmount.text = "Total: ${format.format(order.totalAmount.toDouble())}"
+            binding.textPaidAmount.text = "Paid: ${format.format(order.paidAmount.toDouble())}"
+            binding.textRemainingAmount.text = "Remaining: ${format.format(remainingAmount.toDouble())}"
 
             binding.buttonUpdatePayment.setOnClickListener {
                 onUpdatePaymentClicked(order)
             }
 
-            if (order.newBalance != 0.0 || order.previousBalance != 0.0) {
-                binding.layoutClarity.visibility = android.view.View.VISIBLE
-                binding.textBalanceSnapshot.text = "Snapshot: ${format.format(order.previousBalance)} → ${format.format(order.newBalance)}"
+            if (order.newBalance.compareTo(BigDecimal.ZERO) != 0 || order.previousBalance.compareTo(BigDecimal.ZERO) != 0) {
+                binding.layoutClarity.visibility = View.VISIBLE
+                binding.textBalanceSnapshot.text = "Snapshot: ${format.format(order.previousBalance.toDouble())} → ${format.format(order.newBalance.toDouble())}"
             } else {
-                binding.layoutClarity.visibility = android.view.View.GONE
+                binding.layoutClarity.visibility = View.GONE
             }
         }
     }

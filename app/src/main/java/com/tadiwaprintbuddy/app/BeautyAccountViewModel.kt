@@ -7,12 +7,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.util.*
 
 data class BeautyPeriodSummary(
-    val received: Double,
-    val returned: Double,
-    val netFlow: Double,
+    val received: BigDecimal,
+    val returned: BigDecimal,
+    val netFlow: BigDecimal,
     val count: Int
 )
 
@@ -73,6 +74,7 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
                 cal.set(Calendar.HOUR_OF_DAY, 0)
                 cal.set(Calendar.MINUTE, 0)
                 cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
             }
             "This Month" -> {
                 cal.set(Calendar.DAY_OF_MONTH, 1)
@@ -85,14 +87,14 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
         return Pair(cal.timeInMillis, end)
     }
 
-    fun addMoney(amount: Double, note: String?) {
+    fun addMoney(amount: BigDecimal, note: String?) {
         viewModelScope.launch {
             repository.insertBeautyTransaction(amount, "ADD", note)
             calculateSummary(_filterPeriod.value)
         }
     }
 
-    fun returnMoney(amount: Double, note: String?) {
+    fun returnMoney(amount: BigDecimal, note: String?) {
         viewModelScope.launch {
             repository.insertBeautyTransaction(amount, "RETURN", note)
             calculateSummary(_filterPeriod.value)
@@ -102,8 +104,8 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
     fun resetBalance() {
         viewModelScope.launch {
             val currentBalance = repository.getCurrentBeautyBalance()
-            if (currentBalance != 0.0) {
-                repository.insertBeautyTransaction(0.0, "RESET", "Balance reset to zero")
+            if (currentBalance.compareTo(BigDecimal.ZERO) != 0) {
+                repository.insertBeautyTransaction(BigDecimal.ZERO, "RESET", "Balance reset to zero")
                 calculateSummary(_filterPeriod.value)
             }
         }

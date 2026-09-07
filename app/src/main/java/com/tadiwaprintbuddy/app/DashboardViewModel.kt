@@ -9,9 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.abs
 
 data class BusinessInsight(
     val title: String,
@@ -28,8 +29,8 @@ data class DashboardUiState(
     val serviceBreakdown: List<CategoryRevenue> = emptyList(),
     val expenseBreakdown: List<CategoryRevenue> = emptyList(),
     val insights: List<BusinessInsight> = emptyList(),
-    val upiWalletBalance: Double = 0.0,
-    val totalReceivables: Double = 0.0,
+    val upiWalletBalance: BigDecimal = BigDecimal.ZERO,
+    val totalReceivables: BigDecimal = BigDecimal.ZERO,
     val debtorsCount: Int = 0,
     val isLoading: Boolean = true,
     val showZeroExpenseWarning: Boolean = false
@@ -63,7 +64,6 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val method = state.paymentMethod.uppercase()
 
             // 1. Revenue (Authoritative Collection - Money In)
-            // Logic: Include only settlements for orders that are still ACTIVE/LEGACY
             val revenue = repository.getSettledRevenueByMethodBetween(start, end, method)
             val prevRevenue = repository.getSettledRevenueByMethodBetween(prevStart, prevEnd, method)
 
@@ -75,8 +75,6 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val prevExpenses = if (method == "ALL" || method == "ALL_PAYMENTS") repository.getExpensesBetween(prevStart, prevEnd) else repository.getExpensesByMethodBetween(prevStart, prevEnd, method)
 
             // 4. Orders & Counts
-            // Logic: Analytics All matches All Orders (including Credit)
-            // Logic: Analytics All_Payments matches All Payments (excluding Credit)
             val ordersCount = when (method) {
                 "ALL" -> repository.getOrdersCountBetween(start, end)
                 "ALL_PAYMENTS" -> repository.getOrdersCountByMethodBetween(start, end, "PAID_ONLY")
@@ -89,15 +87,16 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             }
 
             // 5. Cash in Hand (Period Specific Flow)
-            // Robust calculation: (Cash from orders + Cash from debt) - Cash expenses
             val cashCollected = repository.getSettledRevenueByMethodBetween(start, end, "CASH")
             val cashExpenses = repository.getExpensesByMethodBetween(start, end, "CASH")
-            val cashInHand = cashCollected - cashExpenses
+            val cashInHand = cashCollected.subtract(cashExpenses)
 
             // Financial Metrics
-            val netProfit = revenue - expenses
-            val prevNetProfit = prevRevenue - prevExpenses
-            val profitMargin = if (revenue > 0) (netProfit / revenue) * 100 else 0.0
+            val netProfit = revenue.subtract(expenses)
+            val prevNetProfit = prevRevenue.subtract(prevExpenses)
+            val profitMargin = if (revenue > BigDecimal.ZERO) {
+                netProfit.divide(revenue, 4, RoundingMode.HALF_UP).multiply(BigDecimal(100)).toDouble()
+            } else 0.0
 
             val metrics = PeriodMetrics(
                 revenue = revenue,
@@ -123,7 +122,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val services = repository.getServiceBreakdownBetween(start, end)
             val expenseBreakdown = repository.getExpenseBreakdownBetween(start, end)
 
-            // Insights (Using Sales Volume for Avg Order to be accurate)
+            // Insights
             val insights = calculateInsights(salesVolume, ordersCount, upiNetFlow, totalReceivables, debtorsCount, cashInHand, trend)
 
             _uiState.update {
@@ -138,36 +137,36 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                     totalReceivables = totalReceivables,
                     debtorsCount = debtorsCount,
                     isLoading = false,
-                    showZeroExpenseWarning = expenses == 0.0 && revenue > 0
+                    showZeroExpenseWarning = expenses == BigDecimal.ZERO && revenue > BigDecimal.ZERO
                 )
             }
         }
     }
 
     private fun calculateInsights(
-        salesVolume: Double,
+        salesVolume: BigDecimal,
         ordersCount: Int,
-        upiNetFlow: Double,
-        totalReceivables: Double,
+        upiNetFlow: BigDecimal,
+        totalReceivables: BigDecimal,
         debtorsCount: Int,
-        cashInHand: Double,
+        cashInHand: BigDecimal,
         trend: List<TrendPoint>
     ): List<BusinessInsight> {
         val list = mutableListOf<BusinessInsight>()
         
-        list.add(BusinessInsight("📊 Work Value", "₹${String.format(Locale.ENGLISH, "%.2f", salesVolume)}", "Total jobs this period"))
-        list.add(BusinessInsight("💵 Cash Flow", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand)}", "Net cash collected"))
+        list.add(BusinessInsight("📊 Work Value", "₹${String.format(Locale.ENGLISH, "%.2f", salesVolume.toDouble())}", "Total jobs this period"))
+        list.add(BusinessInsight("💵 Cash Flow", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand.toDouble())}", "Net cash collected"))
         
-        val upiSign = if (upiNetFlow >= 0) "+" else "-"
+        val upiSign = if (upiNetFlow >= BigDecimal.ZERO) "+" else "-"
         list.add(BusinessInsight("📱 UPI Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f",
-            abs(upiNetFlow)
+            upiNetFlow.abs().toDouble()
         )}", "Net digital movement"))
         
-        list.add(BusinessInsight("⏳ Outstanding", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables)}", "Debt from $debtorsCount customers"))
+        list.add(BusinessInsight("⏳ Outstanding", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables.toDouble())}", "Debt from $debtorsCount customers"))
 
         if (ordersCount > 0) {
-            val avg = salesVolume / ordersCount
-            list.add(BusinessInsight("📈 Avg Job", "₹${String.format(Locale.ENGLISH, "%.2f", avg)}", "Value per order"))
+            val avg = salesVolume.divide(BigDecimal(ordersCount), 2, RoundingMode.HALF_UP)
+            list.add(BusinessInsight("📈 Avg Job", "₹${String.format(Locale.ENGLISH, "%.2f", avg.toDouble())}", "Value per order"))
         }
 
         // Peak Day
@@ -175,7 +174,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val peak = trend.maxByOrNull { it.amount }
             if (peak != null) {
                 val day = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(peak.timestamp))
-                list.add(BusinessInsight("📅 Peak Day", day, "₹${String.format(Locale.ENGLISH, "%.0f", peak.amount)} peak"))
+                list.add(BusinessInsight("📅 Peak Day", day, "₹${String.format(Locale.ENGLISH, "%.0f", peak.amount.toDouble())} peak"))
             }
         }
 

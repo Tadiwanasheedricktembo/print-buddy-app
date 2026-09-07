@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.tadiwaprintbuddy.app.data.Order
 import com.tadiwaprintbuddy.app.databinding.ItemOrderBinding
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -48,7 +49,7 @@ class OrdersAdapter(
             binding.textDeletedIndicator.visibility = View.GONE
 
             binding.textOrderId.text = "Order #${order.id}"
-            val amountStr = currencyFormat.format(order.totalAmount).replace(" ", "")
+            val amountStr = currencyFormat.format(order.totalAmount.toDouble()).replace(" ", "")
             binding.textAmount.text = amountStr
             binding.textDate.text = dateFormat.format(order.date)
 
@@ -101,14 +102,14 @@ class OrdersAdapter(
             }
 
             // Balance Clarity Logic
-            if (order.newBalance != 0.0 || order.previousBalance != 0.0) {
+            if (order.newBalance.compareTo(BigDecimal.ZERO) != 0 || order.previousBalance.compareTo(BigDecimal.ZERO) != 0) {
                 binding.layoutClarity.visibility = View.VISIBLE
-                binding.textPrevBalance.text = currencyFormat.format(order.previousBalance).replace(" ", "")
-                binding.textNewBalance.text = currencyFormat.format(order.newBalance).replace(" ", "")
+                binding.textPrevBalance.text = currencyFormat.format(order.previousBalance.toDouble()).replace(" ", "")
+                binding.textNewBalance.text = currencyFormat.format(order.newBalance.toDouble()).replace(" ", "")
                 
                 val delta = order.transactionAmount
-                val deltaStr = currencyFormat.format(Math.abs(delta)).replace(" ", "")
-                if (delta > 0) {
+                val deltaStr = currencyFormat.format(delta.abs().toDouble()).replace(" ", "")
+                if (delta.compareTo(BigDecimal.ZERO) > 0) {
                     binding.textTransAmount.text = "+ $deltaStr"
                     binding.textTransAmount.setTextColor(Color.parseColor("#FF5252"))
                 } else {

@@ -11,6 +11,7 @@ import com.tadiwaprintbuddy.app.data.Order
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityDebtBinding
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -47,10 +48,10 @@ class DebtActivity : AppCompatActivity() {
     }
 
     private fun updateTotalOwed(orders: List<Order>) {
-        val totalOwed = orders.sumOf { it.totalAmount - it.paidAmount }
+        val totalOwed = orders.fold(BigDecimal.ZERO) { acc, order -> acc.add(order.totalAmount.subtract(order.paidAmount)) }
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
-        binding.textTotalOwed.text = format.format(totalOwed)
+        binding.textTotalOwed.text = format.format(totalOwed.toDouble())
     }
 
     private fun showUpdatePaymentDialog(order: Order) {
@@ -61,8 +62,9 @@ class DebtActivity : AppCompatActivity() {
             .setTitle("Update Payment for ${order.customerName}")
             .setView(dialogView)
             .setPositiveButton("Update") { _, _ ->
-                val additionalPayment = editAdditionalPayment.text.toString().toDoubleOrNull() ?: 0.0
-                val newPaidAmount = order.paidAmount + additionalPayment
+                val additionalPaymentStr = editAdditionalPayment.text.toString()
+                val additionalPayment = try { BigDecimal(additionalPaymentStr) } catch (e: Exception) { BigDecimal.ZERO }
+                val newPaidAmount = order.paidAmount.add(additionalPayment)
                 lifecycleScope.launch {
                     repository.updatePayment(order.id, newPaidAmount, "CASH")
                     loadDebts()

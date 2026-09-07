@@ -22,6 +22,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.Expense
+import com.tadiwaprintbuddy.app.data.ExpenseCategory
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityExpenseBinding
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileWriter
 import java.io.InputStreamReader
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,7 +47,7 @@ class ExpenseActivity : AppCompatActivity() {
     private var allExpenses: List<Expense> = emptyList()
 
     private val restorePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
+        if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
                 showRestoreConfirmDialog(uri)
             }
@@ -110,16 +112,16 @@ class ExpenseActivity : AppCompatActivity() {
             repository.getAllExpensesFlow().collectLatest { expenses ->
                 allExpenses = expenses
                 adapter.updateExpenses(expenses)
-                updateTotal(expenses.sumOf { it.amount })
+                updateTotal(expenses.fold(BigDecimal.ZERO) { acc, e -> acc.add(e.amount) })
                 binding.textEmpty.visibility = if (expenses.isEmpty()) View.VISIBLE else View.GONE
             }
         }
     }
 
-    private fun updateTotal(total: Double) {
+    private fun updateTotal(total: BigDecimal) {
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
-        binding.textTotalExpenses.text = format.format(total)
+        binding.textTotalExpenses.text = format.format(total.toDouble())
     }
 
     private fun showAddExpenseDialog() {
@@ -138,12 +140,13 @@ class ExpenseActivity : AppCompatActivity() {
             .setTitle("Add New Expense")
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
-                val amount = editAmount.text.toString().toDoubleOrNull() ?: 0.0
+                val amountStr = editAmount.text.toString()
+                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { BigDecimal.ZERO }
                 val category = editCategory.text.toString()
                 val note = editNote.text.toString()
                 val method = spinnerPaymentMethod.selectedItem.toString()
 
-                if (amount > 0 && category.isNotBlank()) {
+                if (amount.compareTo(BigDecimal.ZERO) > 0 && category.isNotBlank()) {
                     lifecycleScope.launch {
                         repository.addExpense(amount, category, note.ifBlank { null }, method)
                         Toast.makeText(this@ExpenseActivity, "Expense added", Toast.LENGTH_SHORT).show()
@@ -159,7 +162,7 @@ class ExpenseActivity : AppCompatActivity() {
     private fun showDeleteExpenseDialog(expense: Expense) {
         AlertDialog.Builder(this)
             .setTitle("Delete Expense")
-            .setMessage("Are you sure you want to delete this expense of ${expense.amount}?")
+            .setMessage("Are you sure you want to delete this expense of ${expense.amount.toPlainString()}?")
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch {
                     repository.deleteExpense(expense.id)
@@ -234,7 +237,7 @@ class ExpenseActivity : AppCompatActivity() {
                 val writer = FileWriter(file)
                 writer.append("Category,Amount,Method,Note,Timestamp\n")
                 data.forEach {
-                    writer.append("${it.category},${it.amount},${it.paymentMethod},${it.note?.replace(",", " ") ?: ""},${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(it.timestamp))}\n")
+                    writer.append("${it.category},${it.amount.toPlainString()},${it.paymentMethod},${it.note?.replace(",", " ") ?: ""},${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(it.timestamp))}\n")
                 }
                 writer.flush()
                 writer.close()

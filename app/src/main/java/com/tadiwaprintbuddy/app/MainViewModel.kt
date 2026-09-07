@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.tadiwaprintbuddy.app.data.OrderResult
 import com.tadiwaprintbuddy.app.data.PrintRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -13,20 +14,18 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
+import java.math.BigDecimal
 
 data class OrderUiState(
     val customerName: String = "",
     val quantity: Int = 1,
-    val price: Double = 0.0,
-    val total: Double = 0.0,
-    val existingBalance: Double = 0.0,
-    val creditUsed: Double = 0.0,
-    val balanceToPay: Double = 0.0,
-    val receivedAmount: Double? = null,
-    val changeAmount: Double = 0.0,
+    val price: BigDecimal = BigDecimal.ZERO,
+    val total: BigDecimal = BigDecimal.ZERO,
+    val existingBalance: BigDecimal = BigDecimal.ZERO,
+    val creditUsed: BigDecimal = BigDecimal.ZERO,
+    val balanceToPay: BigDecimal = BigDecimal.ZERO,
+    val receivedAmount: BigDecimal? = null,
+    val changeAmount: BigDecimal = BigDecimal.ZERO,
     val isCompleteEnabled: Boolean = false,
     val isLoading: Boolean = false
 )
@@ -39,7 +38,7 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
     private val _events = MutableSharedFlow<MainEvent>()
     val events: SharedFlow<MainEvent> = _events.asSharedFlow()
 
-    private var calculationJob: kotlinx.coroutines.Job? = null
+    private var calculationJob: Job? = null
 
     sealed class MainEvent {
         object OrderCompleted : MainEvent()
@@ -56,31 +55,31 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
         calculateTotals()
     }
 
-    fun onPriceChanged(price: Double) {
+    fun onPriceChanged(price: BigDecimal) {
         _uiState.update { it.copy(price = price) }
         calculateTotals()
     }
 
-    fun onReceivedAmountChanged(amount: Double?) {
+    fun onReceivedAmountChanged(amount: BigDecimal?) {
         _uiState.update { 
-            val change = if (amount != null && amount > it.balanceToPay) amount - it.balanceToPay else 0.0
+            val change = if (amount != null && amount > it.balanceToPay) amount.subtract(it.balanceToPay) else BigDecimal.ZERO
             it.copy(receivedAmount = amount, changeAmount = change) 
         }
     }
 
     private fun calculateTotals() {
         val current = _uiState.value
-        val total = current.quantity * current.price
+        val total = current.price.multiply(BigDecimal(current.quantity))
         
         calculationJob?.cancel()
         calculationJob = viewModelScope.launch {
             val balance = if (current.customerName.isNotBlank()) {
                 repository.getCustomerBalance(current.customerName)
-            } else 0.0
+            } else BigDecimal.ZERO
 
-            val creditAvailable = if (balance < 0) abs(balance) else 0.0
-            val creditUsed = if (total > 0) min(total, creditAvailable) else 0.0
-            val toPay = max(0.0, total - creditUsed)
+            val creditAvailable = if (balance < BigDecimal.ZERO) balance.negate() else BigDecimal.ZERO
+            val creditUsed = if (total > BigDecimal.ZERO) total.min(creditAvailable) else BigDecimal.ZERO
+            val toPay = total.subtract(creditUsed).max(BigDecimal.ZERO)
 
             _uiState.update {
                 it.copy(
@@ -88,7 +87,7 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
                     existingBalance = balance,
                     creditUsed = creditUsed,
                     balanceToPay = toPay,
-                    isCompleteEnabled = it.quantity > 0 && it.price > 0
+                    isCompleteEnabled = it.quantity > 0 && it.price > BigDecimal.ZERO
                 )
             }
         }
@@ -99,7 +98,7 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
         if (current.isLoading) return
         
         // --- Authority Validation ---
-        if (current.total <= 0.0) {
+        if (current.total <= BigDecimal.ZERO) {
             viewModelScope.launch { _events.emit(MainEvent.ShowError("Enter a valid amount greater than ₹0")) }
             return
         }
@@ -161,9 +160,9 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
             OrderUiState(
                 customerName = "",
                 quantity = 1,
-                price = 0.0,
+                price = BigDecimal.ZERO,
                 receivedAmount = null,
-                changeAmount = 0.0
+                changeAmount = BigDecimal.ZERO
             )
         }
     }

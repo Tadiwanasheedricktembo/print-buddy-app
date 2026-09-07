@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.tadiwaprintbuddy.app.data.AppDatabase
+import com.tadiwaprintbuddy.app.data.BusinessEventMapper
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.data.SettlementHistory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.math.BigDecimal
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -41,12 +43,12 @@ class TransactionSortingTest {
         db.close()
     }
 
-    private fun createSettlement(id: Int, customerId: Long, timestamp: Long, balanceAfter: Double = 0.0) = SettlementHistory(
+    private fun createSettlement(id: Int, customerId: Long, timestamp: Long, balanceAfter: BigDecimal = BigDecimal.ZERO) = SettlementHistory(
         id = id,
         customerId = customerId,
         customerName = "Test",
-        balanceBefore = 0.0,
-        amountPaid = 0.0,
+        balanceBefore = BigDecimal.ZERO,
+        amountPaid = BigDecimal.ZERO,
         balanceAfter = balanceAfter,
         timestamp = timestamp,
         newBalance = balanceAfter
@@ -114,16 +116,16 @@ class TransactionSortingTest {
     @Test
     fun `test changing sort does not change customer balance`() {
         val now = System.currentTimeMillis()
-        val t1 = createSettlement(1, 1, now, 10.0)
-        val t2 = createSettlement(2, 1, now + 1000, 20.0)
+        val t1 = createSettlement(1, 1, now, BigDecimal.TEN)
+        val t2 = createSettlement(2, 1, now + 1000, BigDecimal("20.0"))
         
         val settlements = listOf(t1, t2)
         
         val newestGroups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.NEWEST_FIRST, "", emptySet())
-        assertEquals(20.0, newestGroups[0].totalOwed, 0.0)
+        assertEquals(BigDecimal("20.0").toDouble(), newestGroups[0].totalOwed.toDouble(), 0.0)
         
         val oldestGroups = viewModel.groupAndSort(settlements, emptyList(), TransactionSortOrder.OLDEST_FIRST, "", emptySet())
-        assertEquals(20.0, oldestGroups[0].totalOwed, 0.0)
+        assertEquals(BigDecimal("20.0").toDouble(), oldestGroups[0].totalOwed.toDouble(), 0.0)
     }
 
     @Test
@@ -132,7 +134,7 @@ class TransactionSortingTest {
         val t1 = createSettlement(1, 1, now)
         val t2 = createSettlement(2, 1, now + 1000)
         
-        val mapper = com.tadiwaprintbuddy.app.data.BusinessEventMapper()
+        val mapper = BusinessEventMapper()
         val events = mapper.map(listOf(t2, t1)).sortedByDescending { it.timestamp }
         val adapter = BusinessEventAdapter(events)
         

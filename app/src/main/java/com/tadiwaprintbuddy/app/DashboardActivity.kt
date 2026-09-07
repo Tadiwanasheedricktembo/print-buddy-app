@@ -1,22 +1,25 @@
 package com.tadiwaprintbuddy.app
 
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.github.mikephil.charting.charts.HorizontalBarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.google.android.material.chip.Chip
 import com.tadiwaprintbuddy.app.data.*
 import com.tadiwaprintbuddy.app.databinding.ActivityDashboardBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -80,8 +83,6 @@ class DashboardActivity : AppCompatActivity() {
         binding.bannerZeroExpense.setOnClickListener {
             showAddExpenseSheet()
         }
-
-        // Add today's summary card clicks if needed
     }
 
     private fun showAddExpenseSheet() {
@@ -95,7 +96,7 @@ class DashboardActivity : AppCompatActivity() {
                 updateMetrics(state.metrics)
                 updateCharts(state)
                 updateInsights(state.insights)
-                binding.textUpiWalletBalanceCallout.text = currencyFormat.format(state.upiWalletBalance)
+                binding.textUpiWalletBalanceCallout.text = currencyFormat.format(state.upiWalletBalance.toDouble())
                 binding.bannerZeroExpense.visibility = if (state.showZeroExpenseWarning) View.VISIBLE else View.GONE
             }
         }
@@ -103,9 +104,9 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun updateMetrics(metrics: PeriodMetrics?) {
         if (metrics == null) return
-        binding.textTotalRevenue.text = currencyFormat.format(metrics.revenue)
-        binding.textNetProfit.text = currencyFormat.format(metrics.netProfit)
-        binding.textTotalExpenses.text = currencyFormat.format(metrics.expenses)
+        binding.textTotalRevenue.text = currencyFormat.format(metrics.revenue.toDouble())
+        binding.textNetProfit.text = currencyFormat.format(metrics.netProfit.toDouble())
+        binding.textTotalExpenses.text = currencyFormat.format(metrics.expenses.toDouble())
         binding.textOrdersCount.text = metrics.ordersCount.toString()
         
         binding.textProfitMarginPercent.text = String.format(Locale.ENGLISH, "%.0f%%", metrics.profitMargin)
@@ -115,25 +116,25 @@ class DashboardActivity : AppCompatActivity() {
         updateTrendBadge(binding.badgeRevenue, metrics.revenue, metrics.previousRevenue)
         updateTrendBadge(binding.badgeExpenses, metrics.expenses, metrics.previousExpenses, isInverted = true)
         updateTrendBadge(binding.badgeNetProfit, metrics.netProfit, metrics.previousNetProfit)
-        updateTrendBadge(binding.badgeOrders, metrics.ordersCount.toDouble(), metrics.previousOrdersCount.toDouble(), showPercent = false)
+        updateTrendBadge(binding.badgeOrders, BigDecimal(metrics.ordersCount), BigDecimal(metrics.previousOrdersCount), showPercent = false)
     }
 
-    private fun updateTrendBadge(textView: TextView, current: Double, previous: Double, isInverted: Boolean = false, showPercent: Boolean = true) {
-        if (previous == 0.0) {
+    private fun updateTrendBadge(textView: TextView, current: BigDecimal, previous: BigDecimal, isInverted: Boolean = false, showPercent: Boolean = true) {
+        if (previous.compareTo(BigDecimal.ZERO) == 0) {
             textView.visibility = View.GONE
             return
         }
         textView.visibility = View.VISIBLE
-        val diff = current - previous
-        val isUp = diff >= 0
+        val diff = current.subtract(previous)
+        val isUp = diff.compareTo(BigDecimal.ZERO) >= 0
         
         if (showPercent) {
-            val percent = (Math.abs(diff) / previous) * 100
+            val percent = diff.abs().divide(previous, 4, RoundingMode.HALF_UP).multiply(BigDecimal(100)).toDouble()
             val sign = if (isUp) "▲" else "▼"
             textView.text = String.format(Locale.ENGLISH, "%s %.0f%%", sign, percent)
         } else {
             val sign = if (isUp) "+" else "-"
-            textView.text = String.format(Locale.ENGLISH, "%s %.0f", sign, Math.abs(diff))
+            textView.text = String.format(Locale.ENGLISH, "%s %.0f", sign, diff.abs().toDouble())
         }
 
         textView.setBackgroundResource(if (isUp != isInverted) R.drawable.bg_badge_trend_up else R.drawable.bg_badge_trend_down)
@@ -174,7 +175,7 @@ class DashboardActivity : AppCompatActivity() {
                 position = XAxis.XAxisPosition.BOTTOM
                 textColor = Color.parseColor("#9E9E9E")
                 setDrawGridLines(false)
-                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         return SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(value.toLong()))
                     }
@@ -210,7 +211,7 @@ class DashboardActivity : AppCompatActivity() {
             setDrawValues(true)
             valueTextColor = Color.WHITE
             valueTextSize = 10f
-            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+            valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return currencyFormat.format(value)
                 }
@@ -225,7 +226,7 @@ class DashboardActivity : AppCompatActivity() {
                 position = XAxis.XAxisPosition.BOTTOM
                 textColor = Color.WHITE
                 setDrawGridLines(false)
-                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         return data.getOrNull(value.toInt())?.type ?: ""
                     }
@@ -275,12 +276,12 @@ class DashboardActivity : AppCompatActivity() {
         // Custom Legend
         binding.chipGroupServiceLegend.removeAllViews()
         data.forEachIndexed { index, item ->
-            val chip = com.google.android.material.chip.Chip(this)
-            chip.text = "${item.category}: ${currencyFormat.format(item.total)}"
-            chip.chipBackgroundColor = android.content.res.ColorStateList.valueOf(Color.parseColor("#1A1A1A"))
+            val chip = Chip(this)
+            chip.text = "${item.category}: ${currencyFormat.format(item.total.toDouble())}"
+            chip.chipBackgroundColor = ColorStateList.valueOf(Color.parseColor("#1A1A1A"))
             chip.setTextColor(Color.WHITE)
             chip.chipStrokeWidth = 1f
-            chip.chipStrokeColor = android.content.res.ColorStateList.valueOf(dataSet.colors[index % dataSet.colors.size])
+            chip.chipStrokeColor = ColorStateList.valueOf(dataSet.colors[index % dataSet.colors.size])
             binding.chipGroupServiceLegend.addView(chip)
         }
     }

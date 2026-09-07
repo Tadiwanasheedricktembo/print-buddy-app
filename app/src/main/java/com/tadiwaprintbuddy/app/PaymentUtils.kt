@@ -5,6 +5,7 @@ import android.graphics.Color
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import java.math.BigDecimal
 import java.net.URLEncoder
 
 object PaymentUtils {
@@ -18,6 +19,25 @@ object PaymentUtils {
         
         val amountPart = if (amount != null && amount > 0) {
             "&am=${String.format("%.2f", amount)}"
+        } else {
+            ""
+        }
+        
+        val notePart = if (!orderId.isNullOrEmpty()) {
+            "&tn=${URLEncoder.encode("Order #$orderId", "UTF-8")}"
+        } else {
+            ""
+        }
+        
+        return "$baseUri$amountPart$notePart"
+    }
+
+    fun generateUpiUriBigDecimal(amount: BigDecimal? = null, orderId: String? = null): String {
+        val encodedName = URLEncoder.encode(MERCHANT_NAME, "UTF-8")
+        val baseUri = "upi://pay?pa=$MERCHANT_UPI_ID&pn=$encodedName&cu=INR"
+        
+        val amountPart = if (amount != null && amount > BigDecimal.ZERO) {
+            "&am=${amount.setScale(2, BigDecimal.ROUND_HALF_UP).toPlainString()}"
         } else {
             ""
         }

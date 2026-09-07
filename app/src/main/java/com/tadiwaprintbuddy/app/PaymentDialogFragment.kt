@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.tadiwaprintbuddy.app.databinding.DialogPaymentQrBinding
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -18,7 +19,7 @@ class PaymentDialogFragment : BottomSheetDialogFragment() {
     private var _binding: DialogPaymentQrBinding? = null
     private val binding get() = _binding!!
 
-    private var amount: Double? = null
+    private var amount: BigDecimal? = null
     private var orderId: Int? = null
     private var isGeneralQr: Boolean = false
     private var onPaymentConfirmed: (() -> Unit)? = null
@@ -28,10 +29,10 @@ class PaymentDialogFragment : BottomSheetDialogFragment() {
         private const val ARG_ORDER_ID = "order_id"
         private const val ARG_IS_GENERAL = "is_general"
 
-        fun newInstance(amount: Double? = null, orderId: Int? = null, isGeneral: Boolean = false): PaymentDialogFragment {
+        fun newInstance(amount: BigDecimal? = null, orderId: Int? = null, isGeneral: Boolean = false): PaymentDialogFragment {
             val fragment = PaymentDialogFragment()
             val args = Bundle()
-            amount?.let { args.putDouble(ARG_AMOUNT, it) }
+            amount?.let { args.putString(ARG_AMOUNT, it.toPlainString()) }
             orderId?.let { args.putInt(ARG_ORDER_ID, it) }
             args.putBoolean(ARG_IS_GENERAL, isGeneral)
             fragment.arguments = args
@@ -46,7 +47,8 @@ class PaymentDialogFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (arguments?.containsKey(ARG_AMOUNT) == true) {
-            amount = arguments?.getDouble(ARG_AMOUNT)
+            val amountStr = arguments?.getString(ARG_AMOUNT)
+            amount = amountStr?.let { BigDecimal(it) }
         }
         if (arguments?.containsKey(ARG_ORDER_ID) == true) {
             orderId = arguments?.getInt(ARG_ORDER_ID)
@@ -69,11 +71,11 @@ class PaymentDialogFragment : BottomSheetDialogFragment() {
         binding.textMerchantName.text = PaymentUtils.MERCHANT_NAME
         binding.textUpiId.text = PaymentUtils.MERCHANT_UPI_ID
 
-        val currentAmount = amount ?: 0.0
-        if (currentAmount > 0) {
+        val currentAmount = amount ?: BigDecimal.ZERO
+        if (currentAmount > BigDecimal.ZERO) {
             val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
             val format = NumberFormat.getCurrencyInstance(locale)
-            binding.textAmount.text = format.format(currentAmount)
+            binding.textAmount.text = format.format(currentAmount.toDouble())
             binding.textAmount.visibility = View.VISIBLE
         } else {
             binding.textAmount.visibility = View.GONE
@@ -86,7 +88,7 @@ class PaymentDialogFragment : BottomSheetDialogFragment() {
             binding.buttonMarkAsPaid.visibility = View.VISIBLE
         }
 
-        val upiUri = PaymentUtils.generateUpiUri(amount, orderId?.toString())
+        val upiUri = PaymentUtils.generateUpiUriBigDecimal(amount, orderId?.toString())
         val qrBitmap = PaymentUtils.generateQrCode(upiUri)
         
         if (qrBitmap != null) {

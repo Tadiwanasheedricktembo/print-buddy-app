@@ -1,29 +1,24 @@
 package com.tadiwaprintbuddy.app
 
+import android.app.Activity
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.animation.AnimationUtils
-import android.widget.EditText
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
-import androidx.lifecycle.Lifecycle
+import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityMainBinding
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -34,238 +29,175 @@ class MainActivity : AppCompatActivity() {
         MainViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
     }
 
-    private val calculatorLauncher = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { result ->
+    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+
+    private val startForResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val data = result.data
-            val total = data?.getDoubleExtra(PrintCalculatorActivity.EXTRA_TOTAL_AMOUNT, 0.0) ?: 0.0
-            val received = if (data?.hasExtra(PrintCalculatorActivity.EXTRA_RECEIVED_AMOUNT) == true) {
-                data.getDoubleExtra(PrintCalculatorActivity.EXTRA_RECEIVED_AMOUNT, 0.0)
-            } else null
+            val totalStr = data?.getStringExtra(PrintCalculatorActivity.EXTRA_TOTAL_AMOUNT)
+            val total = totalStr?.let { try { BigDecimal(it) } catch (e: Exception) { BigDecimal.ZERO } } ?: BigDecimal.ZERO
+            
+            val receivedStr = data?.getStringExtra(PrintCalculatorActivity.EXTRA_RECEIVED_AMOUNT)
+            val received = receivedStr?.let { try { BigDecimal(it) } catch (e: Exception) { null } }
+            
             val note = data?.getStringExtra(PrintCalculatorActivity.EXTRA_NOTE) ?: ""
 
-            if (total > 0) {
-                binding.editPrice.setText(total.toString())
+            if (total.compareTo(BigDecimal.ZERO) > 0) {
+                binding.editPrice.setText(total.toPlainString())
                 binding.editQuantity.setText("1")
+                viewModel.onPriceChanged(total)
                 viewModel.onReceivedAmountChanged(received)
-                Toast.makeText(this, "Print Job Added: $note", Toast.LENGTH_LONG).show()
+                
+                if (note.isNotBlank()) {
+                    Toast.makeText(this, note, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
 
-    private val currencyFormat: NumberFormat by lazy {
-        val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
-        NumberFormat.getCurrencyInstance(locale)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupEdgeToEdge()
-        setSupportActionBar(binding.toolbar)
-
-        setupClickListeners()
-        setupTextWatchers()
-        setupStepper()
+        setupToolbar()
+        setupInputs()
+        setupNavigation()
         observeViewModel()
     }
 
-    private fun setupStepper() {
+    private fun setupToolbar() {
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_calculator -> {
+                    startForResult.launch(Intent(this, PrintCalculatorActivity::class.java))
+                    true
+                }
+                R.id.action_beauty_account -> {
+                    startActivity(Intent(this, BeautyAccountActivity::class.java))
+                    true
+                }
+                R.id.action_expenses -> {
+                    startActivity(Intent(this, ExpenseActivity::class.java))
+                    true
+                }
+                R.id.action_notes -> {
+                    // Not implemented here, but can add if needed
+                    true
+                }
+                R.id.action_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun setupInputs() {
+        binding.editCustomerName.addTextChangedListener {
+            viewModel.onCustomerNameChanged(it.toString())
+        }
+
+        binding.editQuantity.addTextChangedListener {
+            val q = it.toString().toIntOrNull() ?: 1
+            viewModel.onQuantityChanged(q)
+        }
+
+        binding.btnQtyPlus.setOnClickListener {
+            val current = binding.editQuantity.text.toString().toIntOrNull() ?: 1
+            binding.editQuantity.setText((current + 1).toString())
+        }
+
         binding.btnQtyMinus.setOnClickListener {
             val current = binding.editQuantity.text.toString().toIntOrNull() ?: 1
             if (current > 1) {
                 binding.editQuantity.setText((current - 1).toString())
             }
         }
-        binding.btnQtyPlus.setOnClickListener {
-            val current = binding.editQuantity.text.toString().toIntOrNull() ?: 1
-            binding.editQuantity.setText((current + 1).toString())
+
+        binding.editPrice.addTextChangedListener {
+            val p = try { BigDecimal(it.toString()) } catch (e: Exception) { BigDecimal.ZERO }
+            viewModel.onPriceChanged(p)
+        }
+
+        binding.btnCompleteOrder.setOnClickListener {
+            showPaymentStatusDialog()
+        }
+
+        binding.btnShowQr.setOnClickListener {
+            val state = viewModel.uiState.value
+            val dialog = PaymentDialogFragment.newInstance(state.total)
+            dialog.show(supportFragmentManager, "payment_qr")
         }
     }
 
-    private fun setupEdgeToEdge() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.updatePadding(bottom = systemBars.bottom)
-            binding.appBarLayout.updatePadding(top = systemBars.top)
-            insets
+    private fun setupNavigation() {
+        binding.navTransactions.setOnClickListener {
+            startActivity(Intent(this, SettlementHistoryActivity::class.java))
+        }
+        binding.navDebtors.setOnClickListener {
+            startActivity(Intent(this, DebtorCreditActivity::class.java))
+        }
+        binding.navAnalytics.setOnClickListener {
+            startActivity(Intent(this, DashboardActivity::class.java))
+        }
+        binding.navRefs.setOnClickListener {
+            // Refers to Account/Settings
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
 
     private fun observeViewModel() {
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    viewModel.uiState.collect { state ->
-                        updateUi(state)
-                    }
+            viewModel.uiState.collectLatest { state ->
+                binding.textLineTotal.text = currencyFormat.format(state.balanceToPay.toDouble())
+                
+                binding.btnCompleteOrder.isEnabled = state.isCompleteEnabled
+                binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+
+                // Update UI based on payment method selection if needed
+                val checkedId = binding.toggleGroupPaymentMethod.checkedButtonId
+                if (checkedId == View.NO_ID) {
+                    binding.toggleGroupPaymentMethod.check(R.id.btnCash)
                 }
-                launch {
-                    viewModel.events.collect { event ->
-                        handleEvent(event)
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.events.collect { event ->
+                when (event) {
+                    is MainViewModel.MainEvent.OrderCompleted -> {
+                        Toast.makeText(this@MainActivity, "Order Completed", Toast.LENGTH_SHORT).show()
+                        resetInputs()
+                    }
+                    is MainViewModel.MainEvent.ShowError -> {
+                        Toast.makeText(this@MainActivity, event.message, Toast.LENGTH_LONG).show()
                     }
                 }
             }
         }
     }
 
-    private fun handleEvent(event: MainViewModel.MainEvent) {
-        when (event) {
-            MainViewModel.MainEvent.OrderCompleted -> {
-                Toast.makeText(this, "Order saved successfully!", Toast.LENGTH_SHORT).show()
-                clearFormFields()
-            }
-            is MainViewModel.MainEvent.ShowError -> {
-                Toast.makeText(this, event.message, Toast.LENGTH_LONG).show()
-            }
+    private fun showPaymentStatusDialog() {
+        val checkedId = binding.toggleGroupPaymentMethod.checkedButtonId
+        val method = when (checkedId) {
+            R.id.btnUpi -> "UPI"
+            R.id.btnCredit -> "Credit"
+            else -> "Cash"
+        }
+
+        if (method == "Credit") {
+            viewModel.completeOrder("Credit", "NONE")
+        } else {
+            viewModel.completeOrder("Paid", method)
         }
     }
 
-    private fun clearFormFields() {
-        binding.editCustomerName.setText("")
+    private fun resetInputs() {
+        binding.editCustomerName.text.clear()
         binding.editQuantity.setText("1")
         binding.editPrice.setText("0")
-        binding.editCustomerName.clearFocus()
-    }
-
-    private fun updateUi(state: OrderUiState) {
-        binding.layoutOrderBreakdown.visibility = if (state.total > 0) View.VISIBLE else View.GONE
-        binding.textLineTotal.text = currencyFormat.format(state.balanceToPay)
-        
-        // Authority Submission Guard
-        binding.btnCompleteOrder.isEnabled = state.isCompleteEnabled && !state.isLoading
-        binding.btnCash.isEnabled = !state.isLoading
-        binding.btnUpi.isEnabled = !state.isLoading
-        binding.btnCredit.isEnabled = !state.isLoading
-
-        binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_calculator -> {
-                val intent = Intent(this, PrintCalculatorActivity::class.java)
-                calculatorLauncher.launch(intent)
-                true
-            }
-            R.id.action_beauty_account -> {
-                startActivityWithTransition(BeautyAccountActivity::class.java)
-                true
-            }
-            R.id.action_expenses -> {
-                startActivity(Intent(this, ExpenseActivity::class.java))
-                true
-            }
-            R.id.action_notes -> {
-                startActivity(Intent(this, NotesActivity::class.java))
-                true
-            }
-            R.id.action_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java))
-                true
-            }
-            R.id.action_about -> {
-                startActivity(Intent(this, AboutActivity::class.java))
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun startActivityWithTransition(activityClass: Class<*>) {
-        val intent = Intent(this, activityClass)
-        startActivity(intent)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_right, R.anim.slide_out_left)
-        } else {
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-        }
-    }
-
-    private fun setupClickListeners() {
-        binding.btnCompleteOrder.setOnClickListener { initiateOrderCompletion() }
-        
-        binding.btnCash.setOnClickListener { viewModel.completeOrder("Paid", "CASH") }
-        binding.btnUpi.setOnClickListener { viewModel.completeOrder("Paid", "UPI") }
-        binding.btnCredit.setOnClickListener { viewModel.completeOrder("Credit", "OWES_ME") }
-
-        binding.btnShowQr.setOnClickListener { showPaymentQr() }
-
-        binding.navHome.setOnClickListener {
-            binding.appBarLayout.setExpanded(true)
-            binding.editCustomerName.requestFocus()
-        }
-
-        binding.navAnalytics.setOnClickListener {
-            startActivity(Intent(this, DashboardActivity::class.java))
-        }
-
-        binding.navTransactions.setOnClickListener {
-            startActivity(Intent(this, OrdersActivity::class.java))
-        }
-
-        binding.navDebtors.setOnClickListener {
-            startActivity(Intent(this, DebtorCreditActivity::class.java))
-        }
-
-        binding.navRefs.setOnClickListener {
-            startActivity(Intent(this, PrinterReferenceActivity::class.java))
-        }
-    }
-
-    private fun showPaymentQr() {
-        val state = viewModel.uiState.value
-        val dialog = PaymentDialogFragment.newInstance(
-            amount = if (state.total > 0) state.total else null,
-            isGeneral = true
-        )
-        dialog.show(supportFragmentManager, "PaymentQR")
-    }
-
-    private fun setupTextWatchers() {
-        binding.editCustomerName.afterTextChanged { viewModel.onCustomerNameChanged(it) }
-        binding.editQuantity.afterTextChanged { viewModel.onQuantityChanged(it.toIntOrNull() ?: 0) }
-        binding.editPrice.afterTextChanged { viewModel.onPriceChanged(it.toDoubleOrNull() ?: 0.0) }
-    }
-
-    private fun EditText.afterTextChanged(action: (String) -> Unit) {
-        this.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { action(s?.toString().orEmpty()) }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-    }
-
-    private fun initiateOrderCompletion() {
-        val state = viewModel.uiState.value
-        if (state.quantity <= 0 || state.price <= 0) {
-            Toast.makeText(this, "Quantity and Price must be greater than zero", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val sheet = PaymentBottomSheet { status, method, receivedAmount ->
-            // Use a temporary state or just pass through if ViewModel is updated
-            // Actually, we need to make sure the receivedAmount reaches the ViewModel
-            // Or just call completeOrder with it.
-            
-            // We'll update the ViewModel state before completing if not already done by BottomSheet
-            // But BottomSheet already calls onReceivedAmountChanged.
-            // However, completeOrder in MainViewModel currently only takes (status, method).
-            // I should update completeOrder signature in MainViewModel too.
-            
-            viewModel.completeOrder(status, method)
-        }
-        sheet.show(supportFragmentManager, PaymentBottomSheet.TAG)
+        viewModel.resetForm()
     }
 }

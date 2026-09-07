@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.math.BigDecimal
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = TestApplication::class)
@@ -45,7 +46,7 @@ class OrderValidationTest {
 
     @Test
     fun `test confirmOrder with zero total returns ValidationError`() = runBlocking {
-        val cartItems = listOf(CartItem("Service", 0.0, 1))
+        val cartItems = listOf(CartItem("Service", BigDecimal.ZERO, 1))
         val result = repository.confirmOrder("Customer", cartItems)
         assertTrue(result is OrderResult.ValidationError)
         assertTrue((result as OrderResult.ValidationError).message == "Enter a valid amount greater than ₹0")
@@ -53,21 +54,21 @@ class OrderValidationTest {
 
     @Test
     fun `test confirmOrder with zero quantity returns ValidationError`() = runBlocking {
-        val cartItems = listOf(CartItem("Service", 10.0, 0))
+        val cartItems = listOf(CartItem("Service", BigDecimal.TEN, 0))
         val result = repository.confirmOrder("Customer", cartItems)
         assertTrue(result is OrderResult.ValidationError)
     }
 
     @Test
     fun `test confirmOrder with negative price returns ValidationError`() = runBlocking {
-        val cartItems = listOf(CartItem("Service", -10.0, 1))
+        val cartItems = listOf(CartItem("Service", BigDecimal("-10.0"), 1))
         val result = repository.confirmOrder("Customer", cartItems)
         assertTrue(result is OrderResult.ValidationError)
     }
 
     @Test
     fun `test confirmOrder with valid cash order succeeds`() = runBlocking {
-        val cartItems = listOf(CartItem("Service", 100.0, 1))
+        val cartItems = listOf(CartItem("Service", BigDecimal("100.0"), 1))
         val result = repository.confirmOrder("Customer", cartItems, "CASH")
         assertTrue(result is OrderResult.Success)
         
@@ -78,7 +79,7 @@ class OrderValidationTest {
 
     @Test
     fun `test confirmOrder with valid unpaid credit order succeeds`() = runBlocking {
-        val cartItems = listOf(CartItem("Service", 100.0, 1))
+        val cartItems = listOf(CartItem("Service", BigDecimal("100.0"), 1))
         val result = repository.confirmOrder("Customer", cartItems, "OWES_ME")
         assertTrue(result is OrderResult.Success)
         
@@ -90,14 +91,14 @@ class OrderValidationTest {
 
     @Test
     fun `test confirmOrder with valid upi order succeeds`() = runBlocking {
-        val cartItems = listOf(CartItem("Service", 100.0, 1))
+        val cartItems = listOf(CartItem("Service", BigDecimal("100.0"), 1))
         val result = repository.confirmOrder("Customer", cartItems, "UPI")
         assertTrue(result is OrderResult.Success)
         
         val orders = dao.getAllOrders()
         assertTrue(orders.size == 1)
         assertTrue(orders[0].paymentMethod == "UPI")
-        assertTrue(orders[0].paidAmount == 100.0)
+        assertTrue(orders[0].paidAmount.compareTo(BigDecimal("100.0")) == 0)
     }
 
     @Test
@@ -105,7 +106,7 @@ class OrderValidationTest {
         // First add a stock item with 5 quantity
         dao.insertStockItem(StockItem(name = "Paper", currentQuantity = 5))
         
-        val cartItems = listOf(CartItem("Paper", 10.0, 10)) // Requesting 10 but only 5 available
+        val cartItems = listOf(CartItem("Paper", BigDecimal.TEN, 10)) // Requesting 10 but only 5 available
         val result = repository.confirmOrder("Customer", cartItems)
         
         assertTrue(result is OrderResult.InsufficientStock)

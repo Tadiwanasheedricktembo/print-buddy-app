@@ -13,6 +13,7 @@ import com.tadiwaprintbuddy.app.data.DebtorSummary
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityDebtorsBinding
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -63,13 +64,11 @@ class DebtorsActivity : AppCompatActivity() {
     }
 
     private fun updateTotals(summaries: List<DebtorSummary>) {
-        val owesMe = summaries.filter { it.type == "OWES" }.sumOf { it.totalBalance }
-        val changeDue = summaries.filter { it.type == "CHANGE" }.sumOf { it.totalBalance }
+        val owesMe = summaries.filter { it.type == "OWES" }.fold(BigDecimal.ZERO) { acc, d -> acc.add(d.totalBalance) }
         
         val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
         val format = NumberFormat.getCurrencyInstance(locale)
-        binding.textTotalOwed.text = format.format(owesMe)
-        // Optionally display changeDue somewhere if layout allows
+        binding.textTotalOwed.text = format.format(owesMe.toDouble())
     }
 
     private fun showReceivePaymentDialog(debtor: DebtorSummary) {
@@ -80,7 +79,8 @@ class DebtorsActivity : AppCompatActivity() {
             .setTitle("Receive Payment from ${debtor.customerName}")
             .setView(dialogView)
             .setPositiveButton("Receive") { _, _ ->
-                val paymentAmount = editPaymentAmount.text.toString().toDoubleOrNull() ?: 0.0
+                val paymentAmountStr = editPaymentAmount.text.toString()
+                val paymentAmount = try { BigDecimal(paymentAmountStr) } catch (e: Exception) { BigDecimal.ZERO }
                 lifecycleScope.launch {
                     if (debtor.customerId != 0L) {
                         repository.applyPaymentToCustomerId(debtor.customerId, paymentAmount)

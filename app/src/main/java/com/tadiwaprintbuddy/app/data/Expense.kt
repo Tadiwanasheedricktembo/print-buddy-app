@@ -3,6 +3,7 @@ package com.tadiwaprintbuddy.app.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.math.BigDecimal
 import java.util.UUID
 
 enum class ExpenseCategory {
@@ -22,7 +23,7 @@ data class Expense(
     val id: Int = 0,
     val title: String,
     val category: ExpenseCategory,
-    val amount: Double,
+    val amount: BigDecimal,
     val timestamp: Long = System.currentTimeMillis(),
     val note: String? = null,
     val paymentMethod: String = "CASH", // "CASH", "UPI"

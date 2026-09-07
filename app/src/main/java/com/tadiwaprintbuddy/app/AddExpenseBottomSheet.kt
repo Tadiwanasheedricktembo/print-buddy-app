@@ -7,12 +7,14 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.android.material.chip.Chip
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.Expense
 import com.tadiwaprintbuddy.app.data.ExpenseCategory
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.BottomSheetAddExpenseBinding
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 class AddExpenseBottomSheet : BottomSheetDialogFragment() {
 
@@ -31,23 +33,17 @@ class AddExpenseBottomSheet : BottomSheetDialogFragment() {
 
         binding.btnSaveExpense.setOnClickListener {
             val title = binding.editExpenseTitle.text.toString()
-            val amount = binding.editExpenseAmount.text.toString().toDoubleOrNull()
+            val amountStr = binding.editExpenseAmount.text.toString()
+            val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
             
-            if (title.isBlank() || amount == null || amount <= 0) {
+            if (title.isBlank() || amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
                 Toast.makeText(requireContext(), "Please enter valid details", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            val category = when (binding.chipGroupCategory.checkedChipId) {
-                // Mapping chips to categories (I'll need to set IDs or check text)
-                else -> ExpenseCategory.MISCELLANEOUS
-            }
-            
-            // Simplified category detection for now based on index if needed, 
-            // but I'll just use a more robust way by finding the chip text.
             val checkedChipId = binding.chipGroupCategory.checkedChipId
             val categoryStr = if (checkedChipId != View.NO_ID) {
-                val chip = binding.chipGroupCategory.findViewById<com.google.android.material.chip.Chip>(checkedChipId)
+                val chip = binding.chipGroupCategory.findViewById<Chip>(checkedChipId)
                 chip.text.toString()
             } else "Miscellaneous"
 

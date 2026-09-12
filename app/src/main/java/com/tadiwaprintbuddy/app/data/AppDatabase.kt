@@ -12,8 +12,8 @@ import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class],
-    version = 34,
-    exportSchema = false
+    version = 35,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -39,16 +39,236 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
                     MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
-                    MIGRATION_33_34
+                    MIGRATION_33_34, MIGRATION_34_35
                 )
 
-                if (BuildConfig.DEBUG) {
-                    builder.fallbackToDestructiveMigration()
-                }
+                // Hardening: Explicitly disabled destructive fallback in ALL builds to prevent data loss.
+                // builder.fallbackToDestructiveMigration()
 
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 34 to 35 (Forensic Precision Hardening - REAL to TEXT)")
+
+                // 1. orders
+                database.execSQL("""
+                    CREATE TABLE `orders_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `totalAmount` TEXT NOT NULL, 
+                        `date` INTEGER NOT NULL, 
+                        `customerName` TEXT NOT NULL, 
+                        `paidAmount` TEXT NOT NULL, 
+                        `paymentMethod` TEXT NOT NULL, 
+                        `customerId` INTEGER NOT NULL, 
+                        `previousBalance` TEXT NOT NULL, 
+                        `transactionAmount` TEXT NOT NULL, 
+                        `newBalance` TEXT NOT NULL, 
+                        `paymentStatus` TEXT NOT NULL, 
+                        `orderStatus` TEXT NOT NULL, 
+                        `receivedAmount` TEXT, 
+                        `customerSyncId` TEXT NOT NULL, 
+                        `syncId` TEXT NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `deletedAt` INTEGER, 
+                        `syncStatus` TEXT NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `orders_new` (
+                        id, totalAmount, date, customerName, paidAmount, paymentMethod, 
+                        customerId, previousBalance, transactionAmount, newBalance, 
+                        paymentStatus, orderStatus, receivedAmount, customerSyncId, 
+                        syncId, updatedAt, deletedAt, syncStatus
+                    ) 
+                    SELECT 
+                        id, CAST(totalAmount AS TEXT), date, customerName, CAST(paidAmount AS TEXT), paymentMethod, 
+                        customerId, CAST(previousBalance AS TEXT), CAST(transactionAmount AS TEXT), CAST(newBalance AS TEXT), 
+                        paymentStatus, orderStatus, CAST(receivedAmount AS TEXT), customerSyncId, 
+                        syncId, updatedAt, deletedAt, syncStatus 
+                    FROM `orders`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `orders`")
+                database.execSQL("ALTER TABLE `orders_new` RENAME TO `orders`")
+                database.execSQL("CREATE INDEX `idx_orders_date` ON `orders` (`date`)")
+                database.execSQL("CREATE INDEX `idx_orders_payment_method` ON `orders` (`paymentMethod`)")
+
+                // 2. OrderItem
+                database.execSQL("""
+                    CREATE TABLE `OrderItem_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `orderId` INTEGER NOT NULL, 
+                        `serviceName` TEXT NOT NULL, 
+                        `price` TEXT NOT NULL, 
+                        `quantity` INTEGER NOT NULL, 
+                        `orderSyncId` TEXT NOT NULL, 
+                        `syncId` TEXT NOT NULL, 
+                        FOREIGN KEY(`orderId`) REFERENCES `orders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE 
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `OrderItem_new` (id, orderId, serviceName, price, quantity, orderSyncId, syncId)
+                    SELECT id, orderId, serviceName, CAST(price AS TEXT), quantity, orderSyncId, syncId FROM `OrderItem`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `OrderItem`")
+                database.execSQL("ALTER TABLE `OrderItem_new` RENAME TO `OrderItem`")
+                database.execSQL("CREATE INDEX `index_OrderItem_orderId` ON `OrderItem` (`orderId`)")
+
+                // 3. settlement_history
+                database.execSQL("""
+                    CREATE TABLE `settlement_history_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `customerName` TEXT NOT NULL, 
+                        `previousBalance` TEXT NOT NULL, 
+                        `settledAmount` TEXT NOT NULL, 
+                        `remainingBalance` TEXT NOT NULL, 
+                        `timestamp` INTEGER NOT NULL, 
+                        `type` TEXT NOT NULL, 
+                        `note` TEXT NOT NULL, 
+                        `customerId` INTEGER NOT NULL, 
+                        `transactionAmount` TEXT NOT NULL, 
+                        `newBalance` TEXT NOT NULL, 
+                        `originId` INTEGER, 
+                        `ledgerEntryType` TEXT NOT NULL, 
+                        `isShadowDuplicate` INTEGER NOT NULL, 
+                        `reconciliationStatus` TEXT NOT NULL, 
+                        `receivedAmount` TEXT, 
+                        `customerSyncId` TEXT NOT NULL, 
+                        `originSyncId` TEXT, 
+                        `syncId` TEXT NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `syncStatus` TEXT NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `settlement_history_new` (
+                        id, customerName, previousBalance, settledAmount, remainingBalance, timestamp, 
+                        type, note, customerId, transactionAmount, newBalance, originId, 
+                        ledgerEntryType, isShadowDuplicate, reconciliationStatus, receivedAmount, 
+                        customerSyncId, originSyncId, syncId, updatedAt, syncStatus
+                    )
+                    SELECT 
+                        id, customerName, CAST(previousBalance AS TEXT), CAST(settledAmount AS TEXT), CAST(remainingBalance AS TEXT), timestamp, 
+                        type, note, customerId, CAST(transactionAmount AS TEXT), CAST(newBalance AS TEXT), originId, 
+                        ledgerEntryType, isShadowDuplicate, reconciliationStatus, CAST(receivedAmount AS TEXT), 
+                        customerSyncId, originSyncId, syncId, updatedAt, syncStatus 
+                    FROM `settlement_history`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `settlement_history`")
+                database.execSQL("ALTER TABLE `settlement_history_new` RENAME TO `settlement_history`")
+                database.execSQL("CREATE INDEX `index_settlement_history_customerId` ON `settlement_history` (`customerId`)")
+                database.execSQL("CREATE INDEX `index_settlement_history_originId` ON `settlement_history` (`originId`)")
+                database.execSQL("CREATE INDEX `index_settlement_history_originId_ledgerEntryType` ON `settlement_history` (`originId`, `ledgerEntryType`)")
+                database.execSQL("CREATE INDEX `idx_settlement_timestamp` ON `settlement_history` (`timestamp`)")
+
+                // 4. debtor_credits
+                database.execSQL("""
+                    CREATE TABLE `debtor_credits_new` (
+                        `customerId` INTEGER PRIMARY KEY NOT NULL, 
+                        `customerName` TEXT NOT NULL, 
+                        `amount` TEXT NOT NULL, 
+                        `lastUpdated` INTEGER NOT NULL, 
+                        `phoneNumber` TEXT
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `debtor_credits_new` (customerId, customerName, amount, lastUpdated, phoneNumber)
+                    SELECT customerId, customerName, CAST(amount AS TEXT), lastUpdated, phoneNumber FROM `debtor_credits`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `debtor_credits`")
+                database.execSQL("ALTER TABLE `debtor_credits_new` RENAME TO `debtor_credits`")
+                database.execSQL("CREATE INDEX `idx_debtor_updated` ON `debtor_credits` (`lastUpdated`)")
+
+                // 5. expenses
+                database.execSQL("""
+                    CREATE TABLE `expenses_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `title` TEXT NOT NULL, 
+                        `category` TEXT NOT NULL, 
+                        `amount` TEXT NOT NULL, 
+                        `timestamp` INTEGER NOT NULL, 
+                        `note` TEXT, 
+                        `paymentMethod` TEXT NOT NULL, 
+                        `syncId` TEXT NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `deletedAt` INTEGER, 
+                        `syncStatus` TEXT NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `expenses_new` (id, title, category, amount, timestamp, note, paymentMethod, syncId, updatedAt, deletedAt, syncStatus)
+                    SELECT id, title, category, CAST(amount AS TEXT), timestamp, note, paymentMethod, syncId, updatedAt, deletedAt, syncStatus FROM `expenses`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `expenses`")
+                database.execSQL("ALTER TABLE `expenses_new` RENAME TO `expenses`")
+                database.execSQL("CREATE INDEX `idx_expenses_timestamp` ON `expenses` (`timestamp`)")
+
+                // 6. beauty_transactions
+                database.execSQL("""
+                    CREATE TABLE `beauty_transactions_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `amount` TEXT NOT NULL, 
+                        `type` TEXT NOT NULL, 
+                        `note` TEXT, 
+                        `timestamp` INTEGER NOT NULL, 
+                        `previousBalance` TEXT NOT NULL, 
+                        `transactionAmount` TEXT NOT NULL, 
+                        `newBalance` TEXT NOT NULL, 
+                        `syncId` TEXT NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `syncStatus` TEXT NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `beauty_transactions_new` (
+                        id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance, syncId, updatedAt, syncStatus
+                    )
+                    SELECT 
+                        id, CAST(amount AS TEXT), type, note, timestamp, CAST(previousBalance AS TEXT), CAST(transactionAmount AS TEXT), CAST(newBalance AS TEXT), syncId, updatedAt, syncStatus 
+                    FROM `beauty_transactions`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `beauty_transactions`")
+                database.execSQL("ALTER TABLE `beauty_transactions_new` RENAME TO `beauty_transactions`")
+                database.execSQL("CREATE INDEX `idx_beauty_timestamp` ON `beauty_transactions` (`timestamp`)")
+
+                // 7. external_ledger
+                database.execSQL("""
+                    CREATE TABLE `external_ledger_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `transactionType` TEXT NOT NULL, 
+                        `amount` TEXT NOT NULL, 
+                        `timestamp` INTEGER NOT NULL, 
+                        `customerName` TEXT, 
+                        `customerId` INTEGER, 
+                        `orderId` INTEGER, 
+                        `note` TEXT, 
+                        `accountHolder` TEXT NOT NULL, 
+                        `upiId` TEXT NOT NULL, 
+                        `customerSyncId` TEXT, 
+                        `orderSyncId` TEXT, 
+                        `syncId` TEXT NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `syncStatus` TEXT NOT NULL
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `external_ledger_new` (
+                        id, transactionType, amount, timestamp, customerName, customerId, orderId, note, 
+                        accountHolder, upiId, customerSyncId, orderSyncId, syncId, updatedAt, syncStatus
+                    )
+                    SELECT 
+                        id, transactionType, CAST(amount AS TEXT), timestamp, customerName, customerId, orderId, note, 
+                        accountHolder, upiId, customerSyncId, orderSyncId, syncId, updatedAt, syncStatus 
+                    FROM `external_ledger`
+                """.trimIndent())
+                database.execSQL("DROP TABLE `external_ledger`")
+                database.execSQL("ALTER TABLE `external_ledger_new` RENAME TO `external_ledger`")
+
+                Log.d("DatabaseMigration", "Migration 34 to 35 completed successfully. Monetary columns are now TEXT with explicit CAST and column mapping.")
             }
         }
 

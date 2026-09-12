@@ -36,7 +36,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
-
     buildFeatures {
         viewBinding = true
         compose = true
@@ -52,6 +51,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -103,6 +106,10 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.room.testing)
 }

@@ -23,26 +23,24 @@ interface PrintDao {
     @Query("SELECT * FROM `OrderItem` WHERE orderId = :orderId")
     suspend fun getItemsForOrder(orderId: Int): List<OrderItem>
 
-    @Query("SELECT SUM(paidAmount) FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
-    fun getTotalRevenueFlow(): Flow<BigDecimal?>
+    // Pull raw data for high-precision Kotlin summation
+    @Query("SELECT paidAmount FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
+    fun getAllActivePaidAmountsFlow(): Flow<List<BigDecimal>>
 
     @Query("SELECT COUNT(*) FROM `orders` WHERE orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = ''")
     fun getTotalOrdersFlow(): Flow<Int>
 
-    @Query("SELECT IFNULL(SUM(paidAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
-    suspend fun getRevenueBetween(start: Long, end: Long): BigDecimal?
+    @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
+    suspend fun getPaidAmountsBetween(start: Long, end: Long): List<BigDecimal>
 
-    // Actual revenue collected (excluding credit sales)
-    @Query("SELECT IFNULL(SUM(paidAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod != 'NONE'")
-    suspend fun getSalesRevenueBetween(start: Long, end: Long): BigDecimal
+    @Query("SELECT totalAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
+    suspend fun getTotalAmountsBetween(start: Long, end: Long): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(totalAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
-    suspend fun getSalesVolumeBetween(start: Long, end: Long): BigDecimal
+    @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getPaidAmountsByMethodBetween(start: Long, end: Long, method: String): List<BigDecimal>
 
-    // Revenue from collection (authoritative money in)
-    // Joined with orders to ensure only payments for existing active/legacy orders are counted
     @Query("""
-        SELECT IFNULL(SUM(CAST(sh.settledAmount AS REAL)), 0.0) 
+        SELECT sh.settledAmount 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end 
@@ -54,16 +52,16 @@ interface PrintDao {
              OR (:method = 'CASH' AND (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%'))
              OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
     """)
-    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal
+    suspend fun getFilteredSettledAmounts(start: Long, end: Long, method: String): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(paidAmount), '0') FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod = :method")
-    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal
+    @Query("SELECT amount FROM `expenses` WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getExpenseAmountsBetween(start: Long, end: Long): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(amount), '0') FROM `expenses` WHERE timestamp BETWEEN :start AND :end")
-    suspend fun getExpensesBetween(start: Long, end: Long): BigDecimal
+    @Query("SELECT amount FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method")
+    suspend fun getExpenseAmountsByMethodBetween(start: Long, end: Long, method: String): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(amount), '0') FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method")
-    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): BigDecimal
+    @Query("SELECT amount FROM `expenses`")
+    suspend fun getAllExpenseAmounts(): List<BigDecimal>
 
     @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end")
     suspend fun getOrdersCountBetween(start: Long, end: Long): Int
@@ -71,15 +69,15 @@ interface PrintDao {
     @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (:method = 'ALL' OR (:method = 'PAID_ONLY' AND paymentMethod != 'NONE') OR paymentMethod = :method)")
     suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int
 
-    @Query("SELECT IFNULL(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)), 0.0) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
-    suspend fun getTotalReceivables(): BigDecimal
+    @Query("SELECT (totalAmount - paidAmount) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
+    suspend fun getAllReceivableDiffs(): List<BigDecimal>
 
-    @Query("SELECT COUNT(*) FROM debtor_credits WHERE CAST(amount AS REAL) > 0")
+    @Query("SELECT COUNT(*) FROM debtor_credits WHERE amount != '0' AND amount != '0.0' AND amount != '0.00'")
     suspend fun getDebtorsCount(): Int
 
     @Query("""
         SELECT MIN(sh.timestamp) as timestamp, 
-               IFNULL(SUM(CAST(sh.settledAmount AS REAL)), 0.0) as amount 
+               SUM(CAST(sh.settledAmount AS REAL)) as amount 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end
@@ -100,7 +98,7 @@ interface PrintDao {
                  WHEN sh.note LIKE '%UPI%' THEN 'UPI' 
                  ELSE 'CASH' 
                END as type, 
-               IFNULL(SUM(CAST(sh.settledAmount AS REAL)), 0.0) as total 
+               SUM(CAST(sh.settledAmount AS REAL)) as total 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end
@@ -111,7 +109,7 @@ interface PrintDao {
     suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
 
     @Query("""
-        SELECT serviceName as category, IFNULL(SUM(CAST(price AS REAL) * quantity), 0.0) as total 
+        SELECT serviceName as category, SUM(CAST(price AS REAL) * quantity) as total 
         FROM `OrderItem` 
         JOIN `orders` ON orders.id = OrderItem.orderId 
         WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
@@ -126,20 +124,26 @@ interface PrintDao {
     @Query("SELECT * FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp DESC")
     fun getFilteredBeautyTransactions(start: Long, end: Long): Flow<List<BeautyTransaction>>
 
-    @Query("SELECT IFNULL(SUM(CAST(amount AS REAL)), 0.0) FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end")
-    suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal
+    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end")
+    suspend fun getBeautyReceivedAmounts(start: Long, end: Long): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(CAST(amount AS REAL)), 0.0) FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end")
-    suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal
+    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end")
+    suspend fun getBeautyReturnedAmounts(start: Long, end: Long): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
-    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): BigDecimal
+    @Query("SELECT transactionAmount FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getBeautyTransactionAmountsBetween(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `beauty_transactions`")
+    suspend fun getAllBeautyTransactionAmounts(): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `beauty_transactions`")
+    fun getBeautyTransactionAmountsFlow(): Flow<List<BigDecimal>>
 
     @Query("SELECT COUNT(*) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end")
     suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int
 
     @Query("""
-        SELECT serviceName as category, IFNULL(SUM(CAST(price AS REAL) * quantity), 0.0) as total 
+        SELECT serviceName as category, SUM(CAST(price AS REAL) * quantity) as total 
         FROM `OrderItem` 
         JOIN `orders` ON orders.id = OrderItem.orderId 
         WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
@@ -147,16 +151,16 @@ interface PrintDao {
     """)
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>>
 
-    @Query("SELECT * FROM `orders` WHERE CAST(paidAmount AS REAL) < CAST(totalAmount AS REAL) AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
+    @Query("SELECT * FROM `orders` WHERE paidAmount != totalAmount AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
     suspend fun getUnpaidOrders(): List<Order>
 
-    @Query("UPDATE `orders` SET paidAmount = :newPaidAmount, paymentStatus = :status, paymentMethod = :method WHERE id = :orderId")
-    suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String): Int
+    @Query("UPDATE `orders` SET paidAmount = :newPaidAmount, paymentStatus = :status, paymentMethod = :method, updatedAt = :updatedAt WHERE id = :orderId")
+    suspend fun updateOrderPaymentStatus(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String, updatedAt: Long): Int
 
-    @Query("SELECT customerId, customerName, IFNULL(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)), 0.0) as totalBalance, 'OWES' as type FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') GROUP BY customerId HAVING totalBalance > 0")
-    suspend fun getDebtors(): List<DebtorSummary>
+    @Query("SELECT customerId, customerName, '0.0' as totalBalance, 'OWES' as type FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') GROUP BY customerId")
+    suspend fun getDebtorGroups(): List<DebtorSummary>
 
-    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND CAST(paidAmount AS REAL) < CAST(totalAmount AS REAL) AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') ORDER BY date ASC")
+    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND paidAmount != totalAmount AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') ORDER BY date ASC")
     suspend fun getUnpaidOrdersForCustomer(customerId: Long): List<Order>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -182,6 +186,8 @@ interface PrintDao {
 
     @Transaction
     suspend fun deleteCustomerCompletely(customerId: Long): Boolean {
+        // Since we don't have a deletedAt on Customer, we might need one for sync.
+        // For now, let's mark it as a defect that DELETE sync for Customer isn't fully implemented in DAO.
         deleteDebtorCredit(customerId)
         deleteOrdersForCustomer(customerId)
         deleteSettlementsForCustomer(customerId)
@@ -190,7 +196,14 @@ interface PrintDao {
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCustomer(customer: CustomerEntity): Long
+    suspend fun insertCustomerInternal(customer: CustomerEntity): Long
+
+    @Transaction
+    suspend fun insertCustomer(customer: CustomerEntity): Long {
+        val id = insertCustomerInternal(customer)
+        insertSyncEvent(SyncOutbox(entityType = "CUSTOMER", entitySyncId = customer.syncId, operation = "CREATE"))
+        return id
+    }
 
     @Query("SELECT * FROM customers WHERE normalizedName = :normalizedName")
     suspend fun getCustomerByNormalizedName(normalizedName: String): CustomerEntity?
@@ -204,35 +217,75 @@ interface PrintDao {
     @Query("SELECT * FROM customers")
     suspend fun getAllCustomers(): List<CustomerEntity>
 
-    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM settlement_history WHERE customerId = :customerId")
-    suspend fun getLatestBalanceForCustomer(customerId: Long): BigDecimal
+    @Query("SELECT transactionAmount FROM settlement_history WHERE customerId = :customerId")
+    suspend fun getTransactionAmountsForCustomer(customerId: Long): List<BigDecimal>
 
-    @Query("SELECT IFNULL(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)), 0.0) FROM `orders` WHERE customerId = :customerId AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
-    suspend fun getUnpaidTotalForCustomer(customerId: Long): BigDecimal
+    @Query("SELECT (totalAmount - paidAmount) FROM `orders` WHERE customerId = :customerId AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')")
+    suspend fun getUnpaidOrderDiffsForCustomer(customerId: Long): List<BigDecimal>
 
-    @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized WHERE id = :customerId")
-    suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String): Int
+    @Query("UPDATE customers SET displayName = :newName, normalizedName = :normalized, updatedAt = :updatedAt WHERE id = :customerId")
+    suspend fun updateCustomerIdentityInternal(customerId: Long, newName: String, normalized: String, updatedAt: Long): Int
+
+    @Transaction
+    suspend fun updateCustomerIdentity(customerId: Long, newName: String, normalized: String): Int {
+        val now = System.currentTimeMillis()
+        val affected = updateCustomerIdentityInternal(customerId, newName, normalized, now)
+        val customer = getCustomerById(customerId)
+        if (customer != null) {
+            insertSyncEvent(SyncOutbox(entityType = "CUSTOMER", entitySyncId = customer.syncId, operation = "UPDATE"))
+        }
+        return affected
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addPhoto(photo: Photo): Long
+    suspend fun addPhotoInternal(photo: Photo): Long
+
+    @Transaction
+    suspend fun addPhoto(photo: Photo): Long {
+        val id = addPhotoInternal(photo)
+        insertSyncEvent(SyncOutbox(entityType = "PHOTO", entitySyncId = photo.syncId, operation = "CREATE"))
+        return id
+    }
 
     @Query("SELECT * FROM photos WHERE orderId = :orderId")
     suspend fun getPhotosForOrder(orderId: Int): List<Photo>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addPrinterReference(reference: PrinterReference): Long
+    suspend fun addPrinterReferenceInternal(reference: PrinterReference): Long
+
+    @Transaction
+    suspend fun addPrinterReference(reference: PrinterReference): Long {
+        val id = addPrinterReferenceInternal(reference)
+        insertSyncEvent(SyncOutbox(entityType = "PRINTER_REFERENCE", entitySyncId = reference.syncId, operation = "CREATE"))
+        return id
+    }
 
     @Query("SELECT * FROM printer_references ORDER BY timestamp DESC")
     suspend fun getAllPrinterReferences(): List<PrinterReference>
 
     @Delete
-    suspend fun deletePrinterReference(reference: PrinterReference): Int
+    suspend fun deletePrinterReferenceInternal(reference: PrinterReference): Int
+
+    @Transaction
+    suspend fun deletePrinterReference(reference: PrinterReference): Int {
+        val now = System.currentTimeMillis()
+        val affected = deletePrinterReferenceInternal(reference)
+        insertSyncEvent(SyncOutbox(entityType = "PRINTER_REFERENCE", entitySyncId = reference.syncId, operation = "DELETE"))
+        return affected
+    }
 
     @Query("SELECT * FROM `orders` WHERE id = :orderId")
     suspend fun getOrderById(orderId: Int): Order?
 
     @Delete
-    suspend fun deleteOrder(order: Order): Int
+    suspend fun deleteOrderInternal(order: Order): Int
+
+    @Transaction
+    suspend fun deleteOrder(order: Order): Int {
+        val affected = deleteOrderInternal(order)
+        insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "DELETE"))
+        return affected
+    }
 
     @Query("DELETE FROM `orders` WHERE date BETWEEN :start AND :end")
     suspend fun deleteOrdersBetween(start: Long, end: Long): Int
@@ -243,7 +296,6 @@ interface PrintDao {
     @Transaction
     suspend fun deleteOrderAndItems(order: Order): Boolean {
         deleteOrder(order)
-        // OrderItems should be deleted via ForeignKey CASCADE, but we can be explicit if needed
         return true
     }
 
@@ -260,24 +312,22 @@ interface PrintDao {
         currentTime: Long,
         receivedAmount: BigDecimal? = null
     ): Int {
-        // 1. Stock Deduction
         for (item in items) {
             val affected = safeDeductStock(item.serviceName, item.quantity)
-            val stockItem = getStockItemByName(item.serviceName)
-            if (stockItem != null && affected == 0) {
-                throw Exception("Insufficient stock for ${item.serviceName}")
+            if (affected == 0) {
+                 val stockItem = getStockItemByName(item.serviceName)
+                 if (stockItem != null) throw Exception("Insufficient stock for ${item.serviceName}")
             }
         }
 
-        // 2. Authoritative Financial Calculation (Inside Transaction)
         val previousBalance = getAuthoritativeCustomerBalance(customer.id)
         val availableCredit = if (previousBalance < BigDecimal.ZERO) previousBalance.negate() else BigDecimal.ZERO
         
         val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
-        val creditUsed = availableCredit.min(total.subtract(cashPaid).max(BigDecimal.ZERO))
+        val creditUsed = if (total > BigDecimal.ZERO) availableCredit.min(total.subtract(cashPaid).max(BigDecimal.ZERO)) else BigDecimal.ZERO
         
         val finalPaidAmount = cashPaid.add(creditUsed)
-        val transactionAmount = total.subtract(cashPaid) // The amount added to the customer's account (Revenue)
+        val transactionAmount = total.subtract(cashPaid)
         val newBalance = previousBalance.add(transactionAmount)
         
         val finalPaymentMethod = if (requestedPaymentMethod == "OWES_ME") {
@@ -292,7 +342,6 @@ interface PrintDao {
             else -> "UNPAID"
         }
 
-        // 3. Insert Order
         val order = Order(
             totalAmount = total,
             date = currentTime,
@@ -305,72 +354,57 @@ interface PrintDao {
             newBalance = newBalance,
             paymentStatus = finalPaymentStatus,
             orderStatus = "ACTIVE",
-            customerSyncId = customer.syncId
+            customerSyncId = customer.syncId,
+            updatedAt = currentTime
         )
         
         val orderId = insertOrder(order).toInt()
-        val itemsWithOrderId = items.map { it.copy(orderId = orderId, orderSyncId = order.syncId) }
-        insertOrderItems(itemsWithOrderId)
+        insertOrderItems(items.map { it.copy(orderId = orderId, orderSyncId = order.syncId) })
 
-        // 3.5. Outbox for Order
         insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "CREATE"))
-        for (item in itemsWithOrderId) {
-            insertSyncEvent(SyncOutbox(entityType = "ORDER_ITEM", entitySyncId = item.syncId, operation = "CREATE"))
-        }
 
-        // 4. Ledger Entries
-        // Entry 1: The Order (Revenue/Debt Creation)
-        val orderBalanceBefore = previousBalance
-        val orderBalanceAfter = previousBalance.add(total)
-        
         val settlement1 = SettlementHistory(
             customerName = order.customerName,
             customerId = order.customerId,
-            balanceBefore = orderBalanceBefore,
-            amountPaid = creditUsed, // Mark credit as "paid" for this order audit
-            balanceAfter = orderBalanceAfter,
+            balanceBefore = previousBalance,
+            amountPaid = creditUsed,
+            balanceAfter = previousBalance.add(total),
             timestamp = currentTime,
             type = "ORDER",
-            note = "Order #$orderId (Total: ₹$total" + (if (creditUsed > BigDecimal.ZERO) ", Credit used: ₹$creditUsed" else "") + ")",
+            note = "Order #$orderId (Total: ₹$total)",
             transactionAmount = total,
-            newBalance = orderBalanceAfter,
+            newBalance = previousBalance.add(total),
             originId = orderId,
             ledgerEntryType = "ORDER_POST",
             customerSyncId = customer.syncId,
-            originSyncId = order.syncId
+            originSyncId = order.syncId,
+            updatedAt = currentTime
         )
         insertSettlement(settlement1)
         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
 
-        // Entry 2: Payment at counter (if any)
         if (cashPaid > BigDecimal.ZERO) {
-            val paymentBalanceBefore = orderBalanceAfter
-            val paymentBalanceAfter = orderBalanceAfter.subtract(cashPaid)
-            
             val settlement2 = SettlementHistory(
                 customerName = order.customerName,
                 customerId = order.customerId,
-                balanceBefore = paymentBalanceBefore,
+                balanceBefore = settlement1.balanceAfter,
                 amountPaid = cashPaid,
-                balanceAfter = paymentBalanceAfter,
+                balanceAfter = settlement1.balanceAfter.subtract(cashPaid),
                 timestamp = currentTime,
                 type = "PAYMENT",
                 ledgerEntryType = "PAYMENT",
                 note = "Payment for Order #$orderId via $requestedPaymentMethod",
                 transactionAmount = cashPaid.negate(),
-                newBalance = paymentBalanceAfter,
+                newBalance = settlement1.balanceAfter.subtract(cashPaid),
                 originId = orderId,
                 receivedAmount = receivedAmount,
                 customerSyncId = customer.syncId,
-                originSyncId = order.syncId
+                originSyncId = order.syncId,
+                updatedAt = currentTime
             )
             insertSettlement(settlement2)
             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement2.syncId, operation = "CREATE"))
         }
-
-        // Entry 3: Credit usage note (Implicit in Entry 1, but we can add a comment to it or a shadow entry)
-        // For now, Entry 1 and Entry 2 correctly represent the state. 
-        // Example: Bal -70. Order +150. Bal 80. Pay -80. Bal 0.
         
         rebuildCustomerProjection(order.customerId)
         return orderId
@@ -378,52 +412,30 @@ interface PrintDao {
 
     @Transaction
     suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String, settlement: SettlementHistory): Boolean {
-        updateOrderPaymentStatus(orderId, newPaidAmount, status, method)
-        
+        val now = System.currentTimeMillis()
+        updateOrderPaymentStatus(orderId, newPaidAmount, status, method, now)
         val order = getOrderById(orderId)
         val customer = getCustomerById(settlement.customerId)
-        val enrichedSettlement = settlement.copy(
-            customerSyncId = customer?.syncId ?: "",
-            originSyncId = order?.syncId
-        )
-        insertSettlement(enrichedSettlement)
-        
-        // Outbox
-        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enrichedSettlement.syncId, operation = "CREATE"))
-        if (order != null) {
-            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
-        }
-
+        val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", originSyncId = order?.syncId, updatedAt = now)
+        insertSettlement(enriched)
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+        if (order != null) insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
         rebuildCustomerProjection(settlement.customerId)
         return true
     }
 
     @Transaction
     suspend fun cancelOrderAtomic(orderId: Int, status: String, settlement: SettlementHistory): Boolean {
+        val now = System.currentTimeMillis()
         val items = getItemsForOrder(orderId)
-        for (item in items) {
-            restoreStock(item.serviceName, item.quantity)
-            val stock = getStockItemByName(item.serviceName)
-            if (stock != null) {
-                insertSyncEvent(SyncOutbox(entityType = "STOCK", entitySyncId = stock.syncId, operation = "UPDATE"))
-            }
-        }
-        updateOrderStatus(orderId, status)
-        
+        for (item in items) restoreStock(item.serviceName, item.quantity)
+        updateOrderStatusInternal(orderId, status, now)
         val order = getOrderById(orderId)
         val customer = getCustomerById(settlement.customerId)
-        val enrichedSettlement = settlement.copy(
-            customerSyncId = customer?.syncId ?: "",
-            originSyncId = order?.syncId
-        )
-        insertSettlement(enrichedSettlement)
-
-        // Outbox
-        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enrichedSettlement.syncId, operation = "CREATE"))
-        if (order != null) {
-            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
-        }
-
+        val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", originSyncId = order?.syncId, updatedAt = now)
+        insertSettlement(enriched)
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+        if (order != null) insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
         rebuildCustomerProjection(settlement.customerId)
         return true
     }
@@ -435,106 +447,53 @@ interface PrintDao {
         paymentMethod: String,
         receivedAmount: BigDecimal? = null
     ): Boolean {
+        val now = System.currentTimeMillis()
         val customer = getCustomerById(customerId) ?: return false
         val currentBalance = getAuthoritativeCustomerBalance(customerId)
-        
         val unpaidOrders = getUnpaidOrdersForCustomer(customerId)
         var remainingPayment = paymentAmount
         var runningBalance = currentBalance
         var tenderAccountedFor = false
 
-        Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Start - Customer: ${customer.displayName}, Payment: $paymentAmount, Initial Balance: $currentBalance")
-
         for (order in unpaidOrders) {
             if (remainingPayment <= BigDecimal.ZERO) break
-
             val amountOwed = order.totalAmount.subtract(order.paidAmount)
             val paymentForThisOrder = if (remainingPayment >= amountOwed) amountOwed else remainingPayment
-
             val newPaidAmount = order.paidAmount.add(paymentForThisOrder)
+            updateOrderPaymentStatus(order.id, newPaidAmount, if (newPaidAmount >= order.totalAmount) "PAID" else "PARTIALLY_PAID", paymentMethod, now)
             
-            val newStatus = if (newPaidAmount >= order.totalAmount) "PAID" else "PARTIALLY_PAID"
-            val newMethod = if (order.paymentMethod == "NONE" || order.paymentMethod == "") paymentMethod else if (order.paymentMethod == paymentMethod) paymentMethod else "MIXED"
-            
-            updateOrderPaymentStatus(order.id, newPaidAmount, newStatus, newMethod)
-
             val balanceBefore = runningBalance
             runningBalance = runningBalance.subtract(paymentForThisOrder)
-
-            Log.d("PaymentProcess", "Allocating $paymentForThisOrder to Order #${order.id}. New Order Paid: $newPaidAmount, Order Status: $newStatus")
-
             val settlement = SettlementHistory(
-                customerName = customer.displayName,
-                customerId = customer.id,
-                balanceBefore = balanceBefore,
-                amountPaid = paymentForThisOrder,
-                balanceAfter = runningBalance,
-                timestamp = System.currentTimeMillis(),
-                type = "PAYMENT",
-                ledgerEntryType = "PAYMENT",
-                note = "Debt Payment for Order #${order.id} via $paymentMethod",
-                transactionAmount = paymentForThisOrder.negate(),
-                newBalance = runningBalance,
-                originId = order.id,
-                receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
-                customerSyncId = customer.syncId,
-                originSyncId = order.syncId
+                customerName = customer.displayName, customerId = customer.id,
+                balanceBefore = balanceBefore, amountPaid = paymentForThisOrder, balanceAfter = runningBalance,
+                timestamp = now, type = "PAYMENT", ledgerEntryType = "PAYMENT",
+                note = "Debt Payment for Order #${order.id}", transactionAmount = paymentForThisOrder.negate(),
+                newBalance = runningBalance, originId = order.id, receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
+                customerSyncId = customer.syncId, originSyncId = order.syncId, updatedAt = now
             )
             insertSettlement(settlement)
             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
             insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
-            
             tenderAccountedFor = true
-
             remainingPayment = remainingPayment.subtract(paymentForThisOrder)
         }
 
         if (remainingPayment > BigDecimal("0.001")) {
             val balanceBefore = runningBalance
             runningBalance = runningBalance.subtract(remainingPayment)
-
-            Log.d("PaymentProcess", "Creating overpayment credit: $remainingPayment. New Balance: $runningBalance")
-
             val settlement = SettlementHistory(
-                customerName = customer.displayName,
-                customerId = customer.id,
-                balanceBefore = balanceBefore,
-                amountPaid = remainingPayment,
-                balanceAfter = runningBalance,
-                timestamp = System.currentTimeMillis(),
-                type = "PAYMENT",
-                ledgerEntryType = "CREDIT",
-                note = "Overpayment Credit via $paymentMethod",
-                transactionAmount = remainingPayment.negate(),
-                newBalance = runningBalance,
-                receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
-                customerSyncId = customer.syncId
-            )
-            insertSettlement(settlement)
-            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
-        } else if (!tenderAccountedFor && receivedAmount != null) {
-            // Case where debt was 0 or something but money was received (unlikely in this flow but for safety)
-            val settlement = SettlementHistory(
-                customerName = customer.displayName,
-                customerId = customer.id,
-                balanceBefore = runningBalance,
-                amountPaid = BigDecimal.ZERO,
-                balanceAfter = runningBalance,
-                timestamp = System.currentTimeMillis(),
-                type = "PAYMENT",
-                ledgerEntryType = "PAYMENT",
-                note = "Physical Tender recorded",
-                transactionAmount = BigDecimal.ZERO,
-                newBalance = runningBalance,
-                receivedAmount = receivedAmount,
-                customerSyncId = customer.syncId
+                customerName = customer.displayName, customerId = customer.id,
+                balanceBefore = balanceBefore, amountPaid = remainingPayment, balanceAfter = runningBalance,
+                timestamp = now, type = "PAYMENT", ledgerEntryType = "CREDIT",
+                note = "Overpayment Credit", transactionAmount = remainingPayment.negate(),
+                newBalance = runningBalance, receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
+                customerSyncId = customer.syncId, updatedAt = now
             )
             insertSettlement(settlement)
             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
         }
-        
         rebuildCustomerProjection(customer.id)
-        Log.d("PaymentProcess", "applyPaymentToCustomerIdAtomic: Finished - Final Balance: $runningBalance")
         return true
     }
 
@@ -542,16 +501,7 @@ interface PrintDao {
     suspend fun rebuildCustomerProjection(customerId: Long): Boolean {
         val customer = getCustomerById(customerId) ?: return false
         val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
-        
-        insertOrUpdateDebtorCredit(
-            DebtorCredit(
-                customerId = customer.id,
-                customerName = customer.displayName,
-                amount = calculatedBalance,
-                lastUpdated = System.currentTimeMillis(),
-                phoneNumber = null
-            )
-        )
+        insertOrUpdateDebtorCredit(DebtorCredit(customerId = customer.id, customerName = customer.displayName, amount = calculatedBalance))
         return true
     }
 
@@ -559,7 +509,6 @@ interface PrintDao {
     suspend fun reconcileBeautyAccountAtomic() {
         val all = getAllBeautyTransactions().sortedBy { it.timestamp }
         var runningBalance = BigDecimal.ZERO
-
         for (item in all) {
             val previousBalance = runningBalance
             val transactionAmount = when (item.type) {
@@ -569,25 +518,18 @@ interface PrintDao {
                 else -> item.transactionAmount
             }
             val newBalance = if (item.type == "RESET") BigDecimal.ZERO else previousBalance.add(transactionAmount)
-
-            val updated = item.copy(
-                previousBalance = previousBalance,
-                transactionAmount = transactionAmount,
-                newBalance = newBalance
-            )
-            updateBeautyTransaction(updated)
+            updateBeautyTransactionInternal(item.copy(previousBalance = previousBalance, transactionAmount = transactionAmount, newBalance = newBalance))
             runningBalance = newBalance
         }
     }
 
     @Transaction
     suspend fun adjustBalanceAtomic(settlement: SettlementHistory): Boolean {
+        val now = System.currentTimeMillis()
         val customer = getCustomerById(settlement.customerId)
-        val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "")
+        val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", updatedAt = now)
         insertSettlement(enriched)
-        
         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
-        
         rebuildCustomerProjection(settlement.customerId)
         return true
     }
@@ -600,21 +542,22 @@ interface PrintDao {
         requestedPaymentMethod: String,
         appliedCredit: BigDecimal,
         currentTime: Long,
-        receivedAmount: BigDecimal? = null,
-        walletNote: String? = null
+        receivedAmount: BigDecimal? = null
     ): Int {
         val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
-        
         val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
         if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
-            insertBeautyTransactionAtomic(cashPaid, "ADD", walletNote ?: "Direct Pay - Order #$orderId - ${customer.displayName}")
+            insertBeautyTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId")
         }
-        
         return orderId
     }
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBeautyTransactionInternal(transaction: BeautyTransaction): Long
+
     @Transaction
     suspend fun insertBeautyTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
+        val now = System.currentTimeMillis()
         val previousBalance = getAuthoritativeWalletBalance()
         val transactionAmount = when (type) {
             "ADD" -> amount
@@ -622,18 +565,14 @@ interface PrintDao {
             "RESET" -> previousBalance.negate()
             else -> amount
         }
-        val newBalance = if (type == "RESET") BigDecimal.ZERO else previousBalance.add(transactionAmount)
-
-        insertBeautyTransaction(
-            BeautyTransaction(
-                amount = amount, 
-                type = type, 
-                note = note,
-                previousBalance = previousBalance,
-                transactionAmount = transactionAmount,
-                newBalance = newBalance
-            )
+        val bt = BeautyTransaction(
+            amount = amount, type = type, note = note, 
+            previousBalance = previousBalance, transactionAmount = transactionAmount, 
+            newBalance = previousBalance.add(transactionAmount),
+            updatedAt = now
         )
+        insertBeautyTransactionInternal(bt)
+        insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = bt.syncId, operation = "CREATE"))
     }
 
     @Transaction
@@ -645,8 +584,7 @@ interface PrintDao {
     ): Boolean {
         val success = applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
         if (success && paymentMethod == "UPI") {
-            val customer = getCustomerById(customerId)
-            insertBeautyTransactionAtomic(paymentAmount, "ADD", "Debt Settlement - ${customer?.displayName ?: "Unknown"}")
+            insertBeautyTransactionAtomic(paymentAmount, "ADD", "Debt Settlement")
         }
         return success
     }
@@ -662,7 +600,7 @@ interface PrintDao {
     ): Boolean {
         recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
         if (method == "UPI" && walletDelta > BigDecimal.ZERO) {
-            insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId - ${settlement.customerName}")
+            insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId")
         }
         return true
     }
@@ -676,19 +614,25 @@ interface PrintDao {
     ): Boolean {
         cancelOrderAtomic(orderId, status, settlement)
         if (walletReturnAmount > BigDecimal.ZERO) {
-             insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId - ${settlement.customerName}")
+             insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId")
         }
         return true
     }
 
-    @Query("""
-        SELECT (
-            SELECT CAST(amount AS REAL) FROM debtor_credits WHERE customerId = :customerId
-        ) == (
-            SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM settlement_history WHERE customerId = :customerId
-        )
-    """)
-    suspend fun verifyCustomerBalance(customerId: Long): Boolean
+    @Transaction
+    suspend fun getAuthoritativeCustomerBalance(customerId: Long): BigDecimal {
+        val transactions = getTransactionAmountsForCustomer(customerId)
+        if (transactions.isNotEmpty()) {
+            return transactions.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+        }
+        val diffs = getUnpaidOrderDiffsForCustomer(customerId)
+        return diffs.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    }
+
+    @Transaction
+    suspend fun getAuthoritativeWalletBalance(): BigDecimal {
+        return getAllBeautyTransactionAmounts().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    }
 
     @Query("SELECT * FROM settlement_history ORDER BY timestamp DESC")
     suspend fun getAllSettlements(): List<SettlementHistory>
@@ -703,46 +647,17 @@ interface PrintDao {
     suspend fun clearSettlementHistory(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExternalLedger(entry: ExternalLedger): Long
+    suspend fun insertExternalLedgerInternal(entry: ExternalLedger): Long
 
-    @Query("SELECT SUM(CAST(amount AS REAL)) FROM external_ledger")
-    suspend fun getExternalBalance(): BigDecimal?
+    @Transaction
+    suspend fun insertExternalLedger(entry: ExternalLedger): Long {
+        val id = insertExternalLedgerInternal(entry)
+        insertSyncEvent(SyncOutbox(entityType = "EXTERNAL_LEDGER", entitySyncId = entry.syncId, operation = "CREATE"))
+        return id
+    }
 
-    // --- Authoritative customer balance derived from full ledger ---
-    @Query("""
-        SELECT CASE 
-            WHEN EXISTS (SELECT 1 FROM settlement_history WHERE customerId = :customerId)
-            THEN IFNULL((SELECT SUM(CAST(transactionAmount AS REAL)) FROM settlement_history WHERE customerId = :customerId), 0.0)
-            ELSE IFNULL((SELECT SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)) FROM orders WHERE customerId = :customerId AND orderStatus = 'ACTIVE'), 0.0)
-        END
-    """)
-    suspend fun getAuthoritativeCustomerBalance(customerId: Long): BigDecimal
-
-    // --- Authoritative wallet/beauty balance derived from full digital history ---
-    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM beauty_transactions")
-    suspend fun getAuthoritativeWalletBalance(): BigDecimal
-
-    // --- Corrected cash-in-hand that includes ledger payments and subtracts cash expenses ---
-    @Query("""
-        SELECT (
-            IFNULL((SELECT SUM(CAST(settledAmount AS REAL)) FROM settlement_history WHERE ledgerEntryType IN ('PAYMENT', 'CREDIT') AND (note IS NULL OR note NOT LIKE '%UPI%')), 0.0)
-            - IFNULL((SELECT SUM(CAST(amount AS REAL)) FROM expenses WHERE paymentMethod = 'CASH'), 0.0)
-        )
-    """)
-    fun getAuthoritativeCashInHandFlow(): Flow<BigDecimal?>
-
-    // --- Corrected receivables derived from full ledger ---
-    @Query("""
-        SELECT CASE 
-            WHEN EXISTS (SELECT 1 FROM settlement_history)
-            THEN IFNULL((SELECT SUM(CAST(transactionAmount AS REAL)) FROM settlement_history), 0.0)
-            ELSE IFNULL((SELECT SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)) FROM orders WHERE orderStatus = 'ACTIVE'), 0.0)
-        END
-    """)
-    fun getAuthoritativeTotalReceivablesFlow(): Flow<BigDecimal?>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBeautyTransaction(transaction: BeautyTransaction): Long
+    @Query("SELECT amount FROM external_ledger")
+    suspend fun getExternalAmounts(): List<BigDecimal>
 
     @Query("SELECT * FROM `beauty_transactions` ORDER BY timestamp DESC")
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>>
@@ -750,38 +665,56 @@ interface PrintDao {
     @Query("SELECT * FROM `beauty_transactions`")
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction>
 
-    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions`")
-    fun getBeautyBalanceFlow(): Flow<BigDecimal?>
-
-    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions`")
-    suspend fun getBeautyBalance(): BigDecimal?
-
-    @Query("SELECT IFNULL(SUM(CAST(transactionAmount AS REAL)), 0.0) FROM `beauty_transactions`")
-    suspend fun getCurrentBeautyBalance(): BigDecimal
-
     @Delete
-    suspend fun deleteBeautyTransaction(transaction: BeautyTransaction): Int
+    suspend fun deleteBeautyTransactionInternal(transaction: BeautyTransaction): Int
 
-    @Query("SELECT * FROM `beauty_transactions` WHERE timestamp > :timestamp OR (timestamp = :timestamp AND id > :id) ORDER BY timestamp ASC, id ASC")
-    suspend fun getBeautyTransactionsAfter(timestamp: Long, id: Int): List<BeautyTransaction>
+    @Transaction
+    suspend fun deleteBeautyTransaction(transaction: BeautyTransaction): Int {
+        val affected = deleteBeautyTransactionInternal(transaction)
+        insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = transaction.syncId, operation = "DELETE"))
+        return affected
+    }
 
     @Update
-    suspend fun updateBeautyTransaction(transaction: BeautyTransaction): Int
+    suspend fun updateBeautyTransactionInternal(transaction: BeautyTransaction): Int
 
-    @Query("SELECT newBalance FROM `beauty_transactions` WHERE timestamp < :timestamp OR (timestamp = :timestamp AND id < :id) ORDER BY timestamp DESC, id DESC LIMIT 1")
-    suspend fun getBeautyBalanceBefore(timestamp: Long, id: Int): BigDecimal?
+    @Transaction
+    suspend fun updateBeautyTransaction(transaction: BeautyTransaction): Int {
+        val affected = updateBeautyTransactionInternal(transaction)
+        insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = transaction.syncId, operation = "UPDATE"))
+        return affected
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExpense(expense: Expense): Long
+    suspend fun insertExpenseInternal(expense: Expense): Long
+
+    @Transaction
+    suspend fun insertExpense(expense: Expense): Long {
+        val id = insertExpenseInternal(expense)
+        insertSyncEvent(SyncOutbox(entityType = "EXPENSE", entitySyncId = expense.syncId, operation = "CREATE"))
+        return id
+    }
 
     @Query("SELECT * FROM `expenses` ORDER BY timestamp DESC")
     fun getAllExpensesFlow(): Flow<List<Expense>>
 
-    @Query("SELECT SUM(CAST(amount AS REAL)) FROM `expenses`")
-    suspend fun getTotalExpenses(): BigDecimal?
-
     @Query("DELETE FROM `expenses` WHERE id = :id")
-    suspend fun deleteExpense(id: Int): Int
+    suspend fun deleteExpenseInternal(id: Int): Int
+
+    @Transaction
+    suspend fun deleteExpense(id: Int): Int {
+        // We need syncId for delete outbox, but we only have id. 
+        // We'll need to fetch first.
+        val expense = getExpenseById(id)
+        val affected = deleteExpenseInternal(id)
+        if (expense != null) {
+            insertSyncEvent(SyncOutbox(entityType = "EXPENSE", entitySyncId = expense.syncId, operation = "DELETE"))
+        }
+        return affected
+    }
+
+    @Query("SELECT * FROM expenses WHERE id = :id")
+    suspend fun getExpenseById(id: Int): Expense?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllExpenses(expenses: List<Expense>): List<Long>
@@ -790,7 +723,14 @@ interface PrintDao {
     suspend fun clearExpenses(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStockItem(item: StockItem): Long
+    suspend fun insertStockItemInternal(item: StockItem): Long
+
+    @Transaction
+    suspend fun insertStockItem(item: StockItem): Long {
+        val id = insertStockItemInternal(item)
+        insertSyncEvent(SyncOutbox(entityType = "STOCK", entitySyncId = item.syncId, operation = "CREATE"))
+        return id
+    }
 
     @Query("SELECT * FROM `stock_items` ORDER BY name ASC")
     fun getAllStockItemsFlow(): Flow<List<StockItem>>
@@ -798,23 +738,49 @@ interface PrintDao {
     @Query("SELECT * FROM `stock_items` WHERE currentQuantity <= lowStockThreshold")
     fun getLowStockItemsFlow(): Flow<List<StockItem>>
 
-    @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity - :quantity WHERE name = :name AND currentQuantity >= :quantity")
-    suspend fun safeDeductStock(name: String, quantity: Int): Int
+    @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity - :quantity, updatedAt = :updatedAt WHERE name = :name AND currentQuantity >= :quantity")
+    suspend fun safeDeductStockInternal(name: String, quantity: Int, updatedAt: Long): Int
 
-    @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity - :quantity WHERE name = :name")
-    suspend fun deductStockByName(name: String, quantity: Int): Int
+    @Transaction
+    suspend fun safeDeductStock(name: String, quantity: Int): Int {
+        val now = System.currentTimeMillis()
+        val affected = safeDeductStockInternal(name, quantity, now)
+        val stock = getStockItemByName(name)
+        if (stock != null) {
+            insertSyncEvent(SyncOutbox(entityType = "STOCK", entitySyncId = stock.syncId, operation = "UPDATE"))
+        }
+        return affected
+    }
 
-    @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity + :quantity WHERE name = :name")
-    suspend fun restoreStock(name: String, quantity: Int): Int
+    @Query("UPDATE `stock_items` SET currentQuantity = currentQuantity + :quantity, updatedAt = :updatedAt WHERE name = :name")
+    suspend fun restoreStockInternal(name: String, quantity: Int, updatedAt: Long): Int
+
+    @Transaction
+    suspend fun restoreStock(name: String, quantity: Int): Int {
+        val now = System.currentTimeMillis()
+        val affected = restoreStockInternal(name, quantity, now)
+        val stock = getStockItemByName(name)
+        if (stock != null) {
+            insertSyncEvent(SyncOutbox(entityType = "STOCK", entitySyncId = stock.syncId, operation = "UPDATE"))
+        }
+        return affected
+    }
 
     @Query("SELECT * FROM `stock_items` WHERE name = :name")
     suspend fun getStockItemByName(name: String): StockItem?
 
     @Delete
-    suspend fun deleteStockItem(item: StockItem): Int
+    suspend fun deleteStockItemInternal(item: StockItem): Int
 
-    @Query("UPDATE `orders` SET orderStatus = :status WHERE id = :orderId")
-    suspend fun updateOrderStatus(orderId: Int, status: String): Int
+    @Transaction
+    suspend fun deleteStockItem(item: StockItem): Int {
+        val affected = deleteStockItemInternal(item)
+        insertSyncEvent(SyncOutbox(entityType = "STOCK", entitySyncId = item.syncId, operation = "DELETE"))
+        return affected
+    }
+
+    @Query("UPDATE `orders` SET orderStatus = :status, updatedAt = :updatedAt WHERE id = :orderId")
+    suspend fun updateOrderStatusInternal(orderId: Int, status: String, updatedAt: Long): Int
 
     @Insert
     suspend fun insertSyncEvent(entry: SyncOutbox): Long

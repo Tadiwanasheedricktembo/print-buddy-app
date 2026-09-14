@@ -22,19 +22,19 @@ data class SettlementHistory(
     val customerName: String,
     @ColumnInfo(name = "previousBalance") val balanceBefore: BigDecimal,
     @ColumnInfo(name = "settledAmount") val amountPaid: BigDecimal,
-    @ColumnInfo(name = "remainingBalance") val balanceAfter: BigDecimal, // UI SNAPSHOT ONLY - Never use for authoritative state
+    @ColumnInfo(name = "remainingBalance") val balanceAfter: BigDecimal, // UI SNAPSHOT ONLY
     val timestamp: Long,
-    val type: String = "PAYMENT", // Legacy field, kept for compatibility
+    val type: String = "PAYMENT", // Legacy field
     val note: String = "",
     val customerId: Long = 0,
     val transactionAmount: BigDecimal = BigDecimal.ZERO,
-    val newBalance: BigDecimal = BigDecimal.ZERO, // UI SNAPSHOT ONLY - Never use for authoritative state
+    val newBalance: BigDecimal = BigDecimal.ZERO, // UI SNAPSHOT ONLY
     
     // Hardening Fields
-    val originId: Int? = null,         // Link to Orders.id if ledgerEntryType is ORDER_POST
-    val ledgerEntryType: String = "",  // "ORDER_POST", "PAYMENT", "ADJUSTMENT"
-    val isShadowDuplicate: Boolean = false, // True if flagged during reconciliation
-    val reconciliationStatus: String = "VERIFIED", // "VERIFIED", "SHADOW_PURGED", "FLAGGED"
+    val originId: Int? = null,
+    val ledgerEntryType: String = "",
+    val isShadowDuplicate: Boolean = false,
+    val reconciliationStatus: String = "VERIFIED",
     val receivedAmount: BigDecimal? = null,
 
     // Global Identity
@@ -44,5 +44,6 @@ data class SettlementHistory(
     // Sync Metadata
     val syncId: String = UUID.randomUUID().toString(),
     val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
     val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

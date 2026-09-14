@@ -31,5 +31,7 @@ data class OrderItem(
     val orderSyncId: String = "",
 
     // Sync Metadata
-    val syncId: String = UUID.randomUUID().toString()
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null
 )

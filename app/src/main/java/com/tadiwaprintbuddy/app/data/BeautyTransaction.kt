@@ -24,5 +24,6 @@ data class BeautyTransaction(
     // Sync Metadata
     val syncId: String = UUID.randomUUID().toString(),
     val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
     val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

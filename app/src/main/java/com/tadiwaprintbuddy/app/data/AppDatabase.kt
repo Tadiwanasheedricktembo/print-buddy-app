@@ -11,8 +11,8 @@ import androidx.room.TypeConverters
 import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
-    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class],
-    version = 35,
+    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class],
+    version = 37,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -22,6 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun integrityCheckDao(): IntegrityCheckDao
     abstract fun noteDao(): NoteDao
     abstract fun syncDao(): SyncDao
+    abstract fun deferredSyncDao(): DeferredSyncDao
 
     companion object {
         @Volatile
@@ -39,15 +40,52 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_24,
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
                     MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
-                    MIGRATION_33_34, MIGRATION_34_35
+                    MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37
                 )
-
-                // Hardening: Explicitly disabled destructive fallback in ALL builds to prevent data loss.
-                // builder.fallbackToDestructiveMigration()
 
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 36 to 37 (Adding DeferredSync table)")
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `deferred_sync` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `entityType` TEXT NOT NULL, 
+                        `entitySyncId` TEXT NOT NULL, 
+                        `operation` TEXT NOT NULL, 
+                        `data` TEXT NOT NULL, 
+                        `timestamp` INTEGER NOT NULL, 
+                        `serverUpdatedAt` TEXT, 
+                        `serverId` INTEGER, 
+                        `idempotencyKey` TEXT NOT NULL, 
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 35 to 36 (Sync Metadata Hardening)")
+                
+                // 1. OrderItem: Add updatedAt and deletedAt
+                database.execSQL("ALTER TABLE `OrderItem` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE `OrderItem` ADD COLUMN `deletedAt` INTEGER")
+                database.execSQL("UPDATE `OrderItem` SET `updatedAt` = " + System.currentTimeMillis())
+
+                // 2. settlement_history: Add deletedAt
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `deletedAt` INTEGER")
+
+                // 3. beauty_transactions: Add deletedAt
+                database.execSQL("ALTER TABLE `beauty_transactions` ADD COLUMN `deletedAt` INTEGER")
+
+                // 4. external_ledger: Add deletedAt
+                database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `deletedAt` INTEGER")
             }
         }
 

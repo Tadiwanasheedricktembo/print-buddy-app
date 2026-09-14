@@ -9,7 +9,7 @@ import java.util.UUID
 data class ExternalLedger(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val transactionType: String, // "CREDIT_TO_EXTERNAL" or "DEBIT_FROM_EXTERNAL"
+    val transactionType: String,
     val amount: BigDecimal,
     val timestamp: Long,
     val customerName: String? = null,
@@ -26,5 +26,6 @@ data class ExternalLedger(
     // Sync Metadata
     val syncId: String = UUID.randomUUID().toString(),
     val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
     val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 )

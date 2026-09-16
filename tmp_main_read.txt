@@ -1,0 +1,70 @@
+ 101:         if (current.total <= BigDecimal.ZERO) {
+ 102:             viewModelScope.launch { _events.emit(MainEvent.ShowError("Enter a valid amount greater than ₹0")) }
+ 103:             return
+ 104:         }
+ 105:         
+ 106:         if (current.quantity <= 0) {
+ 107:             viewModelScope.launch { _events.emit(MainEvent.ShowError("Quantity must be greater than zero")) }
+ 108:             return
+ 109:         }
+ 110: 
+ 111:         if (paymentStatus == "Credit" && current.customerName.isBlank()) {
+ 112:             viewModelScope.launch { _events.emit(MainEvent.ShowError("Customer name is required for Credit orders")) }
+ 113:             return
+ 114:         }
+ 115:         
+ 116:         // Prevent UPI status change without confirmed payment
+ 117:         if (paymentMethod == "UPI" && paymentStatus != "Paid") {
+ 118:             return
+ 119:         }
+ 120: 
+ 121:         _uiState.update { it.copy(isLoading = true) }
+ 122:         viewModelScope.launch {
+ 123:             try {
+ 124:                 val cartItems = listOf(CartItem("General", current.price, current.quantity))
+ 125:                 val internalPaymentMethod = if (paymentStatus == "Credit") "OWES_ME" else paymentMethod
+ 126:                 
+ 127:                 val result = repository.confirmOrder(
+ 128:                     current.customerName,
+ 129:                     cartItems,
+ 130:                     internalPaymentMethod,
+ 131:                     current.creditUsed,
+ 132:                     current.receivedAmount
+ 133:                 )
+ 134:                 
+ 135:                 when (result) {
+ 136:                     is OrderResult.Success -> {
+ 137:                         resetForm()
+ 138:                         _events.emit(MainEvent.OrderCompleted)
+ 139:                     }
+ 140:                     is OrderResult.InsufficientStock -> {
+ 141:                         _events.emit(MainEvent.ShowError("Insufficient stock for ${result.itemName}. Available: ${result.available}"))
+ 142:                     }
+ 143:                     is OrderResult.ValidationError -> {
+ 144:                         _events.emit(MainEvent.ShowError(result.message))
+ 145:                     }
+ 146:                     is OrderResult.Error -> {
+ 147:                         _events.emit(MainEvent.ShowError(result.message))
+ 148:                     }
+ 149:                 }
+ 150:             } catch (e: Exception) {
+ 151:                 _events.emit(MainEvent.ShowError("Failed to save order: ${e.message}"))
+ 152:             } finally {
+ 153:                 _uiState.update { it.copy(isLoading = false) }
+ 154:             }
+ 155:         }
+ 156:     }
+ 157: 
+ 158:     fun resetForm() {
+ 159:         _uiState.update { 
+ 160:             OrderUiState(
+ 161:                 customerName = "",
+ 162:                 quantity = 1,
+ 163:                 price = BigDecimal.ZERO,
+ 164:                 receivedAmount = null,
+ 165:                 changeAmount = BigDecimal.ZERO
+ 166:             )
+ 167:         }
+ 168:     }
+ 169: }
+ 170: 

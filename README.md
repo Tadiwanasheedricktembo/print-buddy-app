@@ -1,134 +1,116 @@
 # Tadiwa Print Buddy
 
-**A personal order, cash flow, and customer debt tracker built for my dorm-room printing business.**
+Tadiwa Print Buddy is an offline-first print business operating system built around the real workflow of a small print shop: order intake, quotations, payment collection, debt tracking, stock movement, customer history, and financial reporting.
 
-I built Tadiwa Print Buddy because managing orders, customer balances, and payments with notebooks and spreadsheets became chaotic. I needed something fast, offline, and reliable that worked entirely on my phone.
-
-**Offline-First with Cloud Sync in progress.**  
-No subscriptions.  
-Full control over your data.  
-Just my printer, my customers, and complete control over my business.
+This repository contains the Android app, a FastAPI backend, and a web dashboard layer. The underlying goal is not just "an app" but a practical business operating system that can run without internet, keep trusted records locally, and later sync cleanly to a cloud layer when the backend is live and verified.
 
 ---
 
-# Why I Built It
+## What the project contains
 
-I run a small printing hustle and needed a system that could:
+### Android app
+- Kotlin + Jetpack / Room + MVVM repository architecture
+- Local-first transaction ledger for customers, orders, settlements, stock, and expenses
+- Daily business calculations for revenue, debt, and profit
+- Offline data integrity checks and reconciliation logic
+- Payment, cancellation, reversal, and customer debt flows
+- Local backup/export support for operational resilience
 
-- Track customer debt accurately
-- Record orders quickly at the counter
-- Monitor daily earnings and true net profit
-- Handle partial payments and settlements
-- Keep customer history organized
-- Work fully offline
+Location:
+- app/
 
-Instead of adapting generic apps to my workflow, I built my own tailored system.
+### Backend API
+- FastAPI application with JWT auth and sync endpoints
+- PostgreSQL-compatible data layer with SQLAlchemy models and Alembic support
+- User-scoped sync isolation and server-side idempotency
+- API routers for auth, sync, analytics, and business data
 
----
+Location:
+- backend/
 
-# Core Features
+### Web dashboard / sync layer
+- Next.js web app for dashboard and browser-side data access
+- Authenticated API wrappers and local storage token handling
+- Sync primitives for pull/push, outbox queue, merge logic, and diagnostics
+- Dashboard integration for monitoring sync status and smoke tests
 
-## Order Management & POS
-- **Quick order entry**: Validated system preventing zero-value or empty orders.
-- **Enhanced Print Calculator**: Calculate costs for B&W/Colour pages and add miscellaneous "Other Expenses" like **Binding, Lamination, or Transport**.
-- **Payment support**: Full lifecycle for CASH, UPI, and CREDIT payments.
-- **Order Status Tracking**: Distinguish between ACTIVE and CANCELLED orders with full financial reversal (stock restoration and debt reduction).
-
-## Earnings & Analytics
-- **Financial Dashboard**: Real-time revenue tracking based on authoritative ledger collection.
-- **Work Value Analysis**: Track the total value of all jobs performed, regardless of payment status.
-- **Local Timezone Sync**: Precision trend charts grouped by your local business day.
-- **UPI Account**: Specialized digital ledger for tracking digital payments (formerly Beauty Account) with auto-reconciliation.
-
-## Customer Ledger System
-- **Smart customer normalization**: Handles variations in name casing and spacing.
-- **Debt & Change Tracking**: Clear visibility into who owes money and where change is due.
-- **Deterministic Transaction Sorting**: View history sorted by "Newest First" or "Oldest First" with ID-based tie-breaking.
-- **Authoritative Balances**: Derived from chronological settlement history for 100% accuracy.
-
-## Inventory & Business Tools
-- **Stock Management**: Track physical units (paper, ink) with low-stock alerts.
-- **Expense Logging**: Categorized business costs for accurate profit calculation.
-- **Business Notes**: A dedicated module for storing plain-text business reminders and supplier info.
+Location:
+- web/
 
 ---
 
-# Daily Workflow
+## Current project status
 
-1. Customer places an order.
-2. Use the calculator to sum pages and binding/lamination costs.
-3. Validation ensures quantity/price > 0 and stock is available.
-4. Payment is recorded as CASH, UPI, or CREDIT.
-5. Order saved instantly across all ledgers (Orders, Settlements, Stock).
-6. Returning customers retain complete history with persistent expansion states in the ledger.
+### Verified and working
+- Android business logic and local data integrity are in place.
+- Backend environment has been restored to a consistent Python 3.11 setup.
+- The backend dependency stack and app import path are working from the project’s real Python environment.
+- The backend test suite is passing under the project configuration.
+- Live login + pull + push sync validation against the PostgreSQL-backed backend succeeded with real JWT authentication and subsequent pull confirmation.
 
----
-
-# Technical Highlights
-
-## Architecture
-- **MVVM (Model-View-ViewModel)**: Clean separation of UI and business logic.
-- **Room Database (v31)**: Robust local storage with explicit migration paths.
-- **Repository Pattern**: Authoritative business rule enforcement.
-- **Coroutines & Flow**: High-performance asynchronous data streams.
-- **Sync Architecture (In Progress)**: Moving towards a FastAPI/PostgreSQL cloud layer for Web access.
-
-## Data Integrity & Security
-- **Atomic Transactions**: `@Transaction` boundaries for all critical financial writes.
-- **Duplicate Guard**: ViewModel-level submission guards preventing rapid-tap duplicates.
-- **Safe Reversals**: Full reversal logic for cancelled orders (reverts stock and balances).
-- **Biometric Security**: Integrated SecurityManager for PIN/Biometric app locking.
-
-## Reliability
-- **Fully Offline-First**: No server dependency for core operations.
-- **Automated Backups**: 24-hour periodic database exports via WorkManager.
-- **Unit Tested**: Comprehensive test suite for order validation, sorting, and database integrity.
+### Current status
+- The web sync foundation is implemented, build-safe, and live-validated.
+- The backend sync API exists and is test-covered.
+- Real end-to-end browser-style login + pull + push validation against a live backend has been completed successfully.
+- No new business logic is being introduced while the live sync gate is still being validated.
 
 ---
 
-# Screenshots
+## What I am trying to achieve
 
-<h2 align="center">App Screenshots</h2>
+The project is aiming to become a complete business system for a real print operation with these goals:
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/5f462579-0bde-4e51-a5f3-12f5673ff237" width="220" hspace="10"/>
-  <img src="https://github.com/user-attachments/assets/e7fd1c59-89a7-43f6-aa0d-894026e87bf3" width="220" hspace="10"/>
-  <img src="https://github.com/user-attachments/assets/38134c5e-70ae-4c52-9146-bd0d7f85bc5a" width="220" hspace="10"/>
-</p>
+1. Keep daily operations fast and reliable offline.
+2. Preserve accurate financial records with precise money handling.
+3. Support customer debt, order flow, and settlement history without confusion.
+4. Add cloud sync and web access without breaking the local-first trust model.
+5. Keep the app useful in the real world rather than as a demo or generic template.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/64a031db-a0ff-4e68-9afa-212843c29a5b" width="220" hspace="10"/>
-  <img src="https://github.com/user-attachments/assets/a4922ee6-20b6-4e05-bdb4-fefdbc76ecfa" width="220" hspace="10"/>
-</p>
+This is a practical personal business tool, not a side project built for aesthetics alone.
 
 ---
 
-# Setup & Development
+## Repository layout
 
-## Requirements
-- Android 7.0 (API 24+) or higher
-- Android Studio Ladybug or newer
-- Kotlin 2.0+
-
-## Development
-- **Build**: `./gradlew assembleDebug`
-- **Test**: `./gradlew test`
-- **Lint**: `./gradlew lint`
+- app/ — Android application source
+- backend/ — FastAPI backend and test suite
+- web/ — Next.js dashboard and browser sync layer
+- build/ — generated build output and reports
+- docs and project notes — status audits, migration files, and project planning artifacts at the repo root
 
 ---
 
-# About This Project
+## Development commands
 
-This is not a tutorial clone or a demo project. I built this app to solve real operational problems in my own business while studying and running a print hustle from my dorm room.
+### Android
+- Build: ./gradlew assembleDebug
+- Test: ./gradlew test
 
-The goal was simple: **Build software that is genuinely useful in daily life.**
+### Backend
+- Setup Python 3.11 environment in backend/
+- Install: pip install -r requirements.txt
+- Run API: uvicorn app.main:app --host 127.0.0.1 --port 8000
+- Test: python -m pytest -q
+
+### Web dashboard
+- Install: npm install
+- Run: npm run dev
+- Build: npm run build
 
 ---
 
-**Developer:** Tadiwanashe E Tembo  
-**Brand:** Querycubix  
-**Project:** Tadiwa Print Buddy
+## Important note on sync
+
+The sync layer is intentionally additive and isolated. It is designed to preserve existing Android business logic while providing a path toward a verified web/backend sync model. The current honest status is:
+
+- backend API and sync logic: present and tested
+- browser sync foundation: present and build-safe
+- live browser-to-backend verification: pending
+
+This project stays disciplined by validating the real environment before claiming full sync success.
 
 ---
 
-*Last Updated: September 2026*
+**Project purpose:** real-world operations for a print business, with local-first stability and a controlled move toward cloud sync.
+
+**Last updated:** September 2026

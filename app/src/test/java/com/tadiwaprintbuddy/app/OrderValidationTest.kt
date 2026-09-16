@@ -102,6 +102,19 @@ class OrderValidationTest {
     }
 
     @Test
+    fun `test beauty account manual upi transaction records settlement history`() = runBlocking {
+        val before = dao.getAllSettlements()
+
+        repository.insertBeautyTransaction(BigDecimal("150.0"), "ADD", "Manual top up")
+
+        val settlements = dao.getAllSettlements()
+        assertTrue(settlements.size == before.size + 1)
+        assertTrue(settlements.last().customerName == "UPI Account")
+        assertTrue(settlements.last().amountPaid.compareTo(BigDecimal("150.0")) == 0)
+        assertTrue(settlements.last().ledgerEntryType == "UPI_ACCOUNT_TOPUP")
+    }
+
+    @Test
     fun `test atomic transaction rollback on failed stock deduction`() = runBlocking {
         // First add a stock item with 5 quantity
         dao.insertStockItem(StockItem(name = "Paper", currentQuantity = 5))

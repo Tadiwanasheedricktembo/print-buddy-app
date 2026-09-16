@@ -1,0 +1,220 @@
+package com.tadiwaprintbuddy.app
+
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.os.Bundle
+import android.view.View
+import android.widget.TextView
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.*
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.google.android.material.chip.Chip
+import com.tadiwaprintbuddy.app.data.*
+import com.tadiwaprintbuddy.app.databinding.ActivityDashboardBinding
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.*
+
+class DashboardActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityDashboardBinding
+    private val viewModel: DashboardViewModel by viewModels {
+        DashboardViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
+    }
+    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityDashboardBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setupToolbar()
+        setupFilters()
+        setupClickListeners()
+        observeViewModel()
+    }
+
+    private fun setupToolbar() {
+        binding.toolbar.setNavigationOnClickListener { finish() }
+    }
+
+    private fun setupFilters() {
+        binding.chipGroupTimeFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            val period = when (checkedId) {
+                R.id.chipToday -> "Today"
+                R.id.chipYesterday -> "Yesterday"
+                R.id.chipThisWeek -> "This Week"
+                R.id.chipThisMonth -> "This Month"
+                R.id.chipLast30Days -> "Last 30 Days"
+                R.id.chipAllTime -> "All Time"
+                else -> "Today"
+            }
+            viewModel.setPeriod(period)
+        }
+
+        binding.chipGroupPaymentFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            val method = when (checkedId) {
+                R.id.chipAllMethods -> "All"
+                R.id.chipAllPayments -> "All_Payments"
+                R.id.chipCashOnly -> "Cash"
+                R.id.chipUpiOnly -> "UPI"
+                R.id.chipCreditOnly -> "Credit"
+                else -> "All"
+            }
+            viewModel.setPaymentMethod(method)
+        }
+    }
+
+    private fun setupClickListeners() {
+        binding.btnAddExpense.setOnClickListener {
+            showAddExpenseSheet()
+        }
+        binding.bannerZeroExpense.setOnClickListener {
+            showAddExpenseSheet()
+        }
+    }
+
+    private fun showAddExpenseSheet() {
+        val bottomSheet = AddExpenseBottomSheet()
+        bottomSheet.show(supportFragmentManager, "AddExpense")
+    }
+
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            viewModel.uiState.collectLatest { state ->
+                updateMetrics(state.metrics)
+                updateCharts(state)
+                updateInsights(state.insights)
+                binding.textUpiWalletBalanceCallout.text = currencyFormat.format(state.upiWalletBalance.toDouble())
+                binding.bannerZeroExpense.visibility = if (state.showZeroExpenseWarning) View.VISIBLE else View.GONE
+            }
+        }
+    }
+
+    private fun updateMetrics(metrics: PeriodMetrics?) {
+        if (metrics == null) return
+        binding.textTotalRevenue.text = currencyFormat.format(metrics.revenue.toDouble())
+        binding.textNetProfit.text = currencyFormat.format(metrics.netProfit.toDouble())
+        binding.textTotalExpenses.text = currencyFormat.format(metrics.expenses.toDouble())
+        binding.textOrdersCount.text = metrics.ordersCount.toString()
+        
+        binding.textProfitMarginPercent.text = String.format(Locale.ENGLISH, "%.0f%%", metrics.profitMargin)
+        binding.progressProfitMargin.progress = metrics.profitMargin.toInt()
+
+        // Trend badges
+        updateTrendBadge(binding.badgeRevenue, metrics.revenue, metrics.previousRevenue)
+        updateTrendBadge(binding.badgeExpenses, metrics.expenses, metrics.previousExpenses, isInverted = true)
+        updateTrendBadge(binding.badgeNetProfit, metrics.netProfit, metrics.previousNetProfit)
+        updateTrendBadge(binding.badgeOrders, BigDecimal(metrics.ordersCount), BigDecimal(metrics.previousOrdersCount), showPercent = false)
+    }
+
+    private fun updateTrendBadge(textView: TextView, current: BigDecimal, previous: BigDecimal, isInverted: Boolean = false, showPercent: Boolean = true) {
+        if (previous.compareTo(BigDecimal.ZERO) == 0) {
+            textView.visibility = View.GONE
+            return
+        }
+        textView.visibility = View.VISIBLE
+        val diff = current.subtract(previous)
+        val isUp = diff.compareTo(BigDecimal.ZERO) >= 0
+        
+        if (showPercent) {
+            val percent = diff.abs().divide(previous, 4, RoundingMode.HALF_UP).multiply(BigDecimal(100)).toDouble()
+            val sign = if (isUp) "▲" else "▼"
+            textView.text = String.format(Locale.ENGLISH, "%s %.0f%%", sign, percent)
+        } else {
+            val sign = if (isUp) "+" else "-"
+            textView.text = String.format(Locale.ENGLISH, "%s %.0f", sign, diff.abs().toDouble())
+        }
+
+        textView.setBackgroundResource(if (isUp != isInverted) R.drawable.bg_badge_trend_up else R.drawable.bg_badge_trend_down)
+    }
+
+    private fun updateCharts(state: DashboardUiState) {
+        setupRevenueTrendChart(state.revenueTrend)
+        setupPaymentBreakdownChart(state.paymentBreakdown)
+        setupServiceBreakdownChart(state.serviceBreakdown, state.metrics?.ordersCount ?: 0)
+    }
+
+    private fun setupRevenueTrendChart(data: List<TrendPoint>) {
+        val chart = binding.chartRevenueTrend
+        if (data.isEmpty()) {
+            chart.clear()
+            return
+        }
+
+        val entries = data.map { Entry(it.timestamp.toFloat(), it.amount.toFloat()) }
+        val dataSet = LineDataSet(entries, "Current Period")
+        dataSet.apply {
+            color = Color.parseColor("#00C853")
+            lineWidth = 2f
+            setDrawCircles(true)
+            setCircleColor(Color.WHITE)
+            circleRadius = 4f
+            setCircleColor(Color.parseColor("#00C853"))
+            setDrawFilled(true)
+            fillAlpha = 20
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+            setDrawValues(false)
+        }
+
+        chart.apply {
+            this.data = LineData(dataSet)
+            description.isEnabled = false
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                textColor = Color.parseColor("#9E9E9E")
+                setDrawGridLines(false)
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(value.toLong()))
+                    }
+                }
+            }
+            axisLeft.apply {
+                textColor = Color.parseColor("#9E9E9E")
+                gridColor = Color.parseColor("#1E1E1E")
+                enableGridDashedLine(10f, 10f, 0f)
+                setDrawAxisLine(false)
+            }
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+            invalidate()
+        }
+    }
+
+    private fun setupPaymentBreakdownChart(data: List<PaymentBreakdown>) {
+        val chart = binding.chartPaymentBreakdown
+        if (data.isEmpty()) {
+            chart.clear()
+            return
+        }
+
+        val entries = data.mapIndexed { index, item -> BarEntry(index.toFloat(), item.total.toFloat()) }
+        val dataSet = BarDataSet(entries, "")
+        dataSet.apply {
+            colors = listOf(
+                Color.parseColor("#00C853"), // CASH
+                Color.parseColor("#448AFF"), // UPI
+                Color.parseColor("#FFB300")  // CREDIT
+            )
+            setDrawValues(true)
+            valueTextColor = Color.WHITE
+            valueTextSize = 10f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return currencyFormat.format(value)
+                }
+            }
+        }
+

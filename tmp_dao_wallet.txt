@@ -1,0 +1,130 @@
+        rebuildCustomerProjection(customer.id)
+        return true
+    }
+
+    @Transaction
+    suspend fun rebuildCustomerProjection(customerId: Long): Boolean {
+        val customer = getCustomerById(customerId) ?: return false
+        val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
+        insertOrUpdateDebtorCredit(DebtorCredit(customerId = customer.id, customerName = customer.displayName, amount = calculatedBalance))
+        return true
+    }
+
+    @Transaction
+    suspend fun reconcileBeautyAccountAtomic() {
+        val all = getAllBeautyTransactionsInternal()
+        var runningBalance = BigDecimal.ZERO
+        for (item in all) {
+            val previousBalance = runningBalance
+            val transactionAmount = when (item.type) {
+                "ADD" -> item.amount
+                "RETURN" -> item.amount.negate()
+                "RESET" -> previousBalance.negate()
+                else -> item.transactionAmount
+            }
+            val newBalance = if (item.type == "RESET") BigDecimal.ZERO else previousBalance.add(transactionAmount)
+            updateBeautyTransactionInternal(item.copy(previousBalance = previousBalance, transactionAmount = transactionAmount, newBalance = newBalance))
+            runningBalance = newBalance
+        }
+    }
+
+    @Query("SELECT * FROM beauty_transactions ORDER BY timestamp ASC")
+    suspend fun getAllBeautyTransactionsInternal(): List<BeautyTransaction>
+
+    @Transaction
+    suspend fun adjustBalanceAtomic(settlement: SettlementHistory): Boolean {
+        val now = System.currentTimeMillis()
+        val customer = getCustomerById(settlement.customerId)
+        val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", updatedAt = now)
+        insertSettlement(enriched)
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+        rebuildCustomerProjection(settlement.customerId)
+        return true
+    }
+
+    @Transaction
+    suspend fun recordOrderWithWalletAtomic(
+        customer: CustomerEntity,
+        items: List<OrderItem>,
+        total: BigDecimal,
+        requestedPaymentMethod: String,
+        appliedCredit: BigDecimal,
+        currentTime: Long,
+        receivedAmount: BigDecimal? = null
+    ): Int {
+        val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
+        val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
+        if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
+            insertBeautyTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId")
+        }
+        return orderId
+    }
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBeautyTransactionInternal(transaction: BeautyTransaction): Long
+
+    @Transaction
+    suspend fun insertBeautyTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
+        val now = System.currentTimeMillis()
+        val previousBalance = getAuthoritativeWalletBalance()
+        val transactionAmount = when (type) {
+            "ADD" -> amount
+            "RETURN" -> amount.negate()
+            "RESET" -> previousBalance.negate()
+            else -> amount
+        }
+        val bt = BeautyTransaction(
+            amount = amount, type = type, note = note, 
+            previousBalance = previousBalance, transactionAmount = transactionAmount, 
+            newBalance = previousBalance.add(transactionAmount),
+            updatedAt = now
+        )
+        insertBeautyTransactionInternal(bt)
+        insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = bt.syncId, operation = "CREATE"))
+    }
+
+    @Transaction
+    suspend fun applyPaymentToCustomerIdWithWalletAtomic(
+        customerId: Long, 
+        paymentAmount: BigDecimal, 
+        paymentMethod: String,
+        receivedAmount: BigDecimal? = null
+    ): Boolean {
+        val success = applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
+        if (success && paymentMethod == "UPI") {
+            insertBeautyTransactionAtomic(paymentAmount, "ADD", "Debt Settlement")
+        }
+        return success
+    }
+
+    @Transaction
+    suspend fun recordPaymentWithWalletAtomic(
+        orderId: Int, 
+        newPaidAmount: BigDecimal, 
+        status: String, 
+        method: String, 
+        settlement: SettlementHistory,
+        walletDelta: BigDecimal
+    ): Boolean {
+        recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
+        if (method == "UPI" && walletDelta > BigDecimal.ZERO) {
+            insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId")
+        }
+        return true
+    }
+
+    @Transaction
+    suspend fun cancelOrderWithWalletAtomic(
+        orderId: Int, 
+        status: String, 
+        settlement: SettlementHistory,
+        walletReturnAmount: BigDecimal
+    ): Boolean {
+        cancelOrderAtomic(orderId, status, settlement)
+        if (walletReturnAmount > BigDecimal.ZERO) {
+             insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId")
+        }
+        return true
+    }
+
+    @Transaction

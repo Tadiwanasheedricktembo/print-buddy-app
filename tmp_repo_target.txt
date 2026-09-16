@@ -1,0 +1,244 @@
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:83:            newPaidAmount >= order.totalAmount -> "PAID"
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:84:            newPaidAmount > BigDecimal.ZERO -> "PARTIALLY_PAID"
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:85:            else -> "UNPAID"
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:86:        }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:87:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:88:        val method = if (order.paymentMethod == "NONE" || order.paymentMethod == "" || order.paymentMethod == paymentMethod) paymentMethod else "MIXED"
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:89:        val customerId = order.customerId
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:90:        val currentBalance = getCustomerBalanceById(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:91:        val newBalance = currentBalance.subtract(delta)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:92:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:93:        val settlement = SettlementHistory(
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:94:            customerName = order.customerName, customerId = customerId,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:95:            balanceBefore = currentBalance, amountPaid = delta, balanceAfter = newBalance,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:96:            timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "PAYMENT",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:97:            note = "Additional payment Order #${order.id}", transactionAmount = delta.negate(),
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:98:            newBalance = newBalance, originId = orderId, receivedAmount = receivedAmount
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:99:        )
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:100:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:101:        printDao.recordPaymentWithWalletAtomic(orderId, newPaidAmount, status, method, settlement, delta)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:102:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:103:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:104:    suspend fun cancelOrder(orderId: Int) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:105:        val order = printDao.getOrderById(orderId) ?: return
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:106:        if (order.orderStatus == "CANCELLED") return
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:107:        val customerId = order.customerId
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:108:        val currentBalance = getCustomerBalanceById(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:109:        val amountToReverse = order.totalAmount.subtract(order.paidAmount)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:110:        val newBalance = currentBalance.subtract(amountToReverse)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:111:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:112:        val settlement = SettlementHistory(
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:113:            customerName = order.customerName, customerId = customerId,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:114:            balanceBefore = currentBalance, amountPaid = BigDecimal.ZERO, balanceAfter = newBalance,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:115:            timestamp = System.currentTimeMillis(), type = "CANCEL", ledgerEntryType = "ORDER_CANCEL",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:116:            note = "Cancelled Order #$orderId", transactionAmount = amountToReverse.negate(),
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:117:            newBalance = newBalance, originId = orderId
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:118:        )
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:119:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:120:        val walletReturn = if (order.paymentMethod == "UPI") order.paidAmount else BigDecimal.ZERO
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:121:        printDao.cancelOrderWithWalletAtomic(orderId, "CANCELLED", settlement, walletReturn)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:122:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:123:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:124:    suspend fun deleteOrder(orderId: Int) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:125:        cancelOrder(orderId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:126:        printDao.getOrderById(orderId)?.let { printDao.deleteOrderAndItems(it) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:127:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:128:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:129:    suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:130:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:131:    suspend fun getExpensesBetween(start: Long, end: Long): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:132:        printDao.getExpenseAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:133:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:134:    suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:135:        printDao.getExpenseAmountsByMethodBetween(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:136:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:137:    suspend fun getSalesRevenueBetween(start: Long, end: Long): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:138:        printDao.getPaidAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:139:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:140:    suspend fun getSalesVolumeBetween(start: Long, end: Long): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:141:        printDao.getTotalAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:142:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:143:    suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:144:        printDao.getFilteredSettledAmounts(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:145:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:146:    suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal =
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:147:        printDao.getPaidAmountsByMethodBetween(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:148:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:149:    suspend fun getOrdersCountBetween(start: Long, end: Long): Int = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:150:        printDao.getOrdersCountBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:151:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:152:    suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:153:        printDao.getOrdersCountByMethodBetween(start, end, method)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:154:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:155:    suspend fun getTotalReceivables(): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:156:        printDao.getAllReceivableDiffs().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:157:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:158:    suspend fun getDebtorsCount(): Int = printDao.getDebtorsCount()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:159:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:160:    suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint> = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:161:        printDao.getSettledRevenueTrendByMethod(start, end, method)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:162:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:163:    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:164:        printDao.getSettledPaymentBreakdownBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:165:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:166:    suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:167:        printDao.getServiceBreakdownBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:168:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:169:    suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:170:        printDao.getExpenseBreakdownBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:171:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:172:    fun getFilteredBeautyTransactions(start: Long, end: Long) = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:173:        printDao.getFilteredBeautyTransactions(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:174:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:175:    suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:176:        printDao.getBeautyReceivedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:177:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:178:    suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:179:        printDao.getBeautyReturnedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:180:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:181:    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): BigDecimal =
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:182:        printDao.getBeautyTransactionAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:183:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:184:    suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:185:        printDao.getBeautyTransactionCountBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:186:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:187:    fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:188:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:189:    // --- Debt & Settlements ---
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:190:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:191:    suspend fun applyPaymentToCustomer(customerName: String, paymentAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:192:        val customer = getOrCreateCustomer(customerName)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:193:        applyPaymentToCustomerId(customer.id, paymentAmount, paymentMethod, receivedAmount)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:194:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:195:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:196:    suspend fun applyPaymentToCustomerId(customerId: Long, paymentAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:197:        printDao.applyPaymentToCustomerIdWithWalletAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:209:        return groups.map { it.copy(totalBalance = getCustomerBalanceById(it.customerId)) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:210:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:211:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:212:    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: BigDecimal, note: String? = null, receivedAmount: BigDecimal? = null) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:213:        val customer = getOrCreateCustomer(customerName)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:214:        val previousBalance = getCustomerBalanceById(customer.id)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:215:        val newBalance = previousBalance.add(amountDelta)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:216:        val isPayment = amountDelta < BigDecimal.ZERO
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:217:        
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:218:        printDao.insertSettlement(
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:219:            SettlementHistory(
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:220:                customerName = customer.displayName, customerId = customer.id,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:221:                balanceBefore = previousBalance, amountPaid = if (isPayment) amountDelta.negate() else BigDecimal.ZERO,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:222:                balanceAfter = newBalance, timestamp = System.currentTimeMillis(),
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:223:                type = if (isPayment) "PAYMENT" else "ADJUSTMENT", ledgerEntryType = if (isPayment) "PAYMENT" else "ADJUSTMENT",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:224:                note = note ?: (if (isPayment) "Settlement Payment" else "Adjustment"), transactionAmount = amountDelta,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:225:                newBalance = newBalance, receivedAmount = receivedAmount, customerSyncId = customer.syncId
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:226:            )
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:227:        )
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:228:        rebuildCustomerProjection(customer.id)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:229:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:230:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:231:    suspend fun deleteDebtorCredit(customerId: Long) = printDao.deleteDebtorCredit(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:232:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:233:    suspend fun deleteCustomerCompletely(customerId: Long) = printDao.deleteCustomerCompletely(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:234:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:235:    suspend fun rebuildCustomerProjection(customerId: Long) = printDao.rebuildCustomerProjection(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:236:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:237:    suspend fun verifyCustomerBalance(customerId: Long): Boolean {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:238:         val calculated = getCustomerBalanceById(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:239:         val cached = printDao.getDebtorCreditById(customerId)?.amount ?: BigDecimal.ZERO
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:240:         return calculated == cached
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:241:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:242:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:243:    suspend fun adjustCustomerBalance(customerId: Long, newAmountOwing: BigDecimal, reason: String? = null) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:244:        val customer = printDao.getCustomerById(customerId) ?: return
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:245:        val currentBalance = getCustomerBalanceById(customerId)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:246:        val delta = newAmountOwing.subtract(currentBalance)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:247:        if (delta.abs() < BigDecimal("0.001")) return
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:248:        
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:249:        printDao.adjustBalanceAtomic(SettlementHistory(
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:250:            customerName = customer.displayName, customerId = customer.id,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:251:            balanceBefore = currentBalance, amountPaid = BigDecimal.ZERO, balanceAfter = newAmountOwing,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:252:            timestamp = System.currentTimeMillis(), type = "ADJUSTMENT", ledgerEntryType = "ADJUSTMENT",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:253:            note = reason ?: "Manual Adjustment", transactionAmount = delta, newBalance = newAmountOwing
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:254:        ))
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:255:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:256:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:257:    // --- Other ---
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:258:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:259:    suspend fun addPrinterReference(reference: PrinterReference) = printDao.addPrinterReference(reference)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:260:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:261:    suspend fun getAllPrinterReferences(): List<PrinterReference> = printDao.getAllPrinterReferences()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:262:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:263:    suspend fun deletePrinterReference(reference: PrinterReference) = printDao.deletePrinterReference(reference)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:264:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:265:    suspend fun getDebtorCreditList(): List<DebtorCredit> = printDao.getDebtorCreditList()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:266:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:267:    suspend fun deleteOrdersBetween(start: Long, end: Long) = printDao.deleteOrdersBetween(start, end)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:268:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:269:    suspend fun deleteAllOrders() = printDao.deleteAllOrders()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:270:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:271:    suspend fun getAllSettlements(): List<SettlementHistory> = printDao.getAllSettlements()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:272:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:273:    suspend fun getAllSettlementHistoryOnce(): List<SettlementHistory> = printDao.getAllSettlementHistoryOnce()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:274:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:275:    suspend fun restoreSettlements(data: List<SettlementHistory>, fullReplace: Boolean) {
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:276:        if (fullReplace) printDao.clearSettlementHistory()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:277:        printDao.insertAllSettlements(data)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:278:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:279:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:280:    fun getCashInHandFlow(): Flow<BigDecimal> {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:281:        return printDao.getAllActivePaidAmountsFlow().map { list ->
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:282:             list.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:283:        }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:284:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:285:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:286:    fun getTotalReceivablesFlow(): Flow<BigDecimal> {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:287:         return printDao.getAllCustomersFlow().map { customers ->
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:288:             customers.fold(BigDecimal.ZERO) { acc, c -> acc.add(getCustomerBalanceById(c.id)) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:289:         }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:290:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:291:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:292:    suspend fun insertBeautyTransaction(amount: BigDecimal, type: String, note: String? = null) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:293:        val normalizedType = type.trim().uppercase()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:294:        val customer = getOrCreateCustomer("UPI Account")
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:295:        val currentBalance = getCustomerBalanceById(customer.id)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:296:        val walletDelta = when (normalizedType) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:297:            "ADD" -> amount
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:298:            "RETURN" -> amount.negate()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:299:            else -> BigDecimal.ZERO
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:300:        }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:301:
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:302:        printDao.insertBeautyTransactionAtomic(amount, normalizedType, note)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:303:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:304:        if (amount > BigDecimal.ZERO && normalizedType in setOf("ADD", "RETURN")) {
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:305:            val settlementAmount = if (normalizedType == "ADD") amount else amount
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:306:            val nextBalance = currentBalance.add(walletDelta)
+> C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:307:            val settlement = SettlementHistory(
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:308:                customerName = customer.displayName,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:309:                customerId = customer.id,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:310:                balanceBefore = currentBalance,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:311:                amountPaid = settlementAmount,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:312:                balanceAfter = nextBalance,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:313:                timestamp = System.currentTimeMillis(),
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:314:                type = "UPI_ACCOUNT",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:315:                ledgerEntryType = if (normalizedType == "ADD") "UPI_ACCOUNT_TOPUP" else "UPI_ACCOUNT_RETURN",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:316:                note = note ?: if (normalizedType == "ADD") "UPI Account top-up" else "UPI Account return",
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:317:                transactionAmount = walletDelta,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:318:                newBalance = nextBalance,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:319:                customerSyncId = customer.syncId,
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:320:                updatedAt = System.currentTimeMillis()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:321:            )
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:322:            printDao.insertSettlement(settlement)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:323:            printDao.insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:324:            printDao.rebuildCustomerProjection(customer.id)
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:325:        }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:326:    }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:327:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:328:    fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:329:    
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:330:    suspend fun getAllBeautyTransactions(): List<BeautyTransaction> = printDao.getAllBeautyTransactions()
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:331:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:332:    fun getBeautyBalanceFlow(): Flow<BigDecimal> = 
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:333:        printDao.getBeautyTransactionAmountsFlow().map { list ->
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:334:            list.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:335:        }
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:336:
+  C:\Users\tadiw\AndroidStudioProjects\TadiwaPrintBuddy\app\src\main\java\com\tadiwaprintbuddy\app\data\PrintRepository.kt:337:    suspend fun getCurrentBeautyBalance(): BigDecimal = printDao.getAuthoritativeWalletBalance()

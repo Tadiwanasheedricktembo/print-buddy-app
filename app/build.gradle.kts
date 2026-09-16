@@ -1,8 +1,28 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     id("kotlin-parcelize")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+val debugApiBaseUrl = System.getenv("TADIWA_API_BASE_URL")
+    ?: localProperties.getProperty("TADIWA_API_BASE_URL")
+    ?: "http://10.0.2.2:8000/"
+
+val releaseApiBaseUrl = (System.getenv("TADIWA_API_BASE_URL")
+    ?: localProperties.getProperty("TADIWA_API_BASE_URL"))?.trim()
+    ?: throw GradleException("TADIWA_API_BASE_URL must be set for release builds. Do not ship a placeholder API URL.")
+
+if (releaseApiBaseUrl == "https://api.tadiwa.com/") {
+    throw GradleException("Release builds cannot use the placeholder API URL. Set TADIWA_API_BASE_URL to the real backend host.")
 }
 
 android {
@@ -23,7 +43,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
+        }
         release {
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

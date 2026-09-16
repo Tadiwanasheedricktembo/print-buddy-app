@@ -1,0 +1,220 @@
+package com.tadiwaprintbuddy.app.data
+
+import android.util.Log
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+import java.math.BigDecimal
+
+@Dao
+interface PrintDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrder(order: Order): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrderItems(items: List<OrderItem>): List<Long>
+
+    @Query("SELECT * FROM `orders` WHERE (deletedAt IS NULL) ORDER BY date DESC")
+    suspend fun getAllOrders(): List<Order>
+
+    @Query("SELECT * FROM `orders` WHERE date BETWEEN :start AND :end AND (deletedAt IS NULL) ORDER BY date DESC")
+    suspend fun getOrdersBetween(start: Long, end: Long): List<Order>
+
+    @Query("SELECT * FROM `OrderItem` WHERE orderId = :orderId AND (deletedAt IS NULL)")
+    suspend fun getItemsForOrder(orderId: Int): List<OrderItem>
+
+    // Pull raw data for high-precision Kotlin summation
+    @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL)")
+    fun getAllActivePaidAmountsFlow(): Flow<List<BigDecimal>>
+
+    @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL)")
+    fun getTotalOrdersFlow(): Flow<Int>
+
+    @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getPaidAmountsBetween(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT totalAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getTotalAmountsBetween(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND paymentMethod = :method AND (deletedAt IS NULL)")
+    suspend fun getPaidAmountsByMethodBetween(start: Long, end: Long, method: String): List<BigDecimal>
+
+    @Query("""
+        SELECT sh.settledAmount 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end 
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND sh.note LIKE '%UPI%') 
+             OR (:method = 'CASH' AND (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%'))
+             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
+        AND (sh.deletedAt IS NULL)
+        AND (o.id IS NULL OR o.deletedAt IS NULL)
+    """)
+    suspend fun getFilteredSettledAmounts(start: Long, end: Long, method: String): List<BigDecimal>
+
+    @Query("SELECT amount FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getExpenseAmountsBetween(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT amount FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND paymentMethod = :method AND (deletedAt IS NULL)")
+    suspend fun getExpenseAmountsByMethodBetween(start: Long, end: Long, method: String): List<BigDecimal>
+
+    @Query("SELECT amount FROM `expenses` WHERE (deletedAt IS NULL)")
+    suspend fun getAllExpenseAmounts(): List<BigDecimal>
+
+    @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getOrdersCountBetween(start: Long, end: Long): Int
+
+    @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (:method = 'ALL' OR (:method = 'PAID_ONLY' AND paymentMethod != 'NONE') OR paymentMethod = :method) AND (deletedAt IS NULL)")
+    suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int
+
+    @Query("SELECT (totalAmount - paidAmount) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL)")
+    suspend fun getAllReceivableDiffs(): List<BigDecimal>
+
+    @Query("SELECT COUNT(*) FROM debtor_credits WHERE amount != '0' AND amount != '0.0' AND amount != '0.00'")
+    suspend fun getDebtorsCount(): Int
+
+    @Query("""
+        SELECT MIN(sh.timestamp) as timestamp, 
+               SUM(CAST(sh.settledAmount AS REAL)) as amount 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND sh.note LIKE '%UPI%') 
+             OR (:method = 'CASH' AND (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%'))
+             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
+        AND (sh.deletedAt IS NULL)
+        GROUP BY strftime('%Y-%m-%d', datetime(sh.timestamp / 1000, 'unixepoch', 'localtime'))
+    """)
+    suspend fun getSettledRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
+
+    @Query("""
+        SELECT CASE 
+                 WHEN sh.ledgerEntryType = 'CREDIT' THEN 'CREDIT'
+                 WHEN sh.note LIKE '%UPI%' THEN 'UPI' 
+                 ELSE 'CASH' 
+               END as type, 
+               SUM(CAST(sh.settledAmount AS REAL)) as total 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (sh.deletedAt IS NULL)
+        GROUP BY type
+    """)
+    suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
+
+    @Query("""
+        SELECT serviceName as category, SUM(CAST(price AS REAL) * quantity) as total 
+        FROM `OrderItem` 
+        JOIN `orders` ON orders.id = OrderItem.orderId 
+        WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
+        AND orders.date BETWEEN :start AND :end 
+        AND (OrderItem.deletedAt IS NULL)
+        AND (orders.deletedAt IS NULL)
+        GROUP BY serviceName
+    """)
+    suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
+
+    @Query("SELECT category as category, SUM(CAST(amount AS REAL)) as total FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL) GROUP BY category")
+    suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
+
+    @Query("SELECT * FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL) ORDER BY timestamp DESC")
+    fun getFilteredBeautyTransactions(start: Long, end: Long): Flow<List<BeautyTransaction>>
+
+    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getBeautyReceivedAmounts(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getBeautyReturnedAmounts(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getBeautyTransactionAmountsBetween(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `beauty_transactions` WHERE (deletedAt IS NULL)")
+    suspend fun getAllBeautyTransactionAmounts(): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `beauty_transactions` WHERE (deletedAt IS NULL)")
+    fun getBeautyTransactionAmountsFlow(): Flow<List<BigDecimal>>
+
+    @Query("SELECT COUNT(*) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int
+
+    @Query("""
+        SELECT serviceName as category, SUM(CAST(price AS REAL) * quantity) as total 
+        FROM `OrderItem` 
+        JOIN `orders` ON orders.id = OrderItem.orderId 
+        WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '') 
+        AND (OrderItem.deletedAt IS NULL)
+        AND (orders.deletedAt IS NULL)
+        GROUP BY serviceName
+    """)
+    fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>>
+
+    @Query("SELECT * FROM `orders` WHERE CAST(paidAmount AS REAL) != CAST(totalAmount AS REAL) AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL)")
+    suspend fun getUnpaidOrders(): List<Order>
+
+    @Query("UPDATE `orders` SET paidAmount = :newPaidAmount, paymentStatus = :status, paymentMethod = :method, updatedAt = :updatedAt WHERE id = :orderId")
+    suspend fun updateOrderPaymentStatusInternal(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String, updatedAt: Long): Int
+
+    @Query("SELECT customerId, customerName, '0.0' as totalBalance, 'OWES' as type FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL) GROUP BY customerId")
+    suspend fun getDebtorGroups(): List<DebtorSummary>
+
+    @Query("SELECT * FROM `orders` WHERE customerId = :customerId AND CAST(paidAmount AS REAL) != CAST(totalAmount AS REAL) AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL) ORDER BY date ASC")
+    suspend fun getUnpaidOrdersForCustomer(customerId: Long): List<Order>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateDebtorCredit(credit: DebtorCredit): Long
+
+    @Query("SELECT * FROM debtor_credits WHERE customerId = :customerId")
+    suspend fun getDebtorCreditById(customerId: Long): DebtorCredit?
+
+    @Query("SELECT * FROM debtor_credits")
+    suspend fun getDebtorCreditList(): List<DebtorCredit>
+
+    @Query("DELETE FROM debtor_credits WHERE customerId = :customerId")
+    suspend fun deleteDebtorCredit(customerId: Long): Int
+
+    @Query("UPDATE customers SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE id = :customerId")
+    suspend fun markCustomerDeletedInternal(customerId: Long, deletedAt: Long, updatedAt: Long): Int
+
+    @Query("UPDATE `orders` SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE customerId = :customerId")
+    suspend fun markOrdersDeletedForCustomerInternal(customerId: Long, deletedAt: Long, updatedAt: Long): Int
+
+    @Query("UPDATE settlement_history SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE customerId = :customerId")
+    suspend fun markSettlementsDeletedForCustomerInternal(customerId: Long, deletedAt: Long, updatedAt: Long): Int
+
+    @Query("UPDATE OrderItem SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE orderId IN (SELECT id FROM `orders` WHERE customerId = :customerId)")
+    suspend fun markOrderItemsDeletedForCustomerInternal(customerId: Long, deletedAt: Long, updatedAt: Long): Int
+
+    @Transaction
+    suspend fun deleteCustomerCompletely(customerId: Long): Boolean {
+        val now = System.currentTimeMillis()
+        val customer = getCustomerById(customerId) ?: return false
+        
+        // 1. Mark Customer Deleted
+        markCustomerDeletedInternal(customerId, now, now)
+        insertSyncEvent(SyncOutbox(entityType = "CUSTOMER", entitySyncId = customer.syncId, operation = "DELETE"))
+
+        // 2. Mark Orders and their items deleted
+        val orders = getOrdersForCustomerInternal(customerId)
+        for (order in orders) {
+            markOrderDeletedInternal(order.id, now, now)
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "DELETE"))
+            
+            val items = getItemsForOrder(order.id)
+            for (item in items) {
+                markOrderItemDeletedInternal(item.syncId, now, now)
+                insertSyncEvent(SyncOutbox(entityType = "ORDER_ITEM", entitySyncId = item.syncId, operation = "DELETE"))
+            }
+        }
+
+        // 3. Mark Settlements Deleted

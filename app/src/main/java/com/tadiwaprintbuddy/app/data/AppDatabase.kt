@@ -310,7 +310,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_31_32 = object : Migration(31, 32) {
+        val MIGRATION_31_32 = object : Migration(31, 32) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // 1. Create Sync Outbox
                 database.execSQL("""
@@ -331,7 +331,10 @@ abstract class AppDatabase : RoomDatabase() {
                 val tablesWithMetadata = listOf("customers", "orders", "expenses", "stock_items", "notes", "printer_references")
                 for (table in tablesWithMetadata) {
                     database.execSQL("ALTER TABLE `$table` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''")
-                    database.execSQL("ALTER TABLE `$table` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                    // customers and notes already have updatedAt from their creation migrations (v11 and v31)
+                    if (table != "customers" && table != "notes") {
+                        database.execSQL("ALTER TABLE `$table` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                    }
                     database.execSQL("ALTER TABLE `$table` ADD COLUMN `deletedAt` INTEGER")
                     database.execSQL("ALTER TABLE `$table` ADD COLUMN `syncStatus` TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
                 }
@@ -354,14 +357,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_33_34 = object : Migration(33, 34) {
+        val MIGRATION_33_34 = object : Migration(33, 34) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `customerSyncId` TEXT")
                 database.execSQL("ALTER TABLE `external_ledger` ADD COLUMN `orderSyncId` TEXT")
             }
         }
 
-        private val MIGRATION_32_33 = object : Migration(32, 33) {
+        val MIGRATION_32_33 = object : Migration(32, 33) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // 1. Orders -> customerSyncId
                 database.execSQL("ALTER TABLE `orders` ADD COLUMN `customerSyncId` TEXT NOT NULL DEFAULT ''")
@@ -375,7 +378,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_30_31 = object : Migration(30, 31) {
+        val MIGRATION_30_31 = object : Migration(30, 31) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
                     CREATE TABLE IF NOT EXISTS `notes` (
@@ -389,26 +392,26 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_29_30 = object : Migration(29, 30) {
+        val MIGRATION_29_30 = object : Migration(29, 30) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE `debtor_credits` ADD COLUMN `phoneNumber` TEXT")
             }
         }
 
-        private val MIGRATION_28_29 = object : Migration(28, 29) {
+        val MIGRATION_28_29 = object : Migration(28, 29) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // Version 29 was a placeholder bump in a previous edit, keeping it empty to maintain chain
             }
         }
 
-        private val MIGRATION_27_28 = object : Migration(27, 28) {
+        val MIGRATION_27_28 = object : Migration(27, 28) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE `orders` ADD COLUMN `receivedAmount` REAL")
                 database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `receivedAmount` REAL")
             }
         }
 
-        private val MIGRATION_26_27 = object : Migration(26, 27) {
+        val MIGRATION_26_27 = object : Migration(26, 27) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // Add columns to orders
                 database.execSQL("ALTER TABLE `orders` ADD COLUMN `paymentStatus` TEXT NOT NULL DEFAULT 'PAID'")
@@ -427,7 +430,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_25_26 = object : Migration(25, 26) {
+        val MIGRATION_25_26 = object : Migration(25, 26) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Rebuild orders table to match Room expectations (No defaults, Correct indices)
                 db.execSQL("""
@@ -459,7 +462,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_24_25 = object : Migration(24, 25) {
+        val MIGRATION_24_25 = object : Migration(24, 25) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // PART 2 - DATABASE LAYER: Add Indexes
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date)")
@@ -471,7 +474,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_19_24 = object : Migration(19, 24) {
+        val MIGRATION_19_24 = object : Migration(19, 24) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Handle version jump and adding title to expenses
                 db.execSQL("ALTER TABLE expenses ADD COLUMN title TEXT NOT NULL DEFAULT 'Manual Expense'")
@@ -483,7 +486,7 @@ abstract class AppDatabase : RoomDatabase() {
             INSTANCE = null
         }
 
-        private val MIGRATION_16_17 = object : Migration(16, 17) {
+        val MIGRATION_16_17 = object : Migration(16, 17) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 16 to 17 (Fixing Ledger Schema)")
                 
@@ -554,7 +557,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_17_18 = object : Migration(17, 18) {
+        val MIGRATION_17_18 = object : Migration(17, 18) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 17 to 18 (Adding Expenses Table)")
                 db.execSQL("""
@@ -570,7 +573,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_18_19 = object : Migration(18, 19) {
+        val MIGRATION_18_19 = object : Migration(18, 19) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 18 to 19 (Adding Stock Items Table)")
                 db.execSQL("""
@@ -585,7 +588,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_15_16 = object : Migration(15, 16) {
+        val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 15 to 16 (Ledger Hardening Rebuild)")
                 
@@ -645,7 +648,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_14_15 = object : Migration(14, 15) {
+        val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 14 to 15 (Balance Healing)")
                 
@@ -673,7 +676,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_13_14 = object : Migration(13, 14) {
+        val MIGRATION_13_14 = object : Migration(13, 14) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 13 to 14 (Adding Foreign Key Indices)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_OrderItem_orderId ON OrderItem (orderId)")
@@ -682,7 +685,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_12_13 = object : Migration(12, 13) {
+        val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 12 to 13 (Relative Path Healing)")
                 
@@ -714,7 +717,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_11_12 = object : Migration(11, 12) {
+        val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 11 to 12 (Transaction Clarity)")
                 
@@ -740,7 +743,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_10_11 = object : Migration(10, 11) {
+        val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration 10 to 11 (Customer Identity Refactor)")
                 
@@ -825,7 +828,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_8_9 = object : Migration(8, 9) {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 Log.d("DatabaseMigration", "Starting migration from version 8 to 9 (Dynamic Rebuild)")
                 try {
@@ -887,7 +890,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_9_10 = object : Migration(9, 10) {
+        val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE debtor_credits ADD COLUMN lastUpdated INTEGER NOT NULL DEFAULT " + System.currentTimeMillis())
             }

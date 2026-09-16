@@ -1,0 +1,571 @@
+===== app/src/main/java/com/tadiwaprintbuddy/app/MainViewModel.kt (70-180) =====
+  70:     private fun calculateTotals() {
+  71:         val current = _uiState.value
+  72:         val total = current.price.multiply(BigDecimal(current.quantity))
+  73:         
+  74:         calculationJob?.cancel()
+  75:         calculationJob = viewModelScope.launch {
+  76:             val balance = if (current.customerName.isNotBlank()) {
+  77:                 repository.getCustomerBalance(current.customerName)
+  78:             } else BigDecimal.ZERO
+  79: 
+  80:             val creditAvailable = if (balance < BigDecimal.ZERO) balance.negate() else BigDecimal.ZERO
+  81:             val creditUsed = if (total > BigDecimal.ZERO) total.min(creditAvailable) else BigDecimal.ZERO
+  82:             val toPay = total.subtract(creditUsed).max(BigDecimal.ZERO)
+  83: 
+  84:             _uiState.update {
+  85:                 it.copy(
+  86:                     total = total,
+  87:                     existingBalance = balance,
+  88:                     creditUsed = creditUsed,
+  89:                     balanceToPay = toPay,
+  90:                     isCompleteEnabled = it.quantity > 0 && it.price > BigDecimal.ZERO
+  91:                 )
+  92:             }
+  93:         }
+  94:     }
+  95: 
+  96:     fun completeOrder(paymentStatus: String, paymentMethod: String) {
+  97:         val current = _uiState.value
+  98:         if (current.isLoading) return
+  99:         
+ 100:         // --- Authority Validation ---
+ 101:         if (current.total <= BigDecimal.ZERO) {
+ 102:             viewModelScope.launch { _events.emit(MainEvent.ShowError("Enter a valid amount greater than ₹0")) }
+ 103:             return
+ 104:         }
+ 105:         
+ 106:         if (current.quantity <= 0) {
+ 107:             viewModelScope.launch { _events.emit(MainEvent.ShowError("Quantity must be greater than zero")) }
+ 108:             return
+ 109:         }
+ 110: 
+ 111:         if (paymentStatus == "Credit" && current.customerName.isBlank()) {
+ 112:             viewModelScope.launch { _events.emit(MainEvent.ShowError("Customer name is required for Credit orders")) }
+ 113:             return
+ 114:         }
+ 115:         
+ 116:         // Prevent UPI status change without confirmed payment
+ 117:         if (paymentMethod == "UPI" && paymentStatus != "Paid") {
+ 118:             return
+ 119:         }
+ 120: 
+ 121:         _uiState.update { it.copy(isLoading = true) }
+ 122:         viewModelScope.launch {
+ 123:             try {
+ 124:                 val cartItems = listOf(CartItem("General", current.price, current.quantity))
+ 125:                 val internalPaymentMethod = if (paymentStatus == "Credit") "OWES_ME" else paymentMethod
+ 126:                 
+ 127:                 val result = repository.confirmOrder(
+ 128:                     current.customerName,
+ 129:                     cartItems,
+ 130:                     internalPaymentMethod,
+ 131:                     current.creditUsed,
+ 132:                     current.receivedAmount
+ 133:                 )
+ 134:                 
+ 135:                 when (result) {
+ 136:                     is OrderResult.Success -> {
+ 137:                         resetForm()
+ 138:                         _events.emit(MainEvent.OrderCompleted)
+ 139:                     }
+ 140:                     is OrderResult.InsufficientStock -> {
+ 141:                         _events.emit(MainEvent.ShowError("Insufficient stock for ${result.itemName}. Available: ${result.available}"))
+ 142:                     }
+ 143:                     is OrderResult.ValidationError -> {
+ 144:                         _events.emit(MainEvent.ShowError(result.message))
+ 145:                     }
+ 146:                     is OrderResult.Error -> {
+ 147:                         _events.emit(MainEvent.ShowError(result.message))
+ 148:                     }
+ 149:                 }
+ 150:             } catch (e: Exception) {
+ 151:                 _events.emit(MainEvent.ShowError("Failed to save order: ${e.message}"))
+ 152:             } finally {
+ 153:                 _uiState.update { it.copy(isLoading = false) }
+ 154:             }
+ 155:         }
+ 156:     }
+ 157: 
+ 158:     fun resetForm() {
+ 159:         _uiState.update { 
+ 160:             OrderUiState(
+ 161:                 customerName = "",
+ 162:                 quantity = 1,
+ 163:                 price = BigDecimal.ZERO,
+ 164:                 receivedAmount = null,
+ 165:                 changeAmount = BigDecimal.ZERO
+ 166:             )
+ 167:         }
+ 168:     }
+ 169: }
+ 170: 
+ 171: class MainViewModelFactory(private val repository: PrintRepository) : ViewModelProvider.Factory {
+ 172:     override fun <T : ViewModel> create(modelClass: Class<T>): T {
+ 173:         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+ 174:             @Suppress("UNCHECKED_CAST")
+ 175:             return MainViewModel(repository) as T
+ 176:         }
+ 177:         throw IllegalArgumentException("Unknown ViewModel class")
+ 178:     }
+ 179: }
+
+===== app/src/main/java/com/tadiwaprintbuddy/app/BeautyAccountViewModel.kt (80-120) =====
+  80:                 cal.set(Calendar.DAY_OF_MONTH, 1)
+  81:                 cal.set(Calendar.HOUR_OF_DAY, 0)
+  82:                 cal.set(Calendar.MINUTE, 0)
+  83:                 cal.set(Calendar.SECOND, 0)
+  84:             }
+  85:             "All Time" -> return Pair(0L, end)
+  86:         }
+  87:         return Pair(cal.timeInMillis, end)
+  88:     }
+  89: 
+  90:     fun addMoney(amount: BigDecimal, note: String?) {
+  91:         viewModelScope.launch {
+  92:             repository.insertBeautyTransaction(amount, "ADD", note)
+  93:             calculateSummary(_filterPeriod.value)
+  94:         }
+  95:     }
+  96: 
+  97:     fun returnMoney(amount: BigDecimal, note: String?) {
+  98:         viewModelScope.launch {
+  99:             repository.insertBeautyTransaction(amount, "RETURN", note)
+ 100:             calculateSummary(_filterPeriod.value)
+ 101:         }
+ 102:     }
+ 103: 
+ 104:     fun resetBalance() {
+ 105:         viewModelScope.launch {
+ 106:             val currentBalance = repository.getCurrentBeautyBalance()
+ 107:             if (currentBalance.compareTo(BigDecimal.ZERO) != 0) {
+ 108:                 repository.insertBeautyTransaction(BigDecimal.ZERO, "RESET", "Balance reset to zero")
+ 109:                 calculateSummary(_filterPeriod.value)
+ 110:             }
+ 111:         }
+ 112:     }
+ 113: 
+ 114:     fun deleteTransaction(transaction: BeautyTransaction) {
+ 115:         viewModelScope.launch {
+ 116:             repository.deleteBeautyTransaction(transaction)
+ 117:             calculateSummary(_filterPeriod.value)
+ 118:         }
+ 119:     }
+ 120: }
+
+===== app/src/main/java/com/tadiwaprintbuddy/app/data/PrintRepository.kt (40-180) =====
+  40:         calendar.set(Calendar.HOUR_OF_DAY, 0)
+  41:         calendar.set(Calendar.MINUTE, 0)
+  42:         calendar.set(Calendar.SECOND, 0)
+  43:         calendar.set(Calendar.MILLISECOND, 0)
+  44:         val start = calendar.timeInMillis
+  45:         calendar.add(Calendar.DAY_OF_YEAR, 1)
+  46:         val end = calendar.timeInMillis
+  47:         return printDao.getPaidAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+  48:     }
+  49: 
+  50:     suspend fun confirmOrder(
+  51:         customerName: String, 
+  52:         cartItems: List<CartItem>, 
+  53:         paymentMethod: String = "CASH",
+  54:         appliedCredit: BigDecimal = BigDecimal.ZERO,
+  55:         receivedAmount: BigDecimal? = null
+  56:     ): OrderResult {
+  57:         if (cartItems.isEmpty()) return OrderResult.ValidationError("Add at least one item")
+  58:         val total = cartItems.fold(BigDecimal.ZERO) { acc, item -> acc.add(item.getSubtotal()) }
+  59:         if (total <= BigDecimal.ZERO) return OrderResult.ValidationError("Enter a valid amount greater than ₹0")
+  60: 
+  61:         val customer = getOrCreateCustomer(customerName)
+  62:         val currentTime = System.currentTimeMillis()
+  63:         val orderItems = cartItems.map { OrderItem(orderId = 0, serviceName = it.serviceName, price = it.price, quantity = it.quantity) }
+  64:         
+  65:         return try {
+  66:             val orderId = printDao.recordOrderWithWalletAtomic(customer, orderItems, total, paymentMethod, appliedCredit, currentTime, receivedAmount)
+  67:             OrderResult.Success(orderId)
+  68:         } catch (e: Exception) {
+  69:             OrderResult.Error(e.message ?: "Failed to save order")
+  70:         }
+  71:     }
+  72: 
+  73:     suspend fun getAllOrders(): List<Order> = printDao.getAllOrders()
+  74: 
+  75:     suspend fun getUnpaidOrders(): List<Order> = printDao.getUnpaidOrders()
+  76: 
+  77:     suspend fun updatePayment(orderId: Int, newPaidAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
+  78:         val order = printDao.getOrderById(orderId) ?: return
+  79:         val delta = newPaidAmount.subtract(order.paidAmount)
+  80:         if (delta <= BigDecimal.ZERO) return
+  81: 
+  82:         val status = when {
+  83:             newPaidAmount >= order.totalAmount -> "PAID"
+  84:             newPaidAmount > BigDecimal.ZERO -> "PARTIALLY_PAID"
+  85:             else -> "UNPAID"
+  86:         }
+  87: 
+  88:         val method = if (order.paymentMethod == "NONE" || order.paymentMethod == "" || order.paymentMethod == paymentMethod) paymentMethod else "MIXED"
+  89:         val customerId = order.customerId
+  90:         val currentBalance = getCustomerBalanceById(customerId)
+  91:         val newBalance = currentBalance.subtract(delta)
+  92: 
+  93:         val settlement = SettlementHistory(
+  94:             customerName = order.customerName, customerId = customerId,
+  95:             balanceBefore = currentBalance, amountPaid = delta, balanceAfter = newBalance,
+  96:             timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "PAYMENT",
+  97:             note = "Additional payment Order #${order.id}", transactionAmount = delta.negate(),
+  98:             newBalance = newBalance, originId = orderId, receivedAmount = receivedAmount
+  99:         )
+ 100: 
+ 101:         printDao.recordPaymentWithWalletAtomic(orderId, newPaidAmount, status, method, settlement, delta)
+ 102:     }
+ 103: 
+ 104:     suspend fun cancelOrder(orderId: Int) {
+ 105:         val order = printDao.getOrderById(orderId) ?: return
+ 106:         if (order.orderStatus == "CANCELLED") return
+ 107:         val customerId = order.customerId
+ 108:         val currentBalance = getCustomerBalanceById(customerId)
+ 109:         val amountToReverse = order.totalAmount.subtract(order.paidAmount)
+ 110:         val newBalance = currentBalance.subtract(amountToReverse)
+ 111: 
+ 112:         val settlement = SettlementHistory(
+ 113:             customerName = order.customerName, customerId = customerId,
+ 114:             balanceBefore = currentBalance, amountPaid = BigDecimal.ZERO, balanceAfter = newBalance,
+ 115:             timestamp = System.currentTimeMillis(), type = "CANCEL", ledgerEntryType = "ORDER_CANCEL",
+ 116:             note = "Cancelled Order #$orderId", transactionAmount = amountToReverse.negate(),
+ 117:             newBalance = newBalance, originId = orderId
+ 118:         )
+ 119: 
+ 120:         val walletReturn = if (order.paymentMethod == "UPI") order.paidAmount else BigDecimal.ZERO
+ 121:         printDao.cancelOrderWithWalletAtomic(orderId, "CANCELLED", settlement, walletReturn)
+ 122:     }
+ 123: 
+ 124:     suspend fun deleteOrder(orderId: Int) {
+ 125:         cancelOrder(orderId)
+ 126:         printDao.getOrderById(orderId)?.let { printDao.deleteOrderAndItems(it) }
+ 127:     }
+ 128: 
+ 129:     suspend fun getOrdersBetween(start: Long, end: Long): List<Order> = printDao.getOrdersBetween(start, end)
+ 130: 
+ 131:     suspend fun getExpensesBetween(start: Long, end: Long): BigDecimal = 
+ 132:         printDao.getExpenseAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 133: 
+ 134:     suspend fun getExpensesByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
+ 135:         printDao.getExpenseAmountsByMethodBetween(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 136: 
+ 137:     suspend fun getSalesRevenueBetween(start: Long, end: Long): BigDecimal = 
+ 138:         printDao.getPaidAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 139: 
+ 140:     suspend fun getSalesVolumeBetween(start: Long, end: Long): BigDecimal = 
+ 141:         printDao.getTotalAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 142: 
+ 143:     suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
+ 144:         printDao.getFilteredSettledAmounts(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 145: 
+ 146:     suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal =
+ 147:         printDao.getPaidAmountsByMethodBetween(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 148: 
+ 149:     suspend fun getOrdersCountBetween(start: Long, end: Long): Int = 
+ 150:         printDao.getOrdersCountBetween(start, end)
+ 151: 
+ 152:     suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int = 
+ 153:         printDao.getOrdersCountByMethodBetween(start, end, method)
+ 154: 
+ 155:     suspend fun getTotalReceivables(): BigDecimal = 
+ 156:         printDao.getAllReceivableDiffs().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 157: 
+ 158:     suspend fun getDebtorsCount(): Int = printDao.getDebtorsCount()
+ 159: 
+ 160:     suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint> = 
+ 161:         printDao.getSettledRevenueTrendByMethod(start, end, method)
+ 162: 
+ 163:     suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = 
+ 164:         printDao.getSettledPaymentBreakdownBetween(start, end)
+ 165: 
+ 166:     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
+ 167:         printDao.getServiceBreakdownBetween(start, end)
+ 168: 
+ 169:     suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
+ 170:         printDao.getExpenseBreakdownBetween(start, end)
+ 171: 
+ 172:     fun getFilteredBeautyTransactions(start: Long, end: Long) = 
+ 173:         printDao.getFilteredBeautyTransactions(start, end)
+ 174: 
+ 175:     suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal = 
+ 176:         printDao.getBeautyReceivedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 177: 
+ 178:     suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal = 
+ 179:         printDao.getBeautyReturnedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+ 180: 
+
+===== app/src/main/java/com/tadiwaprintbuddy/app/data/PrintDao.kt (420-690) =====
+ 420:             paymentStatus = finalPaymentStatus,
+ 421:             orderStatus = "ACTIVE",
+ 422:             customerSyncId = customer.syncId,
+ 423:             updatedAt = currentTime
+ 424:         )
+ 425:         
+ 426:         val orderId = insertOrder(order).toInt()
+ 427:         insertOrderItems(items.map { it.copy(orderId = orderId, orderSyncId = order.syncId, updatedAt = currentTime) })
+ 428: 
+ 429:         insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "CREATE"))
+ 430: 
+ 431:         val settlement1 = SettlementHistory(
+ 432:             customerName = order.customerName,
+ 433:             customerId = order.customerId,
+ 434:             balanceBefore = previousBalance,
+ 435:             amountPaid = creditUsed,
+ 436:             balanceAfter = previousBalance.add(total),
+ 437:             timestamp = currentTime,
+ 438:             type = "ORDER",
+ 439:             note = "Order #$orderId (Total: ₹$total)",
+ 440:             transactionAmount = total,
+ 441:             newBalance = previousBalance.add(total),
+ 442:             originId = orderId,
+ 443:             ledgerEntryType = "ORDER_POST",
+ 444:             customerSyncId = customer.syncId,
+ 445:             originSyncId = order.syncId,
+ 446:             updatedAt = currentTime
+ 447:         )
+ 448:         insertSettlement(settlement1)
+ 449:         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
+ 450: 
+ 451:         if (cashPaid > BigDecimal.ZERO) {
+ 452:             val settlement2 = SettlementHistory(
+ 453:                 customerName = order.customerName,
+ 454:                 customerId = order.customerId,
+ 455:                 balanceBefore = settlement1.balanceAfter,
+ 456:                 amountPaid = cashPaid,
+ 457:                 balanceAfter = settlement1.balanceAfter.subtract(cashPaid),
+ 458:                 timestamp = currentTime,
+ 459:                 type = "PAYMENT",
+ 460:                 ledgerEntryType = "PAYMENT",
+ 461:                 note = "Payment for Order #$orderId via $requestedPaymentMethod",
+ 462:                 transactionAmount = cashPaid.negate(),
+ 463:                 newBalance = settlement1.balanceAfter.subtract(cashPaid),
+ 464:                 originId = orderId,
+ 465:                 receivedAmount = receivedAmount,
+ 466:                 customerSyncId = customer.syncId,
+ 467:                 originSyncId = order.syncId,
+ 468:                 updatedAt = currentTime
+ 469:             )
+ 470:             insertSettlement(settlement2)
+ 471:             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement2.syncId, operation = "CREATE"))
+ 472:         }
+ 473:         
+ 474:         rebuildCustomerProjection(order.customerId)
+ 475:         return orderId
+ 476:     }
+ 477: 
+ 478:     @Transaction
+ 479:     suspend fun recordPaymentAtomic(orderId: Int, newPaidAmount: BigDecimal, status: String, method: String, settlement: SettlementHistory): Boolean {
+ 480:         val now = System.currentTimeMillis()
+ 481:         updateOrderPaymentStatusInternal(orderId, newPaidAmount, status, method, now)
+ 482:         val order = getOrderById(orderId)
+ 483:         val customer = getCustomerById(settlement.customerId)
+ 484:         val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", originSyncId = order?.syncId, updatedAt = now)
+ 485:         insertSettlement(enriched)
+ 486:         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+ 487:         if (order != null) insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
+ 488:         rebuildCustomerProjection(settlement.customerId)
+ 489:         return true
+ 490:     }
+ 491: 
+ 492:     @Transaction
+ 493:     suspend fun cancelOrderAtomic(orderId: Int, status: String, settlement: SettlementHistory): Boolean {
+ 494:         val now = System.currentTimeMillis()
+ 495:         val items = getItemsForOrder(orderId)
+ 496:         for (item in items) restoreStock(item.serviceName, item.quantity)
+ 497:         updateOrderStatusInternal(orderId, status, now)
+ 498:         val order = getOrderById(orderId)
+ 499:         val customer = getCustomerById(settlement.customerId)
+ 500:         val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", originSyncId = order?.syncId, updatedAt = now)
+ 501:         insertSettlement(enriched)
+ 502:         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+ 503:         if (order != null) insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
+ 504:         rebuildCustomerProjection(settlement.customerId)
+ 505:         return true
+ 506:     }
+ 507: 
+ 508:     @Transaction
+ 509:     suspend fun applyPaymentToCustomerIdAtomic(
+ 510:         customerId: Long, 
+ 511:         paymentAmount: BigDecimal, 
+ 512:         paymentMethod: String,
+ 513:         receivedAmount: BigDecimal? = null
+ 514:     ): Boolean {
+ 515:         val now = System.currentTimeMillis()
+ 516:         val customer = getCustomerById(customerId) ?: return false
+ 517:         val currentBalance = getAuthoritativeCustomerBalance(customerId)
+ 518:         val unpaidOrders = getUnpaidOrdersForCustomer(customerId)
+ 519:         var remainingPayment = paymentAmount
+ 520:         var runningBalance = currentBalance
+ 521:         var tenderAccountedFor = false
+ 522: 
+ 523:         for (order in unpaidOrders) {
+ 524:             if (remainingPayment <= BigDecimal.ZERO) break
+ 525:             val amountOwed = order.totalAmount.subtract(order.paidAmount)
+ 526:             val paymentForThisOrder = if (remainingPayment >= amountOwed) amountOwed else remainingPayment
+ 527:             val newPaidAmount = order.paidAmount.add(paymentForThisOrder)
+ 528:             updateOrderPaymentStatusInternal(order.id, newPaidAmount, if (newPaidAmount >= order.totalAmount) "PAID" else "PARTIALLY_PAID", paymentMethod, now)
+ 529:             
+ 530:             val balanceBefore = runningBalance
+ 531:             runningBalance = runningBalance.subtract(paymentForThisOrder)
+ 532:             val settlement = SettlementHistory(
+ 533:                 customerName = customer.displayName, customerId = customer.id,
+ 534:                 balanceBefore = balanceBefore, amountPaid = paymentForThisOrder, balanceAfter = runningBalance,
+ 535:                 timestamp = now, type = "PAYMENT", ledgerEntryType = "PAYMENT",
+ 536:                 note = "Debt Payment for Order #${order.id}", transactionAmount = paymentForThisOrder.negate(),
+ 537:                 newBalance = runningBalance, originId = order.id, receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
+ 538:                 customerSyncId = customer.syncId, originSyncId = order.syncId, updatedAt = now
+ 539:             )
+ 540:             insertSettlement(settlement)
+ 541:             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+ 542:             insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
+ 543:             tenderAccountedFor = true
+ 544:             remainingPayment = remainingPayment.subtract(paymentForThisOrder)
+ 545:         }
+ 546: 
+ 547:         if (remainingPayment > BigDecimal("0.001")) {
+ 548:             val balanceBefore = runningBalance
+ 549:             runningBalance = runningBalance.subtract(remainingPayment)
+ 550:             val settlement = SettlementHistory(
+ 551:                 customerName = customer.displayName, customerId = customer.id,
+ 552:                 balanceBefore = balanceBefore, amountPaid = remainingPayment, balanceAfter = runningBalance,
+ 553:                 timestamp = now, type = "PAYMENT", ledgerEntryType = "CREDIT",
+ 554:                 note = "Overpayment Credit", transactionAmount = remainingPayment.negate(),
+ 555:                 newBalance = runningBalance, receivedAmount = if (!tenderAccountedFor) receivedAmount else null,
+ 556:                 customerSyncId = customer.syncId, updatedAt = now
+ 557:             )
+ 558:             insertSettlement(settlement)
+ 559:             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+ 560:         }
+ 561:         rebuildCustomerProjection(customer.id)
+ 562:         return true
+ 563:     }
+ 564: 
+ 565:     @Transaction
+ 566:     suspend fun rebuildCustomerProjection(customerId: Long): Boolean {
+ 567:         val customer = getCustomerById(customerId) ?: return false
+ 568:         val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
+ 569:         insertOrUpdateDebtorCredit(DebtorCredit(customerId = customer.id, customerName = customer.displayName, amount = calculatedBalance))
+ 570:         return true
+ 571:     }
+ 572: 
+ 573:     @Transaction
+ 574:     suspend fun reconcileBeautyAccountAtomic() {
+ 575:         val all = getAllBeautyTransactionsInternal()
+ 576:         var runningBalance = BigDecimal.ZERO
+ 577:         for (item in all) {
+ 578:             val previousBalance = runningBalance
+ 579:             val transactionAmount = when (item.type) {
+ 580:                 "ADD" -> item.amount
+ 581:                 "RETURN" -> item.amount.negate()
+ 582:                 "RESET" -> previousBalance.negate()
+ 583:                 else -> item.transactionAmount
+ 584:             }
+ 585:             val newBalance = if (item.type == "RESET") BigDecimal.ZERO else previousBalance.add(transactionAmount)
+ 586:             updateBeautyTransactionInternal(item.copy(previousBalance = previousBalance, transactionAmount = transactionAmount, newBalance = newBalance))
+ 587:             runningBalance = newBalance
+ 588:         }
+ 589:     }
+ 590: 
+ 591:     @Query("SELECT * FROM beauty_transactions ORDER BY timestamp ASC")
+ 592:     suspend fun getAllBeautyTransactionsInternal(): List<BeautyTransaction>
+ 593: 
+ 594:     @Transaction
+ 595:     suspend fun adjustBalanceAtomic(settlement: SettlementHistory): Boolean {
+ 596:         val now = System.currentTimeMillis()
+ 597:         val customer = getCustomerById(settlement.customerId)
+ 598:         val enriched = settlement.copy(customerSyncId = customer?.syncId ?: "", updatedAt = now)
+ 599:         insertSettlement(enriched)
+ 600:         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enriched.syncId, operation = "CREATE"))
+ 601:         rebuildCustomerProjection(settlement.customerId)
+ 602:         return true
+ 603:     }
+ 604: 
+ 605:     @Transaction
+ 606:     suspend fun recordOrderWithWalletAtomic(
+ 607:         customer: CustomerEntity,
+ 608:         items: List<OrderItem>,
+ 609:         total: BigDecimal,
+ 610:         requestedPaymentMethod: String,
+ 611:         appliedCredit: BigDecimal,
+ 612:         currentTime: Long,
+ 613:         receivedAmount: BigDecimal? = null
+ 614:     ): Int {
+ 615:         val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
+ 616:         val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
+ 617:         if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
+ 618:             insertBeautyTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId")
+ 619:         }
+ 620:         return orderId
+ 621:     }
+ 622: 
+ 623:     @Insert(onConflict = OnConflictStrategy.REPLACE)
+ 624:     suspend fun insertBeautyTransactionInternal(transaction: BeautyTransaction): Long
+ 625: 
+ 626:     @Transaction
+ 627:     suspend fun insertBeautyTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
+ 628:         val now = System.currentTimeMillis()
+ 629:         val previousBalance = getAuthoritativeWalletBalance()
+ 630:         val transactionAmount = when (type) {
+ 631:             "ADD" -> amount
+ 632:             "RETURN" -> amount.negate()
+ 633:             "RESET" -> previousBalance.negate()
+ 634:             else -> amount
+ 635:         }
+ 636:         val bt = BeautyTransaction(
+ 637:             amount = amount, type = type, note = note, 
+ 638:             previousBalance = previousBalance, transactionAmount = transactionAmount, 
+ 639:             newBalance = previousBalance.add(transactionAmount),
+ 640:             updatedAt = now
+ 641:         )
+ 642:         insertBeautyTransactionInternal(bt)
+ 643:         insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = bt.syncId, operation = "CREATE"))
+ 644:     }
+ 645: 
+ 646:     @Transaction
+ 647:     suspend fun applyPaymentToCustomerIdWithWalletAtomic(
+ 648:         customerId: Long, 
+ 649:         paymentAmount: BigDecimal, 
+ 650:         paymentMethod: String,
+ 651:         receivedAmount: BigDecimal? = null
+ 652:     ): Boolean {
+ 653:         val success = applyPaymentToCustomerIdAtomic(customerId, paymentAmount, paymentMethod, receivedAmount)
+ 654:         if (success && paymentMethod == "UPI") {
+ 655:             insertBeautyTransactionAtomic(paymentAmount, "ADD", "Debt Settlement")
+ 656:         }
+ 657:         return success
+ 658:     }
+ 659: 
+ 660:     @Transaction
+ 661:     suspend fun recordPaymentWithWalletAtomic(
+ 662:         orderId: Int, 
+ 663:         newPaidAmount: BigDecimal, 
+ 664:         status: String, 
+ 665:         method: String, 
+ 666:         settlement: SettlementHistory,
+ 667:         walletDelta: BigDecimal
+ 668:     ): Boolean {
+ 669:         recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
+ 670:         if (method == "UPI" && walletDelta > BigDecimal.ZERO) {
+ 671:             insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId")
+ 672:         }
+ 673:         return true
+ 674:     }
+ 675: 
+ 676:     @Transaction
+ 677:     suspend fun cancelOrderWithWalletAtomic(
+ 678:         orderId: Int, 
+ 679:         status: String, 
+ 680:         settlement: SettlementHistory,
+ 681:         walletReturnAmount: BigDecimal
+ 682:     ): Boolean {
+ 683:         cancelOrderAtomic(orderId, status, settlement)
+ 684:         if (walletReturnAmount > BigDecimal.ZERO) {
+ 685:              insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId")
+ 686:         }
+ 687:         return true
+ 688:     }
+ 689: 
+ 690:     @Transaction
+

@@ -13,3 +13,28 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Secret and environment files
+.env
+.env.*
+!/.env.example
+!backend/.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local credential material
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# PostgreSQL backup dumps and generated recovery artifacts
+*.dump
+*.sql.gz
+backend/backups/
+backups/

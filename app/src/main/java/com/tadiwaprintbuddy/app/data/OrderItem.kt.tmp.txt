@@ -1,0 +1,37 @@
+package com.tadiwaprintbuddy.app.data
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import java.math.BigDecimal
+import java.util.UUID
+
+@Entity(
+    tableName = "OrderItem",
+    foreignKeys = [
+        ForeignKey(
+            entity = Order::class,
+            parentColumns = ["id"],
+            childColumns = ["orderId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["orderId"])]
+)
+data class OrderItem(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    val orderId: Int,
+    val serviceName: String,
+    val price: BigDecimal,
+    val quantity: Int,
+    
+    // Global Identity
+    val orderSyncId: String = "",
+
+    // Sync Metadata
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null
+)

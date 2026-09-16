@@ -38,3 +38,4 @@ backend/.env.*
 *.sql.gz
 backend/backups/
 backups/
+web/node_modules/

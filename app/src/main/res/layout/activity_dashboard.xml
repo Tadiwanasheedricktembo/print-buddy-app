@@ -170,7 +170,7 @@
                             style="@style/TextAppearance.App.Label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="REVENUE" />
+                            android:text="@string/label_revenue" />
                         <TextView
                             android:id="@+id/textTotalRevenue"
                             android:layout_width="wrap_content"
@@ -447,9 +447,56 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textColor="#FFFFFF"
-                        android:textSize="18sp"
+                        android:textSize="24sp"
                         android:textStyle="bold"
                         tools:text="₹1,250.00" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                style="@style/TextAppearance.App.Label"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_total_inflow"
+                                android:textSize="10sp"
+                                android:textColor="#69F0AE" />
+                            <TextView
+                                android:id="@+id/textUpiInflow"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="#FFFFFF"
+                                android:textStyle="bold"
+                                tools:text="₹25.00" />
+                        </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                style="@style/TextAppearance.App.Label"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_total_outflow"
+                                android:textSize="10sp"
+                                android:textColor="#FF5252" />
+                            <TextView
+                                android:id="@+id/textUpiOutflow"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="#FFFFFF"
+                                android:textStyle="bold"
+                                tools:text="₹0.00" />
+                        </LinearLayout>
+                    </LinearLayout>
                     <TextView
                         style="@style/TextAppearance.App.Caption"
                         android:layout_width="wrap_content"

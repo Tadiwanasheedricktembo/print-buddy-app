@@ -21,5 +21,7 @@ data class PeriodMetrics(
     val previousRevenue: BigDecimal,
     val previousExpenses: BigDecimal,
     val previousNetProfit: BigDecimal,
-    val previousOrdersCount: Int
+    val previousOrdersCount: Int,
+    val upiInflow: BigDecimal = BigDecimal.ZERO,
+    val upiOutflow: BigDecimal = BigDecimal.ZERO
 )

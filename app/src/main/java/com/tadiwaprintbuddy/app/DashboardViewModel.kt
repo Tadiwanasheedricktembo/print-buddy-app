@@ -92,6 +92,9 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val cashInHand = cashCollected.subtract(cashExpenses)
 
             // Financial Metrics
+            val upiInflow = repository.getBeautyReceivedBetween(start, end)
+            val upiOutflow = repository.getBeautyReturnedBetween(start, end)
+            
             val netProfit = revenue.subtract(expenses)
             val prevNetProfit = prevRevenue.subtract(prevExpenses)
             val profitMargin = if (revenue > BigDecimal.ZERO) {
@@ -107,7 +110,9 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 previousRevenue = prevRevenue,
                 previousExpenses = prevExpenses,
                 previousNetProfit = prevNetProfit,
-                previousOrdersCount = prevOrdersCount
+                previousOrdersCount = prevOrdersCount,
+                upiInflow = upiInflow,
+                upiOutflow = upiOutflow
             )
 
             // Snapshot Metrics

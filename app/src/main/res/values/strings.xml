@@ -57,8 +57,10 @@
     <string name="total_orders">Total Orders</string>
     <string name="todays_revenue">Today\'s Revenue</string>
 
-    <string name="label_revenue">REVENUE</string>
+    <string name="label_revenue">SALES REVENUE</string>
     <string name="label_orders">ORDERS</string>
+    <string name="label_total_inflow">TOTAL INFLOW</string>
+    <string name="label_total_outflow">TOTAL OUTFLOW</string>
 
     <string name="revenue_by_service">Revenue by Service</string>
     <string name="daily_revenue">Daily Revenue</string>

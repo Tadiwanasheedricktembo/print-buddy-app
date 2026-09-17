@@ -75,16 +75,8 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val prevExpenses = if (method == "ALL" || method == "ALL_PAYMENTS") repository.getExpensesBetween(prevStart, prevEnd) else repository.getExpensesByMethodBetween(prevStart, prevEnd, method)
 
             // 4. Orders & Counts
-            val ordersCount = when (method) {
-                "ALL" -> repository.getOrdersCountBetween(start, end)
-                "ALL_PAYMENTS" -> repository.getOrdersCountByMethodBetween(start, end, "PAID_ONLY")
-                else -> repository.getOrdersCountByMethodBetween(start, end, method)
-            }
-            val prevOrdersCount = when (method) {
-                "ALL" -> repository.getOrdersCountBetween(prevStart, prevEnd)
-                "ALL_PAYMENTS" -> repository.getOrdersCountByMethodBetween(prevStart, prevEnd, "PAID_ONLY")
-                else -> repository.getOrdersCountByMethodBetween(prevStart, prevEnd, method)
-            }
+            val ordersCount = repository.getSettledOrderCountByMethodBetween(start, end, method)
+            val prevOrdersCount = repository.getSettledOrderCountByMethodBetween(prevStart, prevEnd, method)
 
             // 5. Cash in Hand (Period Specific Flow)
             val cashCollected = repository.getSettledRevenueByMethodBetween(start, end, "CASH")

@@ -98,7 +98,7 @@ class PrintRepository(private val printDao: PrintDao) {
             newBalance = newBalance, originId = orderId, receivedAmount = receivedAmount
         )
 
-        printDao.recordPaymentWithWalletAtomic(orderId, newPaidAmount, status, method, settlement, delta)
+        printDao.recordPaymentWithWalletAtomic(orderId, newPaidAmount, status, method, settlement, delta, paymentMethod)
     }
 
     suspend fun cancelOrder(orderId: Int) {
@@ -151,6 +151,9 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun getOrdersCountByMethodBetween(start: Long, end: Long, method: String): Int = 
         printDao.getOrdersCountByMethodBetween(start, end, method)
+
+    suspend fun getSettledOrderCountByMethodBetween(start: Long, end: Long, method: String): Int = 
+        printDao.getFilteredSettledOrderCount(start, end, method)
 
     suspend fun getTotalReceivables(): BigDecimal = 
         printDao.getAllReceivableDiffs().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
@@ -340,7 +343,12 @@ class PrintRepository(private val printDao: PrintDao) {
         printDao.deleteBeautyTransaction(transaction)
     }
 
-    suspend fun insertExpense(expense: Expense) = printDao.insertExpense(expense)
+    suspend fun insertExpense(expense: Expense) {
+        printDao.insertExpense(expense)
+        if (expense.paymentMethod == "UPI") {
+            insertBeautyTransaction(expense.amount, "RETURN", "Expense: ${expense.title}")
+        }
+    }
 
     suspend fun addExpense(amount: BigDecimal, category: String, note: String?, paymentMethod: String = "CASH") {
         val cat = when(category) {
@@ -358,7 +366,15 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getTotalExpenses(): BigDecimal = 
         printDao.getAllExpenseAmounts().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
-    suspend fun deleteExpense(expenseId: Int) = printDao.deleteExpense(expenseId)
+    suspend fun deleteExpense(expenseId: Int) {
+        val expense = printDao.getExpenseById(expenseId)
+        if (expense != null) {
+            printDao.deleteExpense(expenseId)
+            if (expense.paymentMethod == "UPI") {
+                insertBeautyTransaction(expense.amount, "ADD", "Expense Deleted: ${expense.title}")
+            }
+        }
+    }
 
     suspend fun restoreExpenses(expenses: List<Expense>, fullReplace: Boolean) {
         if (fullReplace) printDao.clearExpenses()

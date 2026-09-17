@@ -7,6 +7,10 @@ plugins {
     id("kotlin-parcelize")
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {

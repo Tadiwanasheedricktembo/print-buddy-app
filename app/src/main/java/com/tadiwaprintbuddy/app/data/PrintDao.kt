@@ -56,6 +56,24 @@ interface PrintDao {
     """)
     suspend fun getFilteredSettledAmounts(start: Long, end: Long, method: String): List<BigDecimal>
 
+    @Query("""
+        SELECT COUNT(DISTINCT sh.originId) 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end 
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND sh.originId IS NOT NULL
+        AND (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = ''))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') = 'UPI' OR sh.note LIKE '%UPI%'))
+             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') = 'CASH' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%')))
+             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
+        AND (sh.deletedAt IS NULL)
+        AND (o.deletedAt IS NULL)
+    """)
+    suspend fun getFilteredSettledOrderCount(start: Long, end: Long, method: String): Int
+
     @Query("SELECT amount FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
     suspend fun getExpenseAmountsBetween(start: Long, end: Long): List<BigDecimal>
 
@@ -667,10 +685,11 @@ interface PrintDao {
         status: String, 
         method: String, 
         settlement: SettlementHistory,
-        walletDelta: BigDecimal
+        walletDelta: BigDecimal,
+        deltaPaymentMethod: String
     ): Boolean {
         recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
-        if (method == "UPI" && walletDelta > BigDecimal.ZERO) {
+        if (deltaPaymentMethod == "UPI" && walletDelta > BigDecimal.ZERO) {
             insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId")
         }
         return true

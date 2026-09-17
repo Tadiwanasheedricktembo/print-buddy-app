@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupNavigation() {
         binding.navTransactions.setOnClickListener {
-            startActivity(Intent(this, SettlementHistoryActivity::class.java))
+            startActivity(Intent(this, OrdersActivity::class.java))
         }
         binding.navDebtors.setOnClickListener {
             startActivity(Intent(this, DebtorCreditActivity::class.java))

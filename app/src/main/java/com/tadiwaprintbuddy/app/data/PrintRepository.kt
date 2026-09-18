@@ -141,7 +141,7 @@ class PrintRepository(private val printDao: PrintDao) {
         printDao.getTotalAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
     suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
-        printDao.getFilteredSettledAmounts(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+        printDao.getFilteredSettledAmountSum(start, end, method) ?: BigDecimal.ZERO
 
     suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal =
         printDao.getPaidAmountsByMethodBetween(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
@@ -274,6 +274,9 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getAllSettlements(): List<SettlementHistory> = printDao.getAllSettlements()
 
     suspend fun getAllSettlementHistoryOnce(): List<SettlementHistory> = printDao.getAllSettlementHistoryOnce()
+
+    suspend fun getFilteredSettlements(start: Long, end: Long, method: String): List<SettlementHistory> = 
+        printDao.getFilteredSettlements(start, end, method)
 
     suspend fun restoreSettlements(data: List<SettlementHistory>, fullReplace: Boolean) {
         if (fullReplace) printDao.clearSettlementHistory()

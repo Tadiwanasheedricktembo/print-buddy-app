@@ -48,9 +48,9 @@ interface PrintDao {
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
              OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
-             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') = 'UPI' OR sh.note LIKE '%UPI%'))
-             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') = 'CASH' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%')))
-             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
+             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') LIKE 'UPI%' OR sh.note LIKE '%UPI%' OR sh.ledgerEntryType LIKE 'UPI_ACCOUNT%'))
+             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') LIKE 'CASH%' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%' AND sh.ledgerEntryType NOT LIKE 'UPI_ACCOUNT%')))
+             OR (:method = 'CREDIT' AND (sh.ledgerEntryType = 'CREDIT' OR o.paymentMethod = 'CREDIT')))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
     """)
@@ -66,13 +66,47 @@ interface PrintDao {
         AND (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = ''))
         AND (:method = 'ALL' 
              OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
-             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') = 'UPI' OR sh.note LIKE '%UPI%'))
-             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') = 'CASH' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%')))
-             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
+             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') LIKE 'UPI%' OR sh.note LIKE '%UPI%' OR sh.ledgerEntryType LIKE 'UPI_ACCOUNT%'))
+             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') LIKE 'CASH%' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%' AND sh.ledgerEntryType NOT LIKE 'UPI_ACCOUNT%')))
+             OR (:method = 'CREDIT' AND (sh.ledgerEntryType = 'CREDIT' OR o.paymentMethod = 'CREDIT')))
         AND (sh.deletedAt IS NULL)
         AND (o.deletedAt IS NULL)
     """)
     suspend fun getFilteredSettledOrderCount(start: Long, end: Long, method: String): Int
+
+    @Query("""
+        SELECT SUM(sh.settledAmount) 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end 
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') LIKE 'UPI%' OR sh.note LIKE '%UPI%' OR sh.ledgerEntryType LIKE 'UPI_ACCOUNT%'))
+             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') LIKE 'CASH%' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%' AND sh.ledgerEntryType NOT LIKE 'UPI_ACCOUNT%')))
+             OR (:method = 'CREDIT' AND (sh.ledgerEntryType = 'CREDIT' OR o.paymentMethod = 'CREDIT')))
+        AND (sh.deletedAt IS NULL)
+        AND (o.id IS NULL OR o.deletedAt IS NULL)
+    """)
+    suspend fun getFilteredSettledAmountSum(start: Long, end: Long, method: String): BigDecimal?
+
+    @Query("""
+        SELECT sh.* 
+        FROM `settlement_history` sh
+        LEFT JOIN `orders` o ON sh.originId = o.id
+        WHERE sh.timestamp BETWEEN :start AND :end 
+        AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
+        AND (:method = 'ALL' 
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
+             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') LIKE 'UPI%' OR sh.note LIKE '%UPI%' OR sh.ledgerEntryType LIKE 'UPI_ACCOUNT%'))
+             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') LIKE 'CASH%' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%' AND sh.ledgerEntryType NOT LIKE 'UPI_ACCOUNT%')))
+             OR (:method = 'CREDIT' AND (sh.ledgerEntryType = 'CREDIT' OR o.paymentMethod = 'CREDIT')))
+        AND (sh.deletedAt IS NULL)
+        AND (o.id IS NULL OR o.deletedAt IS NULL)
+        ORDER BY sh.timestamp DESC
+    """)
+    suspend fun getFilteredSettlements(start: Long, end: Long, method: String): List<SettlementHistory>
 
     @Query("SELECT amount FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
     suspend fun getExpenseAmountsBetween(start: Long, end: Long): List<BigDecimal>
@@ -105,9 +139,9 @@ interface PrintDao {
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
              OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType = 'PAYMENT')
-             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') = 'UPI' OR sh.note LIKE '%UPI%'))
-             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') = 'CASH' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%')))
-             OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'CREDIT'))
+             OR (:method = 'UPI' AND (COALESCE(o.paymentMethod, '') LIKE 'UPI%' OR sh.note LIKE '%UPI%'))
+             OR (:method = 'CASH' AND (COALESCE(o.paymentMethod, '') LIKE 'CASH%' OR (sh.note IS NOT NULL AND sh.note NOT LIKE '%UPI%')))
+             OR (:method = 'CREDIT' AND (sh.ledgerEntryType = 'CREDIT' OR o.paymentMethod = 'CREDIT')))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
         GROUP BY strftime('%Y-%m-%d', datetime(sh.timestamp / 1000, 'unixepoch', 'localtime'))

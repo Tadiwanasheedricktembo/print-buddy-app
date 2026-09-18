@@ -33,41 +33,53 @@ class BusinessEventMapper {
                     details = sortedEvents
                 )
             } else {
-                val payments = sortedEvents.filter { it.ledgerEntryType == "PAYMENT" }
-                val credit = sortedEvents.find { it.ledgerEntryType == "CREDIT" }
-                
-                if (payments.isNotEmpty() || credit != null) {
-                    val totalPaid = payments.fold(BigDecimal.ZERO) { acc, e -> acc.add(e.amountPaid) }.add(credit?.amountPaid ?: BigDecimal.ZERO)
-                    val debtCleared = payments.fold(BigDecimal.ZERO) { acc, e -> acc.add(e.amountPaid) }
-                    val creditCreated = credit?.amountPaid ?: BigDecimal.ZERO
-                    
-                    BusinessEvent.PaymentReceived(
-                        totalPaid = totalPaid,
-                        debtCleared = debtCleared,
-                        creditCreated = creditCreated,
-                        receivedAmount = payments.firstOrNull { it.receivedAmount != null }?.receivedAmount ?: credit?.receivedAmount,
+                val walletEvent = sortedEvents.find { it.ledgerEntryType in setOf("UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN") }
+                if (walletEvent != null) {
+                    BusinessEvent.WalletAdjustment(
+                        amount = walletEvent.amountPaid,
+                        note = walletEvent.note,
+                        isInflow = walletEvent.ledgerEntryType == "UPI_ACCOUNT_TOPUP",
                         timestamp = timestamp,
                         balanceAfter = balanceAfter,
                         details = sortedEvents
                     )
                 } else {
-                    val first = sortedEvents.first()
-                    if (first.transactionAmount.compareTo(BigDecimal.ZERO) > 0) {
-                        BusinessEvent.DebtAdded(
-                            amount = first.transactionAmount,
-                            note = first.note,
+                    val payments = sortedEvents.filter { it.ledgerEntryType == "PAYMENT" }
+                    val credit = sortedEvents.find { it.ledgerEntryType == "CREDIT" }
+                    
+                    if (payments.isNotEmpty() || credit != null) {
+                        val totalPaid = payments.fold(BigDecimal.ZERO) { acc, e -> acc.add(e.amountPaid) }.add(credit?.amountPaid ?: BigDecimal.ZERO)
+                        val debtCleared = payments.fold(BigDecimal.ZERO) { acc, e -> acc.add(e.amountPaid) }
+                        val creditCreated = credit?.amountPaid ?: BigDecimal.ZERO
+                        
+                        BusinessEvent.PaymentReceived(
+                            totalPaid = totalPaid,
+                            debtCleared = debtCleared,
+                            creditCreated = creditCreated,
+                            receivedAmount = payments.firstOrNull { it.receivedAmount != null }?.receivedAmount ?: credit?.receivedAmount,
                             timestamp = timestamp,
                             balanceAfter = balanceAfter,
                             details = sortedEvents
                         )
                     } else {
-                        BusinessEvent.Adjustment(
-                            amount = first.transactionAmount,
-                            note = first.note,
-                            timestamp = timestamp,
-                            balanceAfter = balanceAfter,
-                            details = sortedEvents
-                        )
+                        val first = sortedEvents.first()
+                        if (first.transactionAmount.compareTo(BigDecimal.ZERO) > 0) {
+                            BusinessEvent.DebtAdded(
+                                amount = first.transactionAmount,
+                                note = first.note,
+                                timestamp = timestamp,
+                                balanceAfter = balanceAfter,
+                                details = sortedEvents
+                            )
+                        } else {
+                            BusinessEvent.Adjustment(
+                                amount = first.transactionAmount,
+                                note = first.note,
+                                timestamp = timestamp,
+                                balanceAfter = balanceAfter,
+                                details = sortedEvents
+                            )
+                        }
                     }
                 }
             }

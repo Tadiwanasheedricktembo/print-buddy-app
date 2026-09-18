@@ -45,4 +45,13 @@ sealed class BusinessEvent {
         override val balanceAfter: BigDecimal,
         override val details: List<SettlementHistory>
     ) : BusinessEvent()
+
+    data class WalletAdjustment(
+        val amount: BigDecimal,
+        val note: String,
+        val isInflow: Boolean,
+        override val timestamp: Long,
+        override val balanceAfter: BigDecimal,
+        override val details: List<SettlementHistory>
+    ) : BusinessEvent()
 }

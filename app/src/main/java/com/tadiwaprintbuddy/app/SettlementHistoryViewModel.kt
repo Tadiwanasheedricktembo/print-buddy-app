@@ -11,6 +11,7 @@ import com.tadiwaprintbuddy.app.data.CustomerEntity
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.util.Calendar
 
 enum class TransactionSortOrder {
     OLDEST_FIRST,
@@ -32,6 +33,12 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
 
     private val _sortOrder = MutableStateFlow(TransactionSortOrder.NEWEST_FIRST)
     val sortOrder: StateFlow<TransactionSortOrder> = _sortOrder.asStateFlow()
+
+    private val _filterPeriod = MutableStateFlow("Today")
+    val filterPeriod: StateFlow<String> = _filterPeriod.asStateFlow()
+
+    private val _filterMethod = MutableStateFlow("All")
+    val filterMethod: StateFlow<String> = _filterMethod.asStateFlow()
 
     private val _allSettlements = MutableStateFlow<List<SettlementHistory>>(emptyList())
     private val _allCustomers = MutableStateFlow<List<CustomerEntity>>(emptyList())
@@ -91,7 +98,12 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
     fun loadSettlements() {
         viewModelScope.launch {
             _allCustomers.value = repository.getAllCustomers()
-            _allSettlements.value = repository.getAllSettlements()
+            
+            val period = _filterPeriod.value
+            val method = _filterMethod.value.uppercase()
+            val (start, end) = getRange(period)
+            
+            _allSettlements.value = repository.getFilteredSettlements(start, end, method)
         }
     }
 
@@ -99,8 +111,46 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
         _sortOrder.value = order
     }
 
+    fun setPeriod(period: String) {
+        _filterPeriod.value = period
+        loadSettlements()
+    }
+
+    fun setMethod(method: String) {
+        _filterMethod.value = method
+        loadSettlements()
+    }
+
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    private fun getRange(period: String): Pair<Long, Long> {
+        val cal = Calendar.getInstance()
+        val end = cal.timeInMillis
+        when (period) {
+            "Today" -> {
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+            }
+            "This Week" -> {
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+            }
+            "This Month" -> {
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+            }
+            "All Time" -> return Pair(0L, end)
+        }
+        return Pair(cal.timeInMillis, end)
     }
 
     fun toggleExpansion(customerId: Long) {

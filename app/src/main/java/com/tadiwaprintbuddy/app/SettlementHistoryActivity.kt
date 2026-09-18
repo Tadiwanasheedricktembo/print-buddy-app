@@ -87,11 +87,36 @@ class SettlementHistoryActivity : AppCompatActivity() {
 
         setupSearch()
         setupSorting()
+        setupFilters()
         observeViewModel()
         
         val targetCustomerId = intent.getLongExtra("EXTRA_CUSTOMER_ID", -1L)
         viewModel.setInitialExpansion(targetCustomerId)
         viewModel.loadSettlements()
+    }
+
+    private fun setupFilters() {
+        binding.chipGroupTimeFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val period = when (checkedIds.firstOrNull()) {
+                R.id.chipToday -> "Today"
+                R.id.chipThisWeek -> "This Week"
+                R.id.chipThisMonth -> "This Month"
+                R.id.chipAllTime -> "All Time"
+                else -> "Today"
+            }
+            viewModel.setPeriod(period)
+        }
+
+        binding.chipGroupPaymentMethod.setOnCheckedStateChangeListener { _, checkedIds ->
+            val method = when (checkedIds.firstOrNull()) {
+                R.id.chipAll -> "All"
+                R.id.chipCash -> "Cash"
+                R.id.chipUpi -> "UPI"
+                R.id.chipCredit -> "Credit"
+                else -> "All"
+            }
+            viewModel.setMethod(method)
+        }
     }
 
     private fun setupSorting() {
@@ -495,6 +520,14 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
                 binding.textAmount.text = "$prefix${format.format(event.amount.abs().toDouble())}"
                 binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.text_secondary))
                 binding.textEventBreakdown.text = "Manual account adjustment."
+            }
+            is BusinessEvent.WalletAdjustment -> {
+                binding.textLabel.text = if (event.isInflow) "Wallet Inflow" else "Wallet Outflow"
+                binding.textNote.text = event.note
+                val prefix = if (event.isInflow) "+ " else "− "
+                binding.textAmount.text = "$prefix${format.format(event.amount.toDouble())}"
+                binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, if (event.isInflow) R.color.brand_primary else R.color.brand_error))
+                binding.textEventBreakdown.text = if (event.isInflow) "Money added to UPI account." else "Money returned from UPI account."
             }
         }
 

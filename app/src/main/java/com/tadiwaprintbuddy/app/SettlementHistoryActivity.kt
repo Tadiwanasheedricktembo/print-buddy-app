@@ -363,7 +363,7 @@ class GroupedSettlementAdapter(
 
         // Business Oriented Summary Metrics
         val ordersTotal = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.transactionAmount) }
-        val cashReceived = group.rawTransactions.filter { it.ledgerEntryType in listOf("PAYMENT", "CREDIT") }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.amountPaid) }
+        val cashReceived = group.rawTransactions.filter { it.ledgerEntryType in listOf("PAYMENT", "CREDIT", "UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN") }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.amountPaid) }
         val outstandingDebt = if (balance.compareTo(BigDecimal.ZERO) > 0) balance else BigDecimal.ZERO
         val customerCredit = if (balance.compareTo(BigDecimal.ZERO) < 0) balance.negate() else BigDecimal.ZERO
 

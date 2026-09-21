@@ -36,6 +36,7 @@ data class SettlementHistory(
     val isShadowDuplicate: Boolean = false,
     val reconciliationStatus: String = "VERIFIED",
     val receivedAmount: BigDecimal? = null,
+    val paymentMethod: String? = null, // CASH, UPI, CREDIT
 
     // Global Identity
     val customerSyncId: String = "",

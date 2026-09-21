@@ -8,6 +8,18 @@ import java.util.Calendar
 
 class PrintRepository(private val printDao: PrintDao) {
 
+    companion object {
+        private const val UPI_WALLET_CUSTOMER_ID: Long = -1L
+    }
+
+    private fun normalizePaymentMethod(method: String?): String = when ((method ?: "").trim().uppercase()) {
+        "UPI" -> "UPI"
+        "CASH" -> "CASH"
+        "CREDIT" -> "CREDIT"
+        "OWES_ME", "NONE", "MIXED" -> "CASH"
+        else -> "CASH"
+    }
+
     // --- Customer Management ---
 
     private suspend fun getOrCreateCustomer(name: String): CustomerEntity {
@@ -29,9 +41,7 @@ class PrintRepository(private val printDao: PrintDao) {
     // --- Orders ---
 
     fun getTotalRevenueFlow(): Flow<BigDecimal> = 
-        printDao.getAllActivePaidAmountsFlow().map { list ->
-            list.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
-        }
+        printDao.getTotalSettledRevenueFlow()
 
     fun getTotalOrdersFlow(): Flow<Int> = printDao.getTotalOrdersFlow()
 
@@ -44,7 +54,7 @@ class PrintRepository(private val printDao: PrintDao) {
         val start = calendar.timeInMillis
         calendar.add(Calendar.DAY_OF_YEAR, 1)
         val end = calendar.timeInMillis
-        return printDao.getPaidAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+        return printDao.getSettledRevenueBetween(start, end)
     }
 
     suspend fun confirmOrder(
@@ -66,7 +76,13 @@ class PrintRepository(private val printDao: PrintDao) {
             val orderId = printDao.recordOrderWithWalletAtomic(customer, orderItems, total, paymentMethod, appliedCredit, currentTime, receivedAmount)
             OrderResult.Success(orderId)
         } catch (e: Exception) {
-            OrderResult.Error(e.message ?: "Failed to save order")
+            val message = e.message ?: "Failed to save order"
+            if (message.contains("Insufficient stock", ignoreCase = true)) {
+                val itemName = message.substringAfter("Insufficient stock for ", "")
+                OrderResult.InsufficientStock(itemName, 0, 0)
+            } else {
+                OrderResult.Error(message)
+            }
         }
     }
 
@@ -76,29 +92,65 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun updatePayment(orderId: Int, newPaidAmount: BigDecimal, paymentMethod: String = "CASH", receivedAmount: BigDecimal? = null) {
         val order = printDao.getOrderById(orderId) ?: return
-        val delta = newPaidAmount.subtract(order.paidAmount)
-        if (delta <= BigDecimal.ZERO) return
+        val normalizedMethod = normalizePaymentMethod(paymentMethod)
+        val requestedTotalPaid = newPaidAmount.max(BigDecimal.ZERO)
 
-        val status = when {
-            newPaidAmount >= order.totalAmount -> "PAID"
-            newPaidAmount > BigDecimal.ZERO -> "PARTIALLY_PAID"
-            else -> "UNPAID"
+        if (requestedTotalPaid <= order.paidAmount) return
+
+        val orderTotal = order.totalAmount.max(BigDecimal.ZERO)
+        val remainingOrderBalance = orderTotal.subtract(order.paidAmount).max(BigDecimal.ZERO)
+        val totalDelta = requestedTotalPaid.subtract(order.paidAmount)
+
+        // Calculate how much of this payment actually applies to the order
+        val amountAppliedToOrder = totalDelta.min(remainingOrderBalance)
+        val extraBeyondOrder = totalDelta.subtract(amountAppliedToOrder)
+
+        if (amountAppliedToOrder > BigDecimal.ZERO) {
+            val cappedPaid = order.paidAmount.add(amountAppliedToOrder)
+            val status = when {
+                cappedPaid >= orderTotal -> "PAID"
+                cappedPaid > BigDecimal.ZERO -> "PARTIALLY_PAID"
+                else -> "UNPAID"
+            }
+
+            val method = if (order.paymentMethod == "NONE" || order.paymentMethod == "" || order.paymentMethod == paymentMethod) normalizedMethod else "MIXED"
+            val customerId = order.customerId
+            val currentBalance = getCustomerBalanceById(customerId)
+            val newBalance = currentBalance.subtract(amountAppliedToOrder)
+
+            val settlement = SettlementHistory(
+                customerName = order.customerName, customerId = customerId,
+                balanceBefore = currentBalance, amountPaid = amountAppliedToOrder, balanceAfter = newBalance,
+                timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "PAYMENT",
+                note = "Additional payment Order #${order.id} via $normalizedMethod",
+                transactionAmount = amountAppliedToOrder.negate(),
+                newBalance = newBalance, originId = orderId, receivedAmount = if (extraBeyondOrder <= BigDecimal.ZERO) receivedAmount else null,
+                paymentMethod = normalizedMethod
+            )
+
+            printDao.recordPaymentWithWalletAtomic(orderId, cappedPaid, status, method, settlement, amountAppliedToOrder, normalizedMethod)
         }
 
-        val method = if (order.paymentMethod == "NONE" || order.paymentMethod == "" || order.paymentMethod == paymentMethod) paymentMethod else "MIXED"
-        val customerId = order.customerId
-        val currentBalance = getCustomerBalanceById(customerId)
-        val newBalance = currentBalance.subtract(delta)
-
-        val settlement = SettlementHistory(
-            customerName = order.customerName, customerId = customerId,
-            balanceBefore = currentBalance, amountPaid = delta, balanceAfter = newBalance,
-            timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "PAYMENT",
-            note = "Additional payment Order #${order.id}", transactionAmount = delta.negate(),
-            newBalance = newBalance, originId = orderId, receivedAmount = receivedAmount
-        )
-
-        printDao.recordPaymentWithWalletAtomic(orderId, newPaidAmount, status, method, settlement, delta, paymentMethod)
+        if (extraBeyondOrder > BigDecimal.ZERO) {
+            val customerId = order.customerId
+            val currentBalance = getCustomerBalanceById(customerId)
+            val newBalance = currentBalance.subtract(extraBeyondOrder)
+            
+            val extraSettlement = SettlementHistory(
+                customerName = order.customerName, customerId = customerId,
+                balanceBefore = currentBalance, amountPaid = extraBeyondOrder, balanceAfter = newBalance,
+                timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "CREDIT",
+                note = "Overpayment for Order #${order.id} via $normalizedMethod",
+                transactionAmount = extraBeyondOrder.negate(),
+                newBalance = newBalance, originId = orderId, receivedAmount = receivedAmount,
+                paymentMethod = normalizedMethod
+            )
+            printDao.insertSettlement(extraSettlement)
+            if (normalizedMethod == "UPI") {
+                printDao.insertBeautyTransactionAtomic(extraBeyondOrder, "ADD", "Overpayment Order #$orderId")
+            }
+            rebuildCustomerProjection(customerId)
+        }
     }
 
     suspend fun cancelOrder(orderId: Int) {
@@ -117,7 +169,10 @@ class PrintRepository(private val printDao: PrintDao) {
             newBalance = newBalance, originId = orderId
         )
 
-        val walletReturn = if (order.paymentMethod == "UPI") order.paidAmount else BigDecimal.ZERO
+        val orderSettlements = printDao.getSettlementsForOrder(orderId)
+        val walletReturn = orderSettlements
+            .filter { it.paymentMethod?.uppercase() == "UPI" || it.ledgerEntryType == "UPI_ACCOUNT_TOPUP" || it.ledgerEntryType == "UPI_ACCOUNT_RETURN" }
+            .fold(BigDecimal.ZERO) { acc, s -> acc.add(s.amountPaid.abs()) }
         printDao.cancelOrderWithWalletAtomic(orderId, "CANCELLED", settlement, walletReturn)
     }
 
@@ -297,38 +352,8 @@ class PrintRepository(private val printDao: PrintDao) {
 
     suspend fun insertBeautyTransaction(amount: BigDecimal, type: String, note: String? = null) {
         val normalizedType = type.trim().uppercase()
-        val customer = getOrCreateCustomer("UPI Account")
-        val currentBalance = getCustomerBalanceById(customer.id)
-        val walletDelta = when (normalizedType) {
-            "ADD" -> amount
-            "RETURN" -> amount.negate()
-            else -> BigDecimal.ZERO
-        }
-
-        printDao.insertBeautyTransactionAtomic(amount, normalizedType, note)
-
-        if (amount > BigDecimal.ZERO && normalizedType in setOf("ADD", "RETURN")) {
-            val settlementAmount = if (normalizedType == "ADD") amount else amount
-            val nextBalance = currentBalance.add(walletDelta)
-            val settlement = SettlementHistory(
-                customerName = customer.displayName,
-                customerId = customer.id,
-                balanceBefore = currentBalance,
-                amountPaid = settlementAmount,
-                balanceAfter = nextBalance,
-                timestamp = System.currentTimeMillis(),
-                type = "UPI_ACCOUNT",
-                ledgerEntryType = if (normalizedType == "ADD") "UPI_ACCOUNT_TOPUP" else "UPI_ACCOUNT_RETURN",
-                note = note ?: if (normalizedType == "ADD") "UPI Account top-up" else "UPI Account return",
-                transactionAmount = walletDelta,
-                newBalance = nextBalance,
-                customerSyncId = customer.syncId,
-                updatedAt = System.currentTimeMillis()
-            )
-            printDao.insertSettlement(settlement)
-            printDao.insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
-            printDao.rebuildCustomerProjection(customer.id)
-        }
+        if (amount <= BigDecimal.ZERO && normalizedType !in setOf("RESET")) return
+        printDao.insertBeautyTransactionWithSettlementAtomic(amount, normalizedType, note)
     }
 
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()
@@ -343,14 +368,11 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getCurrentBeautyBalance(): BigDecimal = printDao.getAuthoritativeWalletBalance()
 
     suspend fun deleteBeautyTransaction(transaction: BeautyTransaction) {
-        printDao.deleteBeautyTransaction(transaction)
+        printDao.deleteBeautyTransactionWithSettlementAtomic(transaction)
     }
 
     suspend fun insertExpense(expense: Expense) {
-        printDao.insertExpense(expense)
-        if (expense.paymentMethod == "UPI") {
-            insertBeautyTransaction(expense.amount, "RETURN", "Expense: ${expense.title}")
-        }
+        printDao.insertExpenseWithWalletAtomic(expense)
     }
 
     suspend fun addExpense(amount: BigDecimal, category: String, note: String?, paymentMethod: String = "CASH") {
@@ -372,10 +394,7 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun deleteExpense(expenseId: Int) {
         val expense = printDao.getExpenseById(expenseId)
         if (expense != null) {
-            printDao.deleteExpense(expenseId)
-            if (expense.paymentMethod == "UPI") {
-                insertBeautyTransaction(expense.amount, "ADD", "Expense Deleted: ${expense.title}")
-            }
+            printDao.deleteExpenseWithWalletAtomic(expense)
         }
     }
 

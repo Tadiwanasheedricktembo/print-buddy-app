@@ -162,6 +162,10 @@
 
     <string name="method_cash">CASH</string>
     <string name="method_upi">UPI</string>
+    <string-array name="payment_methods">
+        <item>CASH</item>
+        <item>UPI</item>
+    </string-array>
 
     <!-- Accessibility -->
     <string name="desc_wallet">Wallet Shortcut</string>

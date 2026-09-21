@@ -96,7 +96,11 @@ class DashboardActivity : AppCompatActivity() {
                 updateMetrics(state.metrics)
                 updateCharts(state)
                 updateInsights(state.insights)
+                
                 binding.textUpiWalletBalanceCallout.text = currencyFormat.format(state.upiWalletBalance.toDouble())
+                binding.textUpiInflow.text = currencyFormat.format(state.metrics?.upiInflow?.toDouble() ?: 0.0)
+                binding.textUpiOutflow.text = currencyFormat.format(state.metrics?.upiOutflow?.toDouble() ?: 0.0)
+                
                 binding.bannerZeroExpense.visibility = if (state.showZeroExpenseWarning) View.VISIBLE else View.GONE
             }
         }
@@ -202,12 +206,17 @@ class DashboardActivity : AppCompatActivity() {
 
         val entries = data.mapIndexed { index, item -> BarEntry(index.toFloat(), item.total.toFloat()) }
         val dataSet = BarDataSet(entries, "")
+        
+        dataSet.colors = data.map { item ->
+            when (item.type.uppercase()) {
+                "CASH" -> Color.parseColor("#00C853")
+                "UPI" -> Color.parseColor("#448AFF")
+                "CREDIT" -> Color.parseColor("#FFB300")
+                else -> Color.GRAY
+            }
+        }
+        
         dataSet.apply {
-            colors = listOf(
-                Color.parseColor("#00C853"), // CASH
-                Color.parseColor("#448AFF"), // UPI
-                Color.parseColor("#FFB300")  // CREDIT
-            )
             setDrawValues(true)
             valueTextColor = Color.WHITE
             valueTextSize = 10f

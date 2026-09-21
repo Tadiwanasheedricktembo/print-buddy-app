@@ -76,4 +76,42 @@ class DatabaseIntegrityTest {
         assertEquals(listOf(BigDecimal("30.0"), BigDecimal("30.0")), unpaid.map { it.totalAmount.subtract(it.paidAmount) })
         assertEquals(0, BigDecimal("60.0").compareTo(repository.getCustomerBalanceById(customerId)))
     }
+
+    @Test
+    fun testOverpaymentDoesNotInflateOrderRevenue() = runTest {
+        // 1. Create ₹100 order
+        dao.insertStockItem(StockItem(name = "Ink", currentQuantity = 100))
+        val orderResult = repository.confirmOrder("Kiran", listOf(CartItem("Ink", BigDecimal("100.0"), 1)), "OWES_ME")
+        val orderId = (orderResult as OrderResult.Success).orderId
+
+        // 2. Pay ₹150 for that ₹100 order
+        repository.updatePayment(orderId, BigDecimal("150.0"), "CASH")
+
+        // 3. Order revenue should be exactly 100
+        val order = dao.getOrderById(orderId)!!
+        assertEquals(0, BigDecimal("100.0").compareTo(order.paidAmount), "Order paidAmount should be capped at totalAmount")
+
+        // 4. Total revenue (from settlements linked to sales) should be 100
+        val totalRevenue = repository.getTodaysRevenue()
+        assertEquals(0, BigDecimal("100.0").compareTo(totalRevenue), "Only the order-settling portion should count as sales revenue")
+
+        // 5. Customer balance should be -₹50 (credit)
+        val balance = repository.getCustomerBalanceById(order.customerId)
+        assertEquals(0, BigDecimal("-50.0").compareTo(balance), "Excess payment should result in customer credit")
+    }
+
+    @Test
+    fun testUpiAccountIsExcludedFromDebtors() = runTest {
+        // 1. Record manual UPI top-up (creates "UPI Account" virtual customer entries)
+        repository.insertBeautyTransaction(BigDecimal("500.0"), "ADD", "Manual Topup")
+
+        // 2. Record a real debtor
+        dao.insertStockItem(StockItem(name = "Ink", currentQuantity = 100))
+        repository.confirmOrder("Real Debtor", listOf(CartItem("Ink", BigDecimal("50.0"), 1)), "OWES_ME")
+
+        // 3. Debtor groups should only contain the real debtor
+        val groups = dao.getDebtorGroups()
+        assertEquals(1, groups.size)
+        assertEquals("Real Debtor", groups.single().customerName)
+    }
 }

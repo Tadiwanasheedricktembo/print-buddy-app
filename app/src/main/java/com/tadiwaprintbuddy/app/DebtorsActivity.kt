@@ -74,6 +74,11 @@ class DebtorsActivity : AppCompatActivity() {
     private fun showReceivePaymentDialog(debtor: DebtorSummary) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_receive_payment, null)
         val editPaymentAmount = dialogView.findViewById<EditText>(R.id.editPaymentAmount)
+        val spinnerPaymentMethod = dialogView.findViewById<android.widget.Spinner>(R.id.spinnerPaymentMethod)
+        val methods = arrayOf("CASH", "UPI")
+        spinnerPaymentMethod.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, methods).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
 
         AlertDialog.Builder(this)
             .setTitle("Receive Payment from ${debtor.customerName}")
@@ -81,11 +86,12 @@ class DebtorsActivity : AppCompatActivity() {
             .setPositiveButton("Receive") { _, _ ->
                 val paymentAmountStr = editPaymentAmount.text.toString()
                 val paymentAmount = try { BigDecimal(paymentAmountStr) } catch (e: Exception) { BigDecimal.ZERO }
+                val selectedMethod = spinnerPaymentMethod.selectedItem?.toString() ?: "CASH"
                 lifecycleScope.launch {
                     if (debtor.customerId != 0L) {
-                        repository.applyPaymentToCustomerId(debtor.customerId, paymentAmount)
+                        repository.applyPaymentToCustomerId(debtor.customerId, paymentAmount, selectedMethod)
                     } else {
-                        repository.applyPaymentToCustomer(debtor.customerName, paymentAmount)
+                        repository.applyPaymentToCustomer(debtor.customerName, paymentAmount, selectedMethod)
                     }
                     loadDebtors()
                 }

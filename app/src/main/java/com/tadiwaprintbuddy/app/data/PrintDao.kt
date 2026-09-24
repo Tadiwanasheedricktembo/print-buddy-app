@@ -47,10 +47,10 @@ interface PrintDao {
         AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND UPPER(sh.ledgerEntryType) = 'PAYMENT')
-             OR (:method = 'UPI' AND UPPER(sh.paymentMethod) = 'UPI')
-             OR (:method = 'CASH' AND UPPER(sh.paymentMethod) = 'CASH')
-             OR (:method = 'CREDIT' AND UPPER(sh.paymentMethod) = 'CREDIT'))
+             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
     """)
@@ -65,10 +65,10 @@ interface PrintDao {
         AND sh.originId IS NOT NULL
         AND (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = ''))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND UPPER(sh.ledgerEntryType) = 'PAYMENT')
-             OR (:method = 'UPI' AND UPPER(sh.paymentMethod) = 'UPI')
-             OR (:method = 'CASH' AND UPPER(sh.paymentMethod) = 'CASH')
-             OR (:method = 'CREDIT' AND UPPER(sh.paymentMethod) = 'CREDIT'))
+             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.deletedAt IS NULL)
     """)
@@ -82,10 +82,10 @@ interface PrintDao {
         AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND UPPER(sh.ledgerEntryType) = 'PAYMENT')
-             OR (:method = 'UPI' AND UPPER(sh.paymentMethod) = 'UPI')
-             OR (:method = 'CASH' AND UPPER(sh.paymentMethod) = 'CASH')
-             OR (:method = 'CREDIT' AND UPPER(sh.paymentMethod) = 'CREDIT'))
+             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
     """)
@@ -98,10 +98,10 @@ interface PrintDao {
         WHERE sh.timestamp BETWEEN :start AND :end 
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND UPPER(sh.ledgerEntryType) = 'PAYMENT')
-             OR (:method = 'UPI' AND UPPER(sh.paymentMethod) = 'UPI')
-             OR (:method = 'CASH' AND UPPER(sh.paymentMethod) = 'CASH')
-             OR (:method = 'CREDIT' AND UPPER(sh.paymentMethod) = 'CREDIT'))
+             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
         ORDER BY sh.timestamp DESC
@@ -138,10 +138,10 @@ interface PrintDao {
         AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND UPPER(sh.ledgerEntryType) = 'PAYMENT')
-             OR (:method = 'UPI' AND UPPER(sh.paymentMethod) = 'UPI')
-             OR (:method = 'CASH' AND UPPER(sh.paymentMethod) = 'CASH')
-             OR (:method = 'CREDIT' AND UPPER(sh.paymentMethod) = 'CREDIT'))
+             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
         GROUP BY strftime('%Y-%m-%d', datetime(sh.timestamp / 1000, 'unixepoch', 'localtime'))
@@ -149,7 +149,7 @@ interface PrintDao {
     suspend fun getSettledRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint>
 
     @Query("""
-        SELECT sh.paymentMethod as type, 
+        SELECT COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), 'UNKNOWN') as type, 
                SUM(CAST(sh.settledAmount AS REAL)) as total 
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
@@ -158,7 +158,7 @@ interface PrintDao {
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
-        GROUP BY UPPER(sh.paymentMethod)
+        GROUP BY COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), 'UNKNOWN')
     """)
     suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
 
@@ -183,15 +183,28 @@ interface PrintDao {
     @Query("SELECT category as category, SUM(CAST(amount AS REAL)) as total FROM `expenses` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL) GROUP BY category")
     suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue>
 
-    @Query("SELECT * FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL) ORDER BY timestamp DESC")
-    fun getFilteredBeautyTransactions(start: Long, end: Long): Flow<List<BeautyTransaction>>
+    @Query("SELECT * FROM `upi_account_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL) ORDER BY timestamp DESC")
+    fun getFilteredUpiAccountTransactions(start: Long, end: Long): Flow<List<UpiAccountTransaction>>
 
-    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
-    suspend fun getBeautyReceivedAmounts(start: Long, end: Long): List<BigDecimal>
+    @Query("SELECT amount FROM `upi_account_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getUpiAccountReceivedAmounts(start: Long, end: Long): List<BigDecimal>
 
-    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
-    suspend fun getBeautyReturnedAmounts(start: Long, end: Long): List<BigDecimal>
+    @Query("SELECT amount FROM `upi_account_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getUpiAccountReturnedAmounts(start: Long, end: Long): List<BigDecimal>
 
+    @Query("SELECT transactionAmount FROM `upi_account_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getUpiAccountTransactionAmountsBetween(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `upi_account_transactions` WHERE (deletedAt IS NULL)")
+    suspend fun getAllUpiAccountTransactionAmounts(): List<BigDecimal>
+
+    @Query("SELECT transactionAmount FROM `upi_account_transactions` WHERE (deletedAt IS NULL)")
+    fun getUpiAccountTransactionAmountsFlow(): Flow<List<BigDecimal>>
+
+    @Query("SELECT COUNT(*) FROM `upi_account_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getUpiAccountTransactionCountBetween(start: Long, end: Long): Int
+
+    // Compatibility aggregate/read queries for legacy beauty table
     @Query("SELECT transactionAmount FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
     suspend fun getBeautyTransactionAmountsBetween(start: Long, end: Long): List<BigDecimal>
 
@@ -201,8 +214,17 @@ interface PrintDao {
     @Query("SELECT transactionAmount FROM `beauty_transactions` WHERE (deletedAt IS NULL)")
     fun getBeautyTransactionAmountsFlow(): Flow<List<BigDecimal>>
 
+    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'ADD' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getBeautyReceivedAmounts(start: Long, end: Long): List<BigDecimal>
+
+    @Query("SELECT amount FROM `beauty_transactions` WHERE type = 'RETURN' AND timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
+    suspend fun getBeautyReturnedAmounts(start: Long, end: Long): List<BigDecimal>
+
     @Query("SELECT COUNT(*) FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL)")
     suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int
+
+    @Query("SELECT * FROM `beauty_transactions` WHERE timestamp BETWEEN :start AND :end AND (deletedAt IS NULL) ORDER BY timestamp DESC")
+    fun getFilteredBeautyTransactions(start: Long, end: Long): Flow<List<BeautyTransaction>>
 
     @Query("""
         SELECT serviceName as category, SUM(CAST(price AS REAL) * quantity) as total 
@@ -710,9 +732,12 @@ interface PrintDao {
         currentTime: Long,
         receivedAmount: BigDecimal? = null
     ): Int {
+        Log.d("PrintBuddyTransaction", "PrintDao recordOrderWithWalletAtomic: method=$requestedPaymentMethod, total=$total, customer=${customer.displayName}")
         val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
         val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
+        Log.d("PrintBuddyTransaction", "PrintDao recordOrderWithWalletAtomic order recorded: orderId=$orderId, cashPaid=$cashPaid")
         if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
+            Log.d("PrintBuddyTransaction", "Inserting UPI wallet transaction for order #$orderId: amount=$cashPaid")
             insertBeautyTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId")
         }
         return orderId
@@ -842,6 +867,14 @@ interface PrintDao {
     @Query("SELECT amount FROM external_ledger WHERE (deletedAt IS NULL)")
     suspend fun getExternalAmounts(): List<BigDecimal>
 
+    // Read from canonical UPI table first, but union with legacy beauty table for compatibility.
+    @Query("SELECT * FROM `upi_account_transactions` WHERE (deletedAt IS NULL) ORDER BY timestamp DESC")
+    fun getAllUpiAccountTransactionsFlow(): Flow<List<UpiAccountTransaction>>
+
+    @Query("SELECT * FROM `upi_account_transactions` WHERE (deletedAt IS NULL)")
+    suspend fun getAllUpiAccountTransactions(): List<UpiAccountTransaction>
+
+    // Compatibility union: returns legacy rows when canonical table is empty or contains different rows.
     @Query("SELECT * FROM `beauty_transactions` WHERE (deletedAt IS NULL) ORDER BY timestamp DESC")
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>>
 
@@ -921,6 +954,56 @@ interface PrintDao {
             insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
         }
         return true
+    }
+
+    // --- UPI Account canonical methods (new) ---
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUpiAccountTransactionInternal(transaction: UpiAccountTransaction): Long
+
+    @Transaction
+    suspend fun insertUpiAccountTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
+        val now = System.currentTimeMillis()
+        val previousBalance = getAuthoritativeWalletBalance()
+        val transactionAmount = when (type) {
+            "ADD" -> amount
+            "RETURN" -> amount.negate()
+            "RESET" -> previousBalance.negate()
+            else -> amount
+        }
+        val ut = UpiAccountTransaction(
+            amount = amount, type = type, note = note,
+            previousBalance = previousBalance, transactionAmount = transactionAmount,
+            newBalance = previousBalance.add(transactionAmount),
+            updatedAt = now
+        )
+        insertUpiAccountTransactionInternal(ut)
+        insertSyncEvent(SyncOutbox(entityType = "UPI_ACCOUNT_TRANSACTION", entitySyncId = ut.syncId, operation = "CREATE"))
+    }
+
+    @Query("SELECT * FROM upi_account_transactions ORDER BY timestamp ASC")
+    suspend fun getAllUpiAccountTransactionsInternal(): List<UpiAccountTransaction>
+
+    @Query("SELECT * FROM `upi_account_transactions` WHERE (deletedAt IS NULL) ORDER BY timestamp DESC")
+    fun getAllUpiAccountTransactionsFlow(): Flow<List<UpiAccountTransaction>>
+
+    @Query("SELECT * FROM `upi_account_transactions` WHERE (deletedAt IS NULL)")
+    suspend fun getAllUpiAccountTransactions(): List<UpiAccountTransaction>
+
+    @Query("UPDATE upi_account_transactions SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE syncId = :syncId")
+    suspend fun markUpiAccountTransactionDeletedInternal(syncId: String, deletedAt: Long, updatedAt: Long): Int
+
+    @Transaction
+    suspend fun deleteUpiAccountTransactionWithSettlementAtomic(transaction: UpiAccountTransaction): Int {
+        val now = System.currentTimeMillis()
+        val affected = markUpiAccountTransactionDeletedInternal(transaction.syncId, now, now)
+        val matchingSettlements = getSettlementsByOriginSync(transaction.syncId)
+        for (settlement in matchingSettlements) {
+            markSettlementDeletedInternal(settlement.syncId, now, now)
+            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "DELETE"))
+        }
+        insertSyncEvent(SyncOutbox(entityType = "UPI_ACCOUNT_TRANSACTION", entitySyncId = transaction.syncId, operation = "DELETE"))
+        return affected
     }
 
     @Update

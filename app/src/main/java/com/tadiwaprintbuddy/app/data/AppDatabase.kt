@@ -11,7 +11,7 @@ import androidx.room.TypeConverters
 import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
-    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class],
+    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, UpiAccountTransaction::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class],
     version = 38,
     exportSchema = true
 )
@@ -41,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
                     MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
                     MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37,
-                    MIGRATION_37_38
+                        MIGRATION_37_38, MIGRATION_38_39
                 )
 
                 val instance = builder.build()
@@ -59,6 +59,41 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("UPDATE `settlement_history` SET `paymentMethod` = 'UPI' WHERE `note` LIKE '%UPI%'")
                 database.execSQL("UPDATE `settlement_history` SET `paymentMethod` = 'CASH' WHERE `note` LIKE '%CASH%'")
                 database.execSQL("UPDATE `settlement_history` SET `paymentMethod` = 'CREDIT' WHERE `ledgerEntryType` = 'CREDIT'")
+            }
+        }
+
+        val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 38 to 39 (Beauty -> UPI Account table copy)")
+
+                // 1. Create the canonical upi_account_transactions table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `upi_account_transactions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `amount` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `note` TEXT,
+                        `timestamp` INTEGER NOT NULL,
+                        `previousBalance` TEXT NOT NULL,
+                        `transactionAmount` TEXT NOT NULL,
+                        `newBalance` TEXT NOT NULL,
+                        `syncId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `deletedAt` INTEGER,
+                        `syncStatus` TEXT NOT NULL
+                    )
+                """.trimIndent())
+
+                // 2. Copy data from beauty_transactions preserving PK and all metadata
+                database.execSQL("""
+                    INSERT INTO `upi_account_transactions` (id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance, syncId, updatedAt, deletedAt, syncStatus)
+                    SELECT id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance, syncId, updatedAt, deletedAt, syncStatus FROM `beauty_transactions`
+                """.trimIndent())
+
+                // 3. Create index on timestamp
+                database.execSQL("CREATE INDEX IF NOT EXISTS `idx_upi_account_timestamp` ON `upi_account_transactions` (`timestamp`)")
+
+                Log.d("DatabaseMigration", "Migration 38 to 39 completed: upi_account_transactions created and data copied from beauty_transactions")
             }
         }
 

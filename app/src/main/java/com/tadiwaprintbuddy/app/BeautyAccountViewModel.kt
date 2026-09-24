@@ -1,7 +1,7 @@
 package com.tadiwaprintbuddy.app
 
 import androidx.lifecycle.*
-import com.tadiwaprintbuddy.app.data.BeautyTransaction
+import com.tadiwaprintbuddy.app.data.UpiAccountTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.util.*
 
-data class BeautyPeriodSummary(
+data class UpiAccountPeriodSummary(
     val received: BigDecimal,
     val returned: BigDecimal,
     val netFlow: BigDecimal,
@@ -18,20 +18,20 @@ data class BeautyPeriodSummary(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class BeautyAccountViewModel(private val repository: PrintRepository) : ViewModel() {
+class UpiAccountViewModel(private val repository: PrintRepository) : ViewModel() {
 
-    val balance = repository.getBeautyBalanceFlow().asLiveData()
+    val balance = repository.getUpiAccountBalanceFlow().asLiveData()
     
     private val _filterPeriod = MutableStateFlow("Today")
     val filterPeriod: LiveData<String> = _filterPeriod.asLiveData()
 
     val transactions = _filterPeriod.flatMapLatest { period ->
         val range = getRange(period)
-        repository.getFilteredBeautyTransactions(range.first, range.second)
+        repository.getFilteredUpiAccountTransactions(range.first, range.second)
     }.asLiveData()
 
-    private val _periodSummary = MutableLiveData<BeautyPeriodSummary>()
-    val periodSummary: LiveData<BeautyPeriodSummary> = _periodSummary
+    private val _periodSummary = MutableLiveData<UpiAccountPeriodSummary>()
+    val periodSummary: LiveData<UpiAccountPeriodSummary> = _periodSummary
 
     init {
         calculateSummary(_filterPeriod.value)
@@ -45,12 +45,12 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
     private fun calculateSummary(period: String) {
         viewModelScope.launch {
             val range = getRange(period)
-            val received = repository.getBeautyReceivedBetween(range.first, range.second)
-            val returned = repository.getBeautyReturnedBetween(range.first, range.second)
-            val netFlow = repository.getBeautyNetFlowBetween(range.first, range.second)
-            val count = repository.getBeautyTransactionCountBetween(range.first, range.second)
-            
-            _periodSummary.value = BeautyPeriodSummary(
+            val received = repository.getUpiAccountReceivedBetween(range.first, range.second)
+            val returned = repository.getUpiAccountReturnedBetween(range.first, range.second)
+            val netFlow = repository.getUpiAccountNetFlowBetween(range.first, range.second)
+            val count = repository.getUpiAccountTransactionCountBetween(range.first, range.second)
+
+            _periodSummary.value = UpiAccountPeriodSummary(
                 received = received,
                 returned = returned,
                 netFlow = netFlow,
@@ -89,41 +89,40 @@ class BeautyAccountViewModel(private val repository: PrintRepository) : ViewMode
 
     fun addMoney(amount: BigDecimal, note: String?) {
         viewModelScope.launch {
-            repository.insertBeautyTransaction(amount, "ADD", note)
+            repository.insertUpiAccountTransaction(amount, "ADD", note)
             calculateSummary(_filterPeriod.value)
         }
     }
 
     fun returnMoney(amount: BigDecimal, note: String?) {
         viewModelScope.launch {
-            repository.insertBeautyTransaction(amount, "RETURN", note)
+            repository.insertUpiAccountTransaction(amount, "RETURN", note)
             calculateSummary(_filterPeriod.value)
         }
     }
 
     fun resetBalance() {
         viewModelScope.launch {
-            val currentBalance = repository.getCurrentBeautyBalance()
+            val currentBalance = repository.getCurrentUpiAccountBalance()
             if (currentBalance.compareTo(BigDecimal.ZERO) != 0) {
-                repository.insertBeautyTransaction(BigDecimal.ZERO, "RESET", "Balance reset to zero")
+                repository.insertUpiAccountTransaction(BigDecimal.ZERO, "RESET", "Balance reset to zero")
                 calculateSummary(_filterPeriod.value)
             }
         }
     }
-
-    fun deleteTransaction(transaction: BeautyTransaction) {
+    fun deleteTransaction(transaction: UpiAccountTransaction) {
         viewModelScope.launch {
-            repository.deleteBeautyTransaction(transaction)
+            repository.deleteUpiAccountTransaction(transaction)
             calculateSummary(_filterPeriod.value)
         }
     }
 }
 
-class BeautyAccountViewModelFactory(private val repository: PrintRepository) : ViewModelProvider.Factory {
+class UpiAccountViewModelFactory(private val repository: PrintRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(BeautyAccountViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(UpiAccountViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return BeautyAccountViewModel(repository) as T
+            return UpiAccountViewModel(repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

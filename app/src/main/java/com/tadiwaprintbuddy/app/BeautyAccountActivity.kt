@@ -21,7 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.tadiwaprintbuddy.app.data.AppDatabase
-import com.tadiwaprintbuddy.app.data.BeautyTransaction
+import com.tadiwaprintbuddy.app.data.UpiAccountTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityBeautyAccountBinding
 import java.math.BigDecimal
@@ -30,11 +30,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class BeautyAccountActivity : AppCompatActivity() {
+class UpiAccountActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBeautyAccountBinding
-    private val viewModel: BeautyAccountViewModel by viewModels {
-        BeautyAccountViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
+    private val viewModel: UpiAccountViewModel by viewModels {
+        UpiAccountViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
     }
     private lateinit var transactionAdapter: TransactionAdapter
 
@@ -68,7 +68,7 @@ class BeautyAccountActivity : AppCompatActivity() {
         }
     }
 
-    private fun showDeleteConfirmDialog(transaction: BeautyTransaction) {
+    private fun showDeleteConfirmDialog(transaction: UpiAccountTransaction) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.delete_note) + "?")
             .setMessage(R.string.upi_delete_confirm)

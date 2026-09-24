@@ -8,9 +8,11 @@
     tools:context=".DebtorCreditActivity">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/brand_background"
+        android:fitsSystemWindows="true"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -117,7 +119,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:scrollbars="none">
+                android:scrollbars="none"
+                android:clipToPadding="false"
+                android:paddingStart="0dp"
+                android:paddingEnd="20dp">
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/chipGroupSort"
                     android:layout_width="wrap_content"

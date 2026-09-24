@@ -7,6 +7,7 @@ import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
@@ -16,6 +17,10 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
@@ -57,6 +62,28 @@ class DebtorCreditActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityDebtorCreditBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Bottom insets for RecyclerView, FAB, and filter label
+            val baseFabMargin = resources.getDimensionPixelSize(R.dimen.spacing_xl) // 24dp
+            binding.buttonAddDebtorCredit.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = systemBars.bottom + baseFabMargin
+            }
+            
+            val filterLabelBottomMargin = (100 * resources.displayMetrics.density).toInt()
+            binding.textFilterLabel.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = systemBars.bottom + filterLabelBottomMargin
+            }
+            
+            val recyclerBottomPadding = (80 * resources.displayMetrics.density).toInt() + systemBars.bottom
+            binding.recyclerDebtorCredits.updatePadding(
+                bottom = recyclerBottomPadding
+            )
+            
+            insets
+        }
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

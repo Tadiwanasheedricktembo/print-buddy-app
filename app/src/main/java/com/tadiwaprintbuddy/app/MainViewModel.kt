@@ -1,5 +1,6 @@
 package com.tadiwaprintbuddy.app
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -119,6 +120,7 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
         }
 
         _uiState.update { it.copy(isLoading = true) }
+        Log.d("PrintBuddyTransaction", "Home Screen Save Initiated: customer=${current.customerName}, price=${current.price}, qty=${current.quantity}, total=${current.total}, method=$paymentMethod, status=$paymentStatus")
         viewModelScope.launch {
             try {
                 val cartItems = listOf(CartItem("General", current.price, current.quantity))
@@ -131,6 +133,7 @@ class MainViewModel(private val repository: PrintRepository) : ViewModel() {
                     current.creditUsed,
                     current.receivedAmount
                 )
+                Log.d("PrintBuddyTransaction", "Repository confirmOrder result: $result")
                 
                 when (result) {
                     is OrderResult.Success -> {

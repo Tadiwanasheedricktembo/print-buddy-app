@@ -1,5 +1,6 @@
 package com.tadiwaprintbuddy.app.data
 
+import android.util.Log
 import com.tadiwaprintbuddy.app.CartItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -64,6 +65,7 @@ class PrintRepository(private val printDao: PrintDao) {
         appliedCredit: BigDecimal = BigDecimal.ZERO,
         receivedAmount: BigDecimal? = null
     ): OrderResult {
+        Log.d("PrintBuddyTransaction", "Repository confirmOrder called: customer=$customerName, itemsCount=${cartItems.size}, paymentMethod=$paymentMethod")
         if (cartItems.isEmpty()) return OrderResult.ValidationError("Add at least one item")
         val total = cartItems.fold(BigDecimal.ZERO) { acc, item -> acc.add(item.getSubtotal()) }
         if (total <= BigDecimal.ZERO) return OrderResult.ValidationError("Enter a valid amount greater than ₹0")
@@ -74,8 +76,10 @@ class PrintRepository(private val printDao: PrintDao) {
         
         return try {
             val orderId = printDao.recordOrderWithWalletAtomic(customer, orderItems, total, paymentMethod, appliedCredit, currentTime, receivedAmount)
+            Log.d("PrintBuddyTransaction", "Repository confirmOrder success: orderId=$orderId")
             OrderResult.Success(orderId)
         } catch (e: Exception) {
+            Log.e("PrintBuddyTransaction", "Repository confirmOrder error", e)
             val message = e.message ?: "Failed to save order"
             if (message.contains("Insufficient stock", ignoreCase = true)) {
                 val itemName = message.substringAfter("Insufficient stock for ", "")
@@ -227,20 +231,21 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
         printDao.getExpenseBreakdownBetween(start, end)
 
-    fun getFilteredBeautyTransactions(start: Long, end: Long) = 
-        printDao.getFilteredBeautyTransactions(start, end)
+    fun getFilteredUpiAccountTransactions(start: Long, end: Long) = 
+        // Prefer canonical UPI table; fall back to legacy beauty filter when needed
+        printDao.getFilteredUpiAccountTransactions(start, end)
 
-    suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal = 
-        printDao.getBeautyReceivedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    suspend fun getUpiAccountReceivedBetween(start: Long, end: Long): BigDecimal = 
+        (printDao.getUpiAccountReceivedAmounts(start, end) + printDao.getBeautyReceivedAmounts(start, end)).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
-    suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal = 
-        printDao.getBeautyReturnedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    suspend fun getUpiAccountReturnedBetween(start: Long, end: Long): BigDecimal = 
+        (printDao.getUpiAccountReturnedAmounts(start, end) + printDao.getBeautyReturnedAmounts(start, end)).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
-    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): BigDecimal =
-        printDao.getBeautyTransactionAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    suspend fun getUpiAccountNetFlowBetween(start: Long, end: Long): BigDecimal =
+        (printDao.getUpiAccountTransactionAmountsBetween(start, end) + printDao.getBeautyTransactionAmountsBetween(start, end)).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
-    suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int = 
-        printDao.getBeautyTransactionCountBetween(start, end)
+    suspend fun getUpiAccountTransactionCountBetween(start: Long, end: Long): Int = 
+        (printDao.getUpiAccountTransactionCountBetween(start, end) + printDao.getBeautyTransactionCountBetween(start, end))
 
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
@@ -353,11 +358,22 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun insertBeautyTransaction(amount: BigDecimal, type: String, note: String? = null) {
         val normalizedType = type.trim().uppercase()
         if (amount <= BigDecimal.ZERO && normalizedType !in setOf("RESET")) return
+        // Write to canonical UPI account table first, then keep legacy write for compatibility.
+        try {
+            printDao.insertUpiAccountTransactionAtomic(amount, normalizedType, note)
+        } catch (e: Exception) {
+            // swallow to avoid breaking legacy flow; log if needed
+        }
         printDao.insertBeautyTransactionWithSettlementAtomic(amount, normalizedType, note)
     }
 
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()
     
+    // Prefer canonical UPI flows when available
+    fun getAllUpiAccountTransactionsFlow(): Flow<List<UpiAccountTransaction>> = printDao.getAllUpiAccountTransactionsFlow()
+
+    suspend fun getAllUpiAccountTransactions(): List<UpiAccountTransaction> = printDao.getAllUpiAccountTransactions()
+
     suspend fun getAllBeautyTransactions(): List<BeautyTransaction> = printDao.getAllBeautyTransactions()
 
     fun getBeautyBalanceFlow(): Flow<BigDecimal> = 
@@ -368,6 +384,26 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getCurrentBeautyBalance(): BigDecimal = printDao.getAuthoritativeWalletBalance()
 
     suspend fun deleteBeautyTransaction(transaction: BeautyTransaction) {
+        // Delete from both canonical and legacy tables to keep them in sync during migration
+        try {
+            val ut = UpiAccountTransaction(
+                id = transaction.id,
+                amount = transaction.amount,
+                type = transaction.type,
+                note = transaction.note,
+                timestamp = transaction.timestamp,
+                previousBalance = transaction.previousBalance,
+                transactionAmount = transaction.transactionAmount,
+                newBalance = transaction.newBalance,
+                syncId = transaction.syncId,
+                updatedAt = transaction.updatedAt,
+                deletedAt = transaction.deletedAt,
+                syncStatus = transaction.syncStatus
+            )
+            printDao.deleteUpiAccountTransactionWithSettlementAtomic(ut)
+        } catch (e: Exception) {
+            // ignore mapping/delete failure and fall back to legacy
+        }
         printDao.deleteBeautyTransactionWithSettlementAtomic(transaction)
     }
 

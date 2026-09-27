@@ -40,7 +40,8 @@ export interface SettlementHistory {
   newBalance: string;
   originId?: number;
   originSyncId?: string;
-  ledgerEntryType: "ORDER_POST" | "PAYMENT" | "CREDIT" | "ADJUSTMENT" | "ORDER_CANCEL";
+  ledgerEntryType: "ORDER_POST" | "PAYMENT" | "CREDIT" | "ADJUSTMENT" | "ORDER_CANCEL" | "UPI_ACCOUNT_TOPUP" | "UPI_ACCOUNT_RETURN";
+  isShadowDuplicate?: boolean;
   reconciliationStatus: string;
   receivedAmount?: string;
   syncId: string;
@@ -66,7 +67,7 @@ export interface StockItem {
   syncId: string;
 }
 
-export interface BeautyTransaction {
+export interface UpiAccountTransaction {
   id: number;
   amount: string;
   type: "ADD" | "RETURN" | "RESET";
@@ -77,6 +78,9 @@ export interface BeautyTransaction {
   newBalance: string;
   syncId: string;
 }
+
+// Legacy compatibility shunt; canonical active model is UpiAccountTransaction.
+export interface BeautyTransaction extends UpiAccountTransaction {}
 
 export interface AnalyticsSummary {
   total_revenue: string;

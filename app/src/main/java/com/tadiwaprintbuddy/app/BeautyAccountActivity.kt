@@ -30,11 +30,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class UpiAccountActivity : AppCompatActivity() {
+class BeautyAccountActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBeautyAccountBinding
-    private val viewModel: UpiAccountViewModel by viewModels {
-        UpiAccountViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
+    private val viewModel: BeautyAccountViewModel by viewModels {
+        BeautyAccountViewModelFactory(PrintRepository(AppDatabase.getDatabase(this).printDao()))
     }
     private lateinit var transactionAdapter: TransactionAdapter
 
@@ -230,15 +230,15 @@ class UpiAccountActivity : AppCompatActivity() {
 
     private class TransactionAdapter(
         private val context: Context,
-        private val onLongPress: (BeautyTransaction) -> Unit
+        private val onLongPress: (UpiAccountTransaction) -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-        private var originalTransactions = listOf<BeautyTransaction>()
+        private var originalTransactions = listOf<UpiAccountTransaction>()
         private var items = listOf<Any>()
         private val expandedHeaders = mutableSetOf<String>()
 
         private data class HeaderData(val title: String, val count: Int)
 
-        fun submitList(newItems: List<BeautyTransaction>) {
+        fun submitList(newItems: List<UpiAccountTransaction>) {
             originalTransactions = newItems
             updateList()
         }
@@ -297,7 +297,7 @@ class UpiAccountActivity : AppCompatActivity() {
                     else expandedHeaders.add(item.title)
                     updateList()
                 }
-            } else if (holder is TransactionViewHolder && item is BeautyTransaction) {
+            } else if (holder is TransactionViewHolder && item is UpiAccountTransaction) {
                 val locale = Locale.Builder().setLanguage("en").setRegion("IN").build()
                 val format = NumberFormat.getCurrencyInstance(locale)
                 val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())

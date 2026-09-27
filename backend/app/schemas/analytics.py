@@ -11,8 +11,8 @@ class AnalyticsSummary(BaseModel):
     @field_validator("total_revenue", "outstanding_debt", mode="before")
     @classmethod
     def convert_decimal(cls, v):
-        if isinstance(v, Decimal):
-            return str(v)
+        if isinstance(v, (Decimal, int, float)):
+            return format(Decimal(str(v)).quantize(Decimal("0.01")), "f")
         return v
 
 class RevenuePoint(BaseModel):

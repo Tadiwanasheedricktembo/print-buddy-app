@@ -343,8 +343,19 @@ class GroupedSettlementAdapter(
         holder.binding.textCustomerName.text = group.customerName
         holder.binding.textTransactionCount.text = "${group.events.size} activities"
         
-        val balance = group.totalOwed
-        if (balance.compareTo(BigDecimal.ZERO) > 0) {
+        val isWalletGroup = group.rawTransactions.any {
+            it.customerId == 0L &&
+                it.type == "UPI_ACCOUNT" &&
+                it.ledgerEntryType in setOf("UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN")
+        }
+        val balance = if (isWalletGroup) BigDecimal.ZERO else group.totalOwed
+        if (isWalletGroup) {
+            val walletBalance = group.rawTransactions.maxByOrNull { it.timestamp }?.newBalance ?: BigDecimal.ZERO
+            holder.binding.textTotalOwed.text = format.format(walletBalance.abs().toDouble())
+            holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+            holder.binding.textBalanceLabel.text = "UPI ACCOUNT BALANCE"
+            holder.binding.textBalanceLabel.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_primary))
+        } else if (balance.compareTo(BigDecimal.ZERO) > 0) {
             holder.binding.textTotalOwed.text = format.format(balance.toDouble())
             holder.binding.textTotalOwed.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.brand_error))
             holder.binding.textBalanceLabel.text = "AMOUNT DUE"
@@ -364,8 +375,8 @@ class GroupedSettlementAdapter(
         // Business Oriented Summary Metrics
         val ordersTotal = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.transactionAmount) }
         val cashReceived = group.rawTransactions.filter { it.ledgerEntryType in listOf("PAYMENT", "CREDIT", "UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN") }.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.amountPaid) }
-        val outstandingDebt = if (balance.compareTo(BigDecimal.ZERO) > 0) balance else BigDecimal.ZERO
-        val customerCredit = if (balance.compareTo(BigDecimal.ZERO) < 0) balance.negate() else BigDecimal.ZERO
+        val outstandingDebt = if (isWalletGroup) BigDecimal.ZERO else if (balance.compareTo(BigDecimal.ZERO) > 0) balance else BigDecimal.ZERO
+        val customerCredit = if (isWalletGroup) BigDecimal.ZERO else if (balance.compareTo(BigDecimal.ZERO) < 0) balance.negate() else BigDecimal.ZERO
 
         holder.binding.textOrdersTotal.text = format.format(ordersTotal.toDouble())
         holder.binding.textCashReceived.text = format.format(cashReceived.toDouble())
@@ -456,7 +467,13 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
         
         val balAfter = event.balanceAfter
         val context = holder.itemView.context
+        val isWalletEvent = event.details.any {
+            it.customerId == 0L &&
+                it.type == "UPI_ACCOUNT" &&
+                it.ledgerEntryType in setOf("UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN")
+        }
         binding.textNewBalance.text = when {
+            isWalletEvent -> "UPI Account Balance: ${format.format(balAfter.abs().toDouble())}"
             balAfter.compareTo(BigDecimal.ZERO) < 0 -> "${context.getString(R.string.customer_credit_label)}: ${format.format(balAfter.abs().toDouble())}"
             balAfter.compareTo(BigDecimal.ZERO) > 0 -> "${context.getString(R.string.amount_due)}: ${format.format(balAfter.toDouble())}"
             else -> context.getString(R.string.no_outstanding_balance)
@@ -522,12 +539,12 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
                 binding.textEventBreakdown.text = "Manual account adjustment."
             }
             is BusinessEvent.WalletAdjustment -> {
-                binding.textLabel.text = if (event.isInflow) "Wallet Inflow" else "Wallet Outflow"
+                binding.textLabel.text = if (event.isInflow) "UPI Payment Received" else "Wallet Outflow"
                 binding.textNote.text = event.note
                 val prefix = if (event.isInflow) "+ " else "− "
                 binding.textAmount.text = "$prefix${format.format(event.amount.toDouble())}"
                 binding.textAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, if (event.isInflow) R.color.brand_primary else R.color.brand_error))
-                binding.textEventBreakdown.text = if (event.isInflow) "Money added to UPI account." else "Money returned from UPI account."
+                binding.textEventBreakdown.text = if (event.isInflow) "Business income received through UPI." else "Money returned from UPI account."
             }
         }
 

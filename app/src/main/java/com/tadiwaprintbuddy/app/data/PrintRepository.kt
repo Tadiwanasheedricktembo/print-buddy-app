@@ -151,7 +151,12 @@ class PrintRepository(private val printDao: PrintDao) {
             )
             printDao.insertSettlement(extraSettlement)
             if (normalizedMethod == "UPI") {
-                printDao.insertBeautyTransactionAtomic(extraBeyondOrder, "ADD", "Overpayment Order #$orderId")
+                printDao.insertUpiAccountTransactionAtomic(
+                    extraBeyondOrder,
+                    "ADD",
+                    "Overpayment Order #$orderId",
+                    isShadowDuplicate = true
+                )
             }
             rebuildCustomerProjection(customerId)
         }
@@ -200,7 +205,8 @@ class PrintRepository(private val printDao: PrintDao) {
         printDao.getTotalAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
     suspend fun getSettledRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal = 
-        printDao.getFilteredSettledAmountSum(start, end, method) ?: BigDecimal.ZERO
+        printDao.getFilteredSettledAmounts(start, end, method)
+            .fold(BigDecimal.ZERO) { total, amount -> total.add(amount) }
 
     suspend fun getRevenueByMethodBetween(start: Long, end: Long, method: String): BigDecimal =
         printDao.getPaidAmountsByMethodBetween(start, end, method).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
@@ -214,16 +220,74 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getSettledOrderCountByMethodBetween(start: Long, end: Long, method: String): Int = 
         printDao.getFilteredSettledOrderCount(start, end, method)
 
-    suspend fun getTotalReceivables(): BigDecimal = 
-        printDao.getAllReceivableDiffs().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    suspend fun getCreditExtendedBetween(start: Long, end: Long): BigDecimal {
+        val settlements = getFilteredSettlements(start, end, "ALL")
+        val paymentsAtOrderCreation = settlements
+            .filter { it.ledgerEntryType == "PAYMENT" && it.originId != null }
+            .groupBy { it.originId!! to it.timestamp }
+
+        val creditOrders = settlements
+            .filter { it.ledgerEntryType == "ORDER_POST" && it.paymentMethod.equals("OWES_ME", ignoreCase = true) }
+            .fold(BigDecimal.ZERO) { total, orderPost ->
+                val initialPayments = paymentsAtOrderCreation[orderPost.originId to orderPost.timestamp]
+                    .orEmpty()
+                    .fold(BigDecimal.ZERO) { sum, payment -> sum.add(payment.amountPaid) }
+                val amountExtended = orderPost.transactionAmount
+                    .subtract(orderPost.amountPaid)
+                    .subtract(initialPayments)
+                    .max(BigDecimal.ZERO)
+                total.add(amountExtended)
+            }
+
+        val adjustments = settlements
+            .asSequence()
+            .filter { it.ledgerEntryType == "ADJUSTMENT" && it.transactionAmount > BigDecimal.ZERO }
+            .fold(BigDecimal.ZERO) { total, adjustment -> total.add(adjustment.transactionAmount) }
+
+        return creditOrders.add(adjustments)
+    }
+
+    suspend fun getCustomerBalanceTotals(): CustomerBalanceTotals {
+        var receivables = BigDecimal.ZERO
+        var customerCredit = BigDecimal.ZERO
+        var debtorsCount = 0
+        for (customer in printDao.getAllCustomers()) {
+            val balance = printDao.getAuthoritativeCustomerBalance(customer.id)
+            when {
+                balance > BigDecimal.ZERO -> {
+                    receivables = receivables.add(balance)
+                    debtorsCount++
+                }
+                balance < BigDecimal.ZERO -> customerCredit = customerCredit.add(balance.negate())
+            }
+        }
+        return CustomerBalanceTotals(receivables, customerCredit, debtorsCount)
+    }
+
+    suspend fun getTotalReceivables(): BigDecimal = getCustomerBalanceTotals().receivables
+
+    suspend fun getTotalCustomerCredit(): BigDecimal = getCustomerBalanceTotals().customerCredit
+
+    fun observeAnalyticsDataChanges(): Flow<Int> = printDao.observeAnalyticsDataChanges()
 
     suspend fun getDebtorsCount(): Int = printDao.getDebtorsCount()
 
     suspend fun getRevenueTrendByMethod(start: Long, end: Long, method: String): List<TrendPoint> = 
         printDao.getSettledRevenueTrendByMethod(start, end, method)
 
-    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> = 
-        printDao.getSettledPaymentBreakdownBetween(start, end)
+    suspend fun getPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown> {
+        val breakdown = printDao.getSettledPaymentBreakdownBetween(start, end).toMutableList()
+        val creditExtended = getCreditExtendedBetween(start, end)
+        val creditIndex = breakdown.indexOfFirst { it.type.equals("CREDIT", ignoreCase = true) }
+        if (creditIndex >= 0) {
+            breakdown[creditIndex] = breakdown[creditIndex].copy(
+                total = breakdown[creditIndex].total.add(creditExtended)
+            )
+        } else if (creditExtended > BigDecimal.ZERO) {
+            breakdown.add(PaymentBreakdown("CREDIT", creditExtended))
+        }
+        return breakdown
+    }
 
     suspend fun getServiceBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
         printDao.getServiceBreakdownBetween(start, end)
@@ -231,21 +295,26 @@ class PrintRepository(private val printDao: PrintDao) {
     suspend fun getExpenseBreakdownBetween(start: Long, end: Long): List<CategoryRevenue> = 
         printDao.getExpenseBreakdownBetween(start, end)
 
-    fun getFilteredUpiAccountTransactions(start: Long, end: Long) = 
-        // Prefer canonical UPI table; fall back to legacy beauty filter when needed
+    fun getFilteredUpiAccountTransactions(start: Long, end: Long) =
         printDao.getFilteredUpiAccountTransactions(start, end)
 
-    suspend fun getUpiAccountReceivedBetween(start: Long, end: Long): BigDecimal = 
-        (printDao.getUpiAccountReceivedAmounts(start, end) + printDao.getBeautyReceivedAmounts(start, end)).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    suspend fun getUpiAccountReceivedBetween(start: Long, end: Long): BigDecimal =
+        printDao.getUpiAccountReceivedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
-    suspend fun getUpiAccountReturnedBetween(start: Long, end: Long): BigDecimal = 
-        (printDao.getUpiAccountReturnedAmounts(start, end) + printDao.getBeautyReturnedAmounts(start, end)).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+    suspend fun getUpiAccountReturnedBetween(start: Long, end: Long): BigDecimal =
+        printDao.getUpiAccountReturnedAmounts(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
     suspend fun getUpiAccountNetFlowBetween(start: Long, end: Long): BigDecimal =
-        (printDao.getUpiAccountTransactionAmountsBetween(start, end) + printDao.getBeautyTransactionAmountsBetween(start, end)).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+        printDao.getUpiAccountTransactionAmountsBetween(start, end).fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
 
-    suspend fun getUpiAccountTransactionCountBetween(start: Long, end: Long): Int = 
-        (printDao.getUpiAccountTransactionCountBetween(start, end) + printDao.getBeautyTransactionCountBetween(start, end))
+    suspend fun getUpiAccountTransactionCountBetween(start: Long, end: Long): Int =
+        printDao.getUpiAccountTransactionCountBetween(start, end)
+
+    suspend fun getBeautyReceivedBetween(start: Long, end: Long): BigDecimal = getUpiAccountReceivedBetween(start, end)
+    suspend fun getBeautyReturnedBetween(start: Long, end: Long): BigDecimal = getUpiAccountReturnedBetween(start, end)
+    suspend fun getBeautyNetFlowBetween(start: Long, end: Long): BigDecimal = getUpiAccountNetFlowBetween(start, end)
+    suspend fun getBeautyTransactionCountBetween(start: Long, end: Long): Int = getUpiAccountTransactionCountBetween(start, end)
+    fun getFilteredBeautyTransactions(start: Long, end: Long) = getFilteredUpiAccountTransactions(start, end)
 
     fun getRevenueByCategoryFlow(): Flow<List<CategoryRevenue>> = printDao.getRevenueByCategoryFlow()
 
@@ -278,7 +347,7 @@ class PrintRepository(private val printDao: PrintDao) {
         val newBalance = previousBalance.add(amountDelta)
         val isPayment = amountDelta < BigDecimal.ZERO
         
-        printDao.insertSettlement(
+        printDao.adjustBalanceAtomic(
             SettlementHistory(
                 customerName = customer.displayName, customerId = customer.id,
                 balanceBefore = previousBalance, amountPaid = if (isPayment) amountDelta.negate() else BigDecimal.ZERO,
@@ -288,7 +357,6 @@ class PrintRepository(private val printDao: PrintDao) {
                 newBalance = newBalance, receivedAmount = receivedAmount, customerSyncId = customer.syncId
             )
         )
-        rebuildCustomerProjection(customer.id)
     }
 
     suspend fun deleteDebtorCredit(customerId: Long) = printDao.deleteDebtorCredit(customerId)
@@ -356,15 +424,7 @@ class PrintRepository(private val printDao: PrintDao) {
     }
 
     suspend fun insertBeautyTransaction(amount: BigDecimal, type: String, note: String? = null) {
-        val normalizedType = type.trim().uppercase()
-        if (amount <= BigDecimal.ZERO && normalizedType !in setOf("RESET")) return
-        // Write to canonical UPI account table first, then keep legacy write for compatibility.
-        try {
-            printDao.insertUpiAccountTransactionAtomic(amount, normalizedType, note)
-        } catch (e: Exception) {
-            // swallow to avoid breaking legacy flow; log if needed
-        }
-        printDao.insertBeautyTransactionWithSettlementAtomic(amount, normalizedType, note)
+        insertUpiAccountTransaction(amount, type, note)
     }
 
     fun getAllBeautyTransactionsFlow(): Flow<List<BeautyTransaction>> = printDao.getAllBeautyTransactionsFlow()
@@ -381,12 +441,38 @@ class PrintRepository(private val printDao: PrintDao) {
             list.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
         }
 
+    fun getUpiAccountBalanceFlow(): Flow<BigDecimal> =
+        printDao.getUpiAccountTransactionAmountsFlow().map { list ->
+            list.fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+        }
+
     suspend fun getCurrentBeautyBalance(): BigDecimal = printDao.getAuthoritativeWalletBalance()
 
+    suspend fun getCurrentUpiAccountBalance(): BigDecimal = printDao.getAuthoritativeWalletBalance()
+
+    suspend fun insertUpiAccountTransaction(
+        amount: BigDecimal,
+        type: String,
+        note: String? = null,
+        createOrderHistoryEntry: Boolean = false
+    ) {
+        val normalizedType = type.trim().uppercase()
+        if (amount <= BigDecimal.ZERO && normalizedType !in setOf("RESET")) return
+        printDao.insertUpiAccountTransactionAtomic(amount, normalizedType, note, createOrderHistoryEntry)
+    }
+
     suspend fun deleteBeautyTransaction(transaction: BeautyTransaction) {
-        // Delete from both canonical and legacy tables to keep them in sync during migration
+        printDao.deleteBeautyTransactionWithSettlementAtomic(transaction)
+    }
+
+    suspend fun deleteUpiAccountTransaction(transaction: UpiAccountTransaction) {
         try {
-            val ut = UpiAccountTransaction(
+            printDao.deleteUpiAccountTransactionWithSettlementAtomic(transaction)
+        } catch (e: Exception) {
+            // ignore
+        }
+        try {
+            val bt = BeautyTransaction(
                 id = transaction.id,
                 amount = transaction.amount,
                 type = transaction.type,
@@ -400,11 +486,10 @@ class PrintRepository(private val printDao: PrintDao) {
                 deletedAt = transaction.deletedAt,
                 syncStatus = transaction.syncStatus
             )
-            printDao.deleteUpiAccountTransactionWithSettlementAtomic(ut)
+            printDao.deleteBeautyTransactionWithSettlementAtomic(bt)
         } catch (e: Exception) {
-            // ignore mapping/delete failure and fall back to legacy
+            // ignore
         }
-        printDao.deleteBeautyTransactionWithSettlementAtomic(transaction)
     }
 
     suspend fun insertExpense(expense: Expense) {

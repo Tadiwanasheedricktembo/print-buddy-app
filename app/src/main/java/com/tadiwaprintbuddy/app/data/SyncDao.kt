@@ -72,6 +72,12 @@ interface SyncDao {
     @Query("UPDATE beauty_transactions SET syncId = :syncId, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateBeautyTransactionSyncId(id: Int, syncId: String, updatedAt: Long): Int
 
+    @Query("SELECT id FROM upi_account_transactions WHERE syncId = ''")
+    suspend fun getUpiAccountTransactionsNeedingSyncId(): List<Int>
+
+    @Query("UPDATE upi_account_transactions SET syncId = :syncId, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateUpiAccountTransactionSyncId(id: Int, syncId: String, updatedAt: Long): Int
+
     @Query("SELECT id FROM external_ledger WHERE syncId = ''")
     suspend fun getExternalLedgerNeedingSyncId(): List<Int>
 
@@ -115,6 +121,9 @@ interface SyncDao {
     @Query("SELECT * FROM beauty_transactions WHERE syncId = :syncId")
     suspend fun getBeautyTransactionBySyncId(syncId: String): BeautyTransaction?
 
+    @Query("SELECT * FROM upi_account_transactions WHERE syncId = :syncId")
+    suspend fun getUpiAccountTransactionBySyncId(syncId: String): UpiAccountTransaction?
+
     @Query("SELECT * FROM external_ledger WHERE syncId = :syncId")
     suspend fun getExternalLedgerBySyncId(syncId: String): ExternalLedger?
 
@@ -152,6 +161,9 @@ interface SyncDao {
     suspend fun upsertBeautyTransaction(transaction: BeautyTransaction): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertUpiAccountTransaction(transaction: UpiAccountTransaction): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertExternalLedger(ledger: ExternalLedger): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -183,6 +195,9 @@ interface SyncDao {
 
     @Query("UPDATE beauty_transactions SET deletedAt = :deletedAt, syncStatus = 'SYNCED' WHERE syncId = :syncId")
     suspend fun markBeautyTransactionDeleted(syncId: String, deletedAt: Long): Int
+
+    @Query("UPDATE upi_account_transactions SET deletedAt = :deletedAt, syncStatus = 'SYNCED' WHERE syncId = :syncId")
+    suspend fun markUpiAccountTransactionDeleted(syncId: String, deletedAt: Long): Int
 
     @Query("UPDATE external_ledger SET deletedAt = :deletedAt, syncStatus = 'SYNCED' WHERE syncId = :syncId")
     suspend fun markExternalLedgerDeleted(syncId: String, deletedAt: Long): Int

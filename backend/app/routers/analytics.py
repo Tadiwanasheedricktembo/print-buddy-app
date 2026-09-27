@@ -14,14 +14,14 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 @router.get("/summary", response_model=AnalyticsSummary)
 def get_summary(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # 1. Total Revenue (Authoritative - Money In from Ledger)
-    # Logic: settled_amount from settlement_history where type in ['PAYMENT', 'CREDIT']
-    # and if origin_id is present, the corresponding order must not be cancelled.
+    # Wallet top-ups count as income unless they mirror a payment already in the ledger.
 
     revenue_query = db.query(func.sum(SettlementHistory.amount_paid)).outerjoin(
         Order, SettlementHistory.origin_sync_id == Order.sync_id
     ).filter(
         SettlementHistory.user_id == current_user.id,
-        SettlementHistory.ledger_entry_type.in_(["PAYMENT", "CREDIT"]),
+        SettlementHistory.ledger_entry_type.in_(["PAYMENT", "CREDIT", "UPI_ACCOUNT_TOPUP"]),
+        (SettlementHistory.ledger_entry_type != "UPI_ACCOUNT_TOPUP") | (SettlementHistory.is_shadow_duplicate.is_(False)),
         SettlementHistory.deleted_at == None,
         (Order.id == None) | ((Order.order_status == "ACTIVE") & (Order.deleted_at == None))
     )
@@ -39,6 +39,7 @@ def get_summary(current_user: User = Depends(get_current_user), db: Session = De
     # SUM(transaction_amount) from settlement_history
     outstanding = db.query(func.sum(SettlementHistory.transaction_amount)).filter(
         SettlementHistory.user_id == current_user.id,
+        SettlementHistory.ledger_entry_type.notin_(["UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN"]),
         SettlementHistory.deleted_at == None
     ).scalar() or 0
 
@@ -66,7 +67,8 @@ def get_revenue_chart(days: int = 30, current_user: User = Depends(get_current_u
         Order, SettlementHistory.origin_sync_id == Order.sync_id
     ).filter(
         SettlementHistory.user_id == current_user.id,
-        SettlementHistory.ledger_entry_type.in_(["PAYMENT", "CREDIT"]),
+        SettlementHistory.ledger_entry_type.in_(["PAYMENT", "CREDIT", "UPI_ACCOUNT_TOPUP"]),
+        (SettlementHistory.ledger_entry_type != "UPI_ACCOUNT_TOPUP") | (SettlementHistory.is_shadow_duplicate.is_(False)),
         SettlementHistory.deleted_at == None,
         (Order.id == None) | ((Order.order_status == "ACTIVE") & (Order.deleted_at == None)),
         SettlementHistory.timestamp >= start_date.timestamp() * 1000

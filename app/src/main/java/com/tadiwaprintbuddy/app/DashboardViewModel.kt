@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.tadiwaprintbuddy.app.data.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -31,6 +33,7 @@ data class DashboardUiState(
     val insights: List<BusinessInsight> = emptyList(),
     val upiWalletBalance: BigDecimal = BigDecimal.ZERO,
     val totalReceivables: BigDecimal = BigDecimal.ZERO,
+    val totalCustomerCredit: BigDecimal = BigDecimal.ZERO,
     val debtorsCount: Int = 0,
     val isLoading: Boolean = true,
     val showZeroExpenseWarning: Boolean = false
@@ -40,9 +43,14 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+    private var refreshJob: Job? = null
 
     init {
-        loadData()
+        viewModelScope.launch {
+            repository.observeAnalyticsDataChanges().collect {
+                loadData()
+            }
+        }
     }
 
     fun setPeriod(period: String) {
@@ -56,7 +64,8 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     }
 
     private fun loadData() {
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             val state = _uiState.value
             val (start, end) = getRange(state.period)
             val (prevStart, prevEnd) = getPreviousRange(state.period, start)
@@ -66,6 +75,9 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             // 1. Revenue (Authoritative Collection - Money In)
             val revenue = repository.getSettledRevenueByMethodBetween(start, end, method)
             val prevRevenue = repository.getSettledRevenueByMethodBetween(prevStart, prevEnd, method)
+            val creditExtended = if (method == "ALL" || method == "CREDIT") {
+                repository.getCreditExtendedBetween(start, end)
+            } else BigDecimal.ZERO
 
             // 2. Sales Volume (Value of all active work done)
             val salesVolume = repository.getSalesVolumeBetween(start, end)
@@ -84,9 +96,9 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val cashInHand = cashCollected.subtract(cashExpenses)
 
             // Financial Metrics
-            val upiInflow = repository.getBeautyReceivedBetween(start, end)
-            val upiOutflow = repository.getBeautyReturnedBetween(start, end)
-            
+            val upiInflow = repository.getUpiAccountReceivedBetween(start, end)
+            val upiOutflow = repository.getUpiAccountReturnedBetween(start, end)
+
             val netProfit = revenue.subtract(expenses)
             val prevNetProfit = prevRevenue.subtract(prevExpenses)
             val profitMargin = if (revenue > BigDecimal.ZERO) {
@@ -104,14 +116,16 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 previousNetProfit = prevNetProfit,
                 previousOrdersCount = prevOrdersCount,
                 upiInflow = upiInflow,
-                upiOutflow = upiOutflow
+                upiOutflow = upiOutflow,
+                creditExtended = creditExtended
             )
 
             // Snapshot Metrics
-            val upiNetFlow = repository.getBeautyNetFlowBetween(start, end)
-            val upiTotalBalance = repository.getCurrentBeautyBalance()
-            val totalReceivables = repository.getTotalReceivables()
-            val debtorsCount = repository.getDebtorsCount()
+            val upiNetFlow = repository.getUpiAccountNetFlowBetween(start, end)
+            val upiTotalBalance = repository.getCurrentUpiAccountBalance()
+            val customerBalances = repository.getCustomerBalanceTotals()
+            val totalReceivables = customerBalances.receivables
+            val debtorsCount = customerBalances.debtorsCount
 
             // Charts
             val trend = repository.getRevenueTrendByMethod(start, end, method) 
@@ -120,7 +134,17 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val expenseBreakdown = repository.getExpenseBreakdownBetween(start, end)
 
             // Insights
-            val insights = calculateInsights(salesVolume, ordersCount, upiNetFlow, totalReceivables, debtorsCount, cashInHand, trend)
+            val insights = calculateInsights(
+                salesVolume,
+                ordersCount,
+                upiNetFlow,
+                creditExtended,
+                totalReceivables,
+                customerBalances.customerCredit,
+                debtorsCount,
+                cashInHand,
+                trend
+            )
 
             _uiState.update {
                 it.copy(
@@ -132,6 +156,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                     insights = insights,
                     upiWalletBalance = upiTotalBalance,
                     totalReceivables = totalReceivables,
+                    totalCustomerCredit = customerBalances.customerCredit,
                     debtorsCount = debtorsCount,
                     isLoading = false,
                     showZeroExpenseWarning = expenses == BigDecimal.ZERO && revenue > BigDecimal.ZERO
@@ -144,7 +169,9 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
         salesVolume: BigDecimal,
         ordersCount: Int,
         upiNetFlow: BigDecimal,
+        creditExtended: BigDecimal,
         totalReceivables: BigDecimal,
+        totalCustomerCredit: BigDecimal,
         debtorsCount: Int,
         cashInHand: BigDecimal,
         trend: List<TrendPoint>
@@ -158,8 +185,19 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
         list.add(BusinessInsight("📱 UPI Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f",
             upiNetFlow.abs().toDouble()
         )}", "Net digital movement"))
+
+        list.add(BusinessInsight(
+            "Credit Extended",
+            "₹${String.format(Locale.ENGLISH, "%.2f", creditExtended.toDouble())}",
+            "New customer credit this period"
+        ))
         
         list.add(BusinessInsight("⏳ Outstanding", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables.toDouble())}", "Debt from $debtorsCount customers"))
+        list.add(BusinessInsight(
+            "Customer Credit",
+            "₹${String.format(Locale.ENGLISH, "%.2f", totalCustomerCredit.toDouble())}",
+            "Customer balance available"
+        ))
 
         if (ordersCount > 0) {
             val avg = salesVolume.divide(BigDecimal(ordersCount), 2, RoundingMode.HALF_UP)
@@ -198,6 +236,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 cal.set(Calendar.HOUR_OF_DAY, 23)
                 cal.set(Calendar.MINUTE, 59)
                 cal.set(Calendar.SECOND, 59)
+                cal.set(Calendar.MILLISECOND, 999)
                 return Pair(start, cal.timeInMillis)
             }
             "This Week" -> {
@@ -212,6 +251,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 cal.set(Calendar.HOUR_OF_DAY, 0)
                 cal.set(Calendar.MINUTE, 0)
                 cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
             }
             "Last 30 Days" -> {
                 cal.add(Calendar.DAY_OF_YEAR, -30)
@@ -225,7 +265,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
         if (period == "All Time") return Pair(0L, 0L)
         val cal = Calendar.getInstance()
         cal.timeInMillis = currentStart
-        val end = currentStart
+        val end = currentStart - 1L
         when (period) {
             "Today", "Yesterday" -> cal.add(Calendar.DAY_OF_YEAR, -1)
             "This Week" -> cal.add(Calendar.WEEK_OF_YEAR, -1)

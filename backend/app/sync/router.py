@@ -8,7 +8,7 @@ from ..auth.router import get_current_user
 from ..models.base import User, IdempotencyLog
 from ..models.entities import (
     Customer, Order, OrderItem, SettlementHistory,
-    Expense, StockItem, Note, BeautyTransaction,
+    Expense, StockItem, Note, UpiAccountTransaction,
     ExternalLedger, PrinterReference
 )
 from ..schemas.sync import PushRequest, PushResponse, PullRequest, PullResponse, SyncEvent
@@ -23,16 +23,23 @@ MODEL_MAP = {
     "EXPENSE": Expense,
     "STOCK": StockItem,
     "NOTE": Note,
-    "BEAUTY_TRANSACTION": BeautyTransaction,
+    "UPI_ACCOUNT_TRANSACTION": UpiAccountTransaction,
     "EXTERNAL_LEDGER": ExternalLedger,
     "PRINTER_REFERENCE": PrinterReference
 }
 
 def map_data_to_model(entity_type: str, data: Dict[str, Any]):
+    model_class = MODEL_MAP.get(entity_type)
+    if model_class is None:
+        return {}
+    allowed_columns = {
+        column.name for column in model_class.__table__.columns
+    } - {"id", "user_id", "sync_id", "updated_at", "server_updated_at"}
     mapped = {}
     for k, v in data.items():
         snake_k = "".join(["_" + c.lower() if c.isupper() else c for c in k]).lstrip("_")
-        mapped[snake_k] = v
+        if snake_k in allowed_columns:
+            mapped[snake_k] = v
     return mapped
 
 @router.post("/push", response_model=PushResponse)

@@ -12,7 +12,7 @@ import com.tadiwaprintbuddy.app.BuildConfig
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, UpiAccountTransaction::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class],
-    version = 38,
+    version = 41,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -41,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
                     MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
                     MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37,
-                        MIGRATION_37_38, MIGRATION_38_39
+                        MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41
                 )
 
                 val instance = builder.build()
@@ -84,18 +84,171 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
 
-                // 2. Copy data from beauty_transactions preserving PK and all metadata
+                // 2. Copy legacy rows once, preserving their IDs unless a collision exists.
                 database.execSQL("""
                     INSERT INTO `upi_account_transactions` (id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance, syncId, updatedAt, deletedAt, syncStatus)
-                    SELECT id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance, syncId, updatedAt, deletedAt, syncStatus FROM `beauty_transactions`
+                    SELECT
+                        CASE WHEN EXISTS (
+                            SELECT 1 FROM `upi_account_transactions` existing WHERE existing.id = legacy.id
+                        ) THEN NULL ELSE legacy.id END,
+                        legacy.amount, legacy.type, legacy.note, legacy.timestamp,
+                        legacy.previousBalance, legacy.transactionAmount, legacy.newBalance,
+                        legacy.syncId, legacy.updatedAt, legacy.deletedAt, legacy.syncStatus
+                    FROM `beauty_transactions` legacy
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM `upi_account_transactions` existing WHERE existing.syncId = legacy.syncId
+                    )
                 """.trimIndent())
 
                 // 3. Create index on timestamp
                 database.execSQL("CREATE INDEX IF NOT EXISTS `idx_upi_account_timestamp` ON `upi_account_transactions` (`timestamp`)")
+                // Verification: compare row counts and report mismatches
+                var upiCount: Long = -1
+                var beautyCount: Long = -1
+                var missingInUpi: Long = -1
+                var cursor = database.query("SELECT COUNT(*) FROM `upi_account_transactions`")
+                try {
+                    if (cursor.moveToFirst()) upiCount = cursor.getLong(0)
+                } finally {
+                    cursor.close()
+                }
+                cursor = database.query("SELECT COUNT(*) FROM `beauty_transactions`")
+                try {
+                    if (cursor.moveToFirst()) beautyCount = cursor.getLong(0)
+                } finally {
+                    cursor.close()
+                }
+                cursor = database.query("SELECT COUNT(*) FROM `beauty_transactions` b LEFT JOIN `upi_account_transactions` u ON b.syncId = u.syncId WHERE u.syncId IS NULL")
+                try {
+                    if (cursor.moveToFirst()) missingInUpi = cursor.getLong(0)
+                } finally {
+                    cursor.close()
+                }
 
-                Log.d("DatabaseMigration", "Migration 38 to 39 completed: upi_account_transactions created and data copied from beauty_transactions")
+                Log.d("DatabaseMigration", "Migration 38 to 39 completed: upi_account_transactions created and data copied from beauty_transactions. upiCount=$upiCount, beautyCount=$beautyCount, missingInUpi=$missingInUpi")
+
+                if (missingInUpi > 0) {
+                    Log.e("DatabaseMigration", "Migration WARNING: $missingInUpi rows from beauty_transactions are missing in upi_account_transactions. Investigate before releasing this migration to production.")
+                }
             }
         }
+
+                val MIGRATION_39_40 = object : Migration(39, 40) {
+                        override fun migrate(database: SupportSQLiteDatabase) {
+                                Log.d("DatabaseMigration", "Starting migration 39 to 40 (UPI income duplicate classification)")
+                                database.execSQL("""
+                                        UPDATE `settlement_history`
+                                        SET `isShadowDuplicate` = 1
+                                        WHERE `settlement_history`.`ledgerEntryType` = 'UPI_ACCOUNT_TOPUP'
+                                            AND `settlement_history`.`isShadowDuplicate` = 0
+                                            AND (
+                                                (
+                                                    (`settlement_history`.`note` LIKE 'Direct Pay - Order #%'
+                                                     OR `settlement_history`.`note` LIKE 'Payment Order #%'
+                                                     OR `settlement_history`.`note` LIKE 'Overpayment Order #%')
+                                                    AND EXISTS (
+                                                        SELECT 1
+                                                        FROM `settlement_history` payment
+                                                        WHERE payment.`originId` = CAST(SUBSTR(`settlement_history`.`note`, INSTR(`settlement_history`.`note`, '#') + 1) AS INTEGER)
+                                                            AND payment.`ledgerEntryType` = CASE
+                                                                WHEN `settlement_history`.`note` LIKE 'Overpayment Order #%' THEN 'CREDIT'
+                                                                ELSE 'PAYMENT'
+                                                            END
+                                                            AND payment.`paymentMethod` = 'UPI'
+                                                            AND payment.`settledAmount` = `settlement_history`.`settledAmount`
+                                                            AND payment.`deletedAt` IS NULL
+                                                    )
+                                                )
+                                                OR (
+                                                    `settlement_history`.`note` = 'Debt Settlement'
+                                                    AND (
+                                                        SELECT ROUND(SUM(CAST(payment.`settledAmount` AS REAL)), 2)
+                                                        FROM `settlement_history` payment
+                                                        WHERE payment.`ledgerEntryType` IN ('PAYMENT', 'CREDIT')
+                                                            AND payment.`paymentMethod` = 'UPI'
+                                                            AND ABS(payment.`timestamp` - `settlement_history`.`timestamp`) <= 10000
+                                                            AND payment.`customerId` != 0
+                                                            AND payment.`deletedAt` IS NULL
+                                                    ) = ROUND(CAST(`settlement_history`.`settledAmount` AS REAL), 2)
+                                                )
+                                            )
+                                """.trimIndent())
+                        }
+                }
+
+                val MIGRATION_40_41 = object : Migration(40, 41) {
+                    override fun migrate(database: SupportSQLiteDatabase) {
+                        Log.d("DatabaseMigration", "Starting migration 40 to 41 (project UPI account receipts into Order History)")
+                        database.execSQL("""
+                            INSERT INTO `orders` (
+                                totalAmount, date, customerName, paidAmount, paymentMethod, customerId,
+                                previousBalance, transactionAmount, newBalance, paymentStatus, orderStatus,
+                                receivedAmount, customerSyncId, syncId, updatedAt, deletedAt, syncStatus
+                            )
+                            SELECT
+                                wallet.amount, wallet.timestamp, 'UPI Account', wallet.amount, 'UPI', 0,
+                                '0', '0', '0', 'PAID', 'ACTIVE', NULL, '', wallet.syncId,
+                                wallet.updatedAt, NULL, wallet.syncStatus
+                            FROM `upi_account_transactions` wallet
+                            INNER JOIN `settlement_history` receipt
+                                ON receipt.originSyncId = wallet.syncId
+                               AND receipt.ledgerEntryType = 'UPI_ACCOUNT_TOPUP'
+                               AND receipt.isShadowDuplicate = 0
+                               AND receipt.deletedAt IS NULL
+                            WHERE wallet.type = 'ADD'
+                              AND wallet.deletedAt IS NULL
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM `orders` existing WHERE existing.syncId = wallet.syncId
+                              )
+                        """.trimIndent())
+
+                        database.execSQL("""
+                            UPDATE `settlement_history`
+                            SET originId = (
+                                SELECT projected.id FROM `orders` projected
+                                WHERE projected.syncId = settlement_history.originSyncId
+                                  AND projected.customerName = 'UPI Account'
+                                  AND projected.deletedAt IS NULL
+                            )
+                            WHERE ledgerEntryType = 'UPI_ACCOUNT_TOPUP'
+                              AND isShadowDuplicate = 0
+                              AND deletedAt IS NULL
+                              AND originId IS NULL
+                              AND EXISTS (
+                                  SELECT 1 FROM `orders` projected
+                                  WHERE projected.syncId = settlement_history.originSyncId
+                                    AND projected.customerName = 'UPI Account'
+                                    AND projected.deletedAt IS NULL
+                              )
+                        """.trimIndent())
+
+                        database.execSQL("""
+                            INSERT INTO `sync_outbox` (
+                                entityType, entitySyncId, operation, createdAt, attemptCount,
+                                lastError, idempotencyKey, status
+                            )
+                            SELECT 'ORDER', projected.syncId, 'CREATE', projected.updatedAt, 0,
+                                   NULL, projected.syncId || ':ORDER:CREATE:UPI_ACCOUNT_HISTORY', 'PENDING_UPLOAD'
+                            FROM `orders` projected
+                            INNER JOIN `upi_account_transactions` wallet ON wallet.syncId = projected.syncId
+                            WHERE projected.customerName = 'UPI Account'
+                              AND wallet.type = 'ADD'
+                              AND EXISTS (
+                                  SELECT 1 FROM `settlement_history` receipt
+                                  WHERE receipt.originSyncId = wallet.syncId
+                                    AND receipt.ledgerEntryType = 'UPI_ACCOUNT_TOPUP'
+                                    AND receipt.isShadowDuplicate = 0
+                                    AND receipt.deletedAt IS NULL
+                              )
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM `sync_outbox` queued
+                                  WHERE queued.entityType = 'ORDER'
+                                    AND queued.entitySyncId = projected.syncId
+                                    AND queued.operation IN ('CREATE', 'UPDATE')
+                              )
+                        """.trimIndent())
+                    }
+                }
 
         val MIGRATION_36_37 = object : Migration(36, 37) {
             override fun migrate(database: SupportSQLiteDatabase) {

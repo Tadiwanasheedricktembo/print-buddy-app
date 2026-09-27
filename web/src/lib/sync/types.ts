@@ -8,7 +8,7 @@ export type EntityType =
   | 'EXPENSE'
   | 'STOCK'
   | 'NOTE'
-  | 'BEAUTY_TRANSACTION'
+  | 'UPI_ACCOUNT_TRANSACTION'
   | 'EXTERNAL_LEDGER'
   | 'PRINTER_REFERENCE';
 

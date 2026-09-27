@@ -30,6 +30,18 @@ interface PrintDao {
     @Query("SELECT COUNT(*) FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL)")
     fun getTotalOrdersFlow(): Flow<Int>
 
+    @Query("""
+        SELECT
+            (SELECT COUNT(*) FROM `orders`) +
+            (SELECT COUNT(*) FROM `OrderItem`) +
+            (SELECT COUNT(*) FROM `settlement_history`) +
+            (SELECT COUNT(*) FROM `expenses`) +
+            (SELECT COUNT(*) FROM `upi_account_transactions`) +
+            (SELECT COUNT(*) FROM `customers`) +
+            (SELECT COUNT(*) FROM `debtor_credits`)
+    """)
+    fun observeAnalyticsDataChanges(): Flow<Int>
+
     @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND date BETWEEN :start AND :end AND (deletedAt IS NULL)")
     suspend fun getPaidAmountsBetween(start: Long, end: Long): List<BigDecimal>
 
@@ -44,13 +56,14 @@ interface PrintDao {
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end 
-        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+           AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT', 'UPI_ACCOUNT_TOPUP')
+        AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0)
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
-             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
-             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
-             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
+               OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType IN ('PAYMENT', 'UPI_ACCOUNT_TOPUP') AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0))
+               OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+               OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+               OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
     """)
@@ -61,14 +74,16 @@ interface PrintDao {
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end 
-        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+              AND sh.ledgerEntryType IN ('ORDER_POST', 'PAYMENT', 'CREDIT', 'UPI_ACCOUNT_TOPUP')
+          AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0)
         AND sh.originId IS NOT NULL
         AND (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = ''))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
-             OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
-             OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
-             OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
+               OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType IN ('PAYMENT', 'UPI_ACCOUNT_TOPUP') AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0))
+               OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
+               OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
+               OR (:method = 'CREDIT' AND sh.ledgerEntryType = 'ORDER_POST' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') IN ('CREDIT', 'OWES_ME', 'NONE'))
+               OR (:method = 'CREDIT' AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT') AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
         AND (sh.deletedAt IS NULL)
         AND (o.deletedAt IS NULL)
     """)
@@ -79,10 +94,11 @@ interface PrintDao {
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end 
-        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT', 'UPI_ACCOUNT_TOPUP')
+        AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0)
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType IN ('PAYMENT', 'UPI_ACCOUNT_TOPUP') AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0))
              OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
              OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
              OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
@@ -135,10 +151,11 @@ interface PrintDao {
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end
-        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+         AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT', 'UPI_ACCOUNT_TOPUP')
+         AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0)
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (:method = 'ALL' 
-             OR (:method = 'ALL_PAYMENTS' AND COALESCE(UPPER(sh.ledgerEntryType), '') = 'PAYMENT')
+             OR (:method = 'ALL_PAYMENTS' AND sh.ledgerEntryType IN ('PAYMENT', 'UPI_ACCOUNT_TOPUP') AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0))
              OR (:method = 'UPI' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'UPI')
              OR (:method = 'CASH' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CASH')
              OR (:method = 'CREDIT' AND COALESCE(UPPER(CAST(sh.paymentMethod AS TEXT)), '') = 'CREDIT'))
@@ -154,7 +171,8 @@ interface PrintDao {
         FROM `settlement_history` sh
         LEFT JOIN `orders` o ON sh.originId = o.id
         WHERE sh.timestamp BETWEEN :start AND :end
-        AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT')
+         AND sh.ledgerEntryType IN ('PAYMENT', 'CREDIT', 'UPI_ACCOUNT_TOPUP')
+         AND (sh.ledgerEntryType != 'UPI_ACCOUNT_TOPUP' OR sh.isShadowDuplicate = 0)
         AND (sh.originId IS NULL OR (o.id IS NOT NULL AND (o.orderStatus = 'ACTIVE' OR o.orderStatus IS NULL OR o.orderStatus = '')))
         AND (sh.deletedAt IS NULL)
         AND (o.id IS NULL OR o.deletedAt IS NULL)
@@ -162,10 +180,10 @@ interface PrintDao {
     """)
     suspend fun getSettledPaymentBreakdownBetween(start: Long, end: Long): List<PaymentBreakdown>
 
-    @Query("SELECT SUM(CAST(settledAmount AS REAL)) FROM settlement_history WHERE ledgerEntryType = 'PAYMENT' AND originId IS NOT NULL AND deletedAt IS NULL")
+    @Query("SELECT SUM(CAST(sh.settledAmount AS REAL)) FROM settlement_history sh LEFT JOIN `orders` o ON sh.originId = o.id WHERE ((sh.ledgerEntryType = 'PAYMENT' AND sh.originId IS NOT NULL) OR (sh.ledgerEntryType = 'UPI_ACCOUNT_TOPUP' AND sh.isShadowDuplicate = 0)) AND (sh.originId IS NULL OR (o.id IS NOT NULL AND o.orderStatus = 'ACTIVE' AND o.deletedAt IS NULL)) AND sh.deletedAt IS NULL")
     fun getTotalSettledRevenueFlow(): Flow<BigDecimal>
 
-    @Query("SELECT SUM(CAST(settledAmount AS REAL)) FROM settlement_history WHERE ledgerEntryType = 'PAYMENT' AND originId IS NOT NULL AND timestamp BETWEEN :start AND :end AND deletedAt IS NULL")
+    @Query("SELECT SUM(CAST(sh.settledAmount AS REAL)) FROM settlement_history sh LEFT JOIN `orders` o ON sh.originId = o.id WHERE ((sh.ledgerEntryType = 'PAYMENT' AND sh.originId IS NOT NULL) OR (sh.ledgerEntryType = 'UPI_ACCOUNT_TOPUP' AND sh.isShadowDuplicate = 0)) AND (sh.originId IS NULL OR (o.id IS NOT NULL AND o.orderStatus = 'ACTIVE' AND o.deletedAt IS NULL)) AND sh.timestamp BETWEEN :start AND :end AND sh.deletedAt IS NULL")
     suspend fun getSettledRevenueBetween(start: Long, end: Long): BigDecimal
 
     @Query("""
@@ -737,8 +755,8 @@ interface PrintDao {
         val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
         Log.d("PrintBuddyTransaction", "PrintDao recordOrderWithWalletAtomic order recorded: orderId=$orderId, cashPaid=$cashPaid")
         if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
-            Log.d("PrintBuddyTransaction", "Inserting UPI wallet transaction for order #$orderId: amount=$cashPaid")
-            insertBeautyTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId")
+            Log.d("PrintBuddyTransaction", "Inserting canonical UPI wallet transaction for order #$orderId: amount=$cashPaid")
+            insertUpiAccountTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId", isShadowDuplicate = true)
         }
         return orderId
     }
@@ -748,22 +766,7 @@ interface PrintDao {
 
     @Transaction
     suspend fun insertBeautyTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
-        val now = System.currentTimeMillis()
-        val previousBalance = getAuthoritativeWalletBalance()
-        val transactionAmount = when (type) {
-            "ADD" -> amount
-            "RETURN" -> amount.negate()
-            "RESET" -> previousBalance.negate()
-            else -> amount
-        }
-        val bt = BeautyTransaction(
-            amount = amount, type = type, note = note, 
-            previousBalance = previousBalance, transactionAmount = transactionAmount, 
-            newBalance = previousBalance.add(transactionAmount),
-            updatedAt = now
-        )
-        insertBeautyTransactionInternal(bt)
-        insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = bt.syncId, operation = "CREATE"))
+        insertUpiAccountTransactionAtomic(amount, type, note)
     }
 
     @Transaction
@@ -780,7 +783,7 @@ interface PrintDao {
         }
         val success = applyPaymentToCustomerIdAtomic(customerId, paymentAmount, normalizedMethod, receivedAmount)
         if (success && normalizedMethod == "UPI" && paymentAmount > BigDecimal.ZERO) {
-            insertBeautyTransactionWithSettlementAtomic(paymentAmount, "ADD", "Debt Settlement")
+            insertUpiAccountTransactionAtomic(paymentAmount, "ADD", "Debt Settlement", isShadowDuplicate = true)
         }
         return success
     }
@@ -797,7 +800,7 @@ interface PrintDao {
     ): Boolean {
         recordPaymentAtomic(orderId, newPaidAmount, status, method, settlement)
         if (deltaPaymentMethod == "UPI" && walletDelta > BigDecimal.ZERO) {
-            insertBeautyTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId")
+            insertUpiAccountTransactionAtomic(walletDelta, "ADD", "Payment Order #$orderId", isShadowDuplicate = true)
         }
         return true
     }
@@ -811,7 +814,7 @@ interface PrintDao {
     ): Boolean {
         cancelOrderAtomic(orderId, status, settlement)
         if (walletReturnAmount > BigDecimal.ZERO) {
-             insertBeautyTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId")
+             insertUpiAccountTransactionAtomic(walletReturnAmount, "RETURN", "Order Cancelled #$orderId")
         }
         return true
     }
@@ -828,7 +831,7 @@ interface PrintDao {
 
     @Transaction
     suspend fun getAuthoritativeWalletBalance(): BigDecimal {
-        return getAllBeautyTransactionAmounts().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
+        return getAllUpiAccountTransactionAmounts().fold(BigDecimal.ZERO) { acc, d -> acc.add(d) }
     }
 
     @Query("SELECT * FROM settlement_history WHERE (deletedAt IS NULL) ORDER BY timestamp DESC")
@@ -900,6 +903,39 @@ interface PrintDao {
     @Query("SELECT * FROM settlement_history WHERE originSyncId = :originSyncId AND (deletedAt IS NULL)")
     suspend fun getSettlementsByOriginSync(originSyncId: String): List<SettlementHistory>
 
+    @Query("SELECT * FROM `orders` WHERE syncId = :syncId")
+    suspend fun getOrderBySyncId(syncId: String): Order?
+
+    @Transaction
+    suspend fun upsertManualUpiOrderHistory(transaction: UpiAccountTransaction): Int {
+        val existing = getOrderBySyncId(transaction.syncId)
+        if (existing != null) return existing.id
+
+        val amount = transaction.amount.abs()
+        val order = Order(
+            totalAmount = amount,
+            date = transaction.timestamp,
+            customerName = "UPI Account",
+            customerId = 0,
+            paidAmount = amount,
+            paymentMethod = "UPI",
+            previousBalance = BigDecimal.ZERO,
+            transactionAmount = BigDecimal.ZERO,
+            newBalance = BigDecimal.ZERO,
+            paymentStatus = "PAID",
+            orderStatus = "ACTIVE",
+            customerSyncId = "",
+            syncId = transaction.syncId,
+            updatedAt = transaction.updatedAt,
+            deletedAt = transaction.deletedAt,
+            syncStatus = transaction.syncStatus
+        )
+
+        val orderId = insertOrder(order).toInt()
+        insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "CREATE"))
+        return orderId
+    }
+
     @Transaction
     suspend fun deleteBeautyTransactionWithSettlementAtomic(transaction: BeautyTransaction): Int {
         return deleteBeautyTransaction(transaction)
@@ -909,51 +945,7 @@ interface PrintDao {
     suspend fun insertBeautyTransactionWithSettlementAtomic(amount: BigDecimal, type: String, note: String? = null): Boolean {
         val normalizedType = type.trim().uppercase()
         if (amount <= BigDecimal.ZERO && normalizedType !in setOf("RESET")) return false
-
-        val now = System.currentTimeMillis()
-        val previousBalance = getAuthoritativeWalletBalance()
-        val walletDelta = when (normalizedType) {
-            "ADD" -> amount
-            "RETURN" -> amount.negate()
-            "RESET" -> previousBalance.negate()
-            else -> BigDecimal.ZERO
-        }
-
-        val transaction = BeautyTransaction(
-            amount = amount,
-            type = normalizedType,
-            note = note,
-            previousBalance = previousBalance,
-            transactionAmount = walletDelta,
-            newBalance = previousBalance.add(walletDelta),
-            updatedAt = now
-        )
-        insertBeautyTransactionInternal(transaction)
-        insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = transaction.syncId, operation = "CREATE"))
-
-        if (normalizedType in setOf("ADD", "RETURN") && amount > BigDecimal.ZERO) {
-            val settlement = SettlementHistory(
-                customerName = "UPI Account",
-                customerId = 0,
-                balanceBefore = previousBalance,
-                amountPaid = amount,
-                balanceAfter = previousBalance.add(walletDelta),
-                timestamp = now,
-                type = "UPI_ACCOUNT",
-                ledgerEntryType = if (normalizedType == "ADD") "UPI_ACCOUNT_TOPUP" else "UPI_ACCOUNT_RETURN",
-                note = note ?: if (normalizedType == "ADD") "UPI Account top-up" else "UPI Account return",
-                transactionAmount = walletDelta,
-                newBalance = previousBalance.add(walletDelta),
-                receivedAmount = null,
-                paymentMethod = "UPI",
-                customerSyncId = "",
-                originSyncId = transaction.syncId,
-                updatedAt = now
-            )
-            insertSettlement(settlement)
-            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
-        }
-        return true
+        return insertUpiAccountTransactionAtomicWithSettlement(amount, normalizedType, note)
     }
 
     // --- UPI Account canonical methods (new) ---
@@ -962,33 +954,85 @@ interface PrintDao {
     suspend fun insertUpiAccountTransactionInternal(transaction: UpiAccountTransaction): Long
 
     @Transaction
-    suspend fun insertUpiAccountTransactionAtomic(amount: BigDecimal, type: String, note: String? = null) {
+    suspend fun insertUpiAccountTransactionAtomic(
+        amount: BigDecimal,
+        type: String,
+        note: String? = null,
+        createOrderHistoryEntry: Boolean = false,
+        isShadowDuplicate: Boolean = false
+    ) {
+        insertUpiAccountTransactionAtomicWithSettlement(amount, type, note, createOrderHistoryEntry, isShadowDuplicate)
+    }
+
+    @Transaction
+    suspend fun insertUpiAccountTransactionAtomicWithSettlement(
+        amount: BigDecimal,
+        type: String,
+        note: String? = null,
+        createOrderHistoryEntry: Boolean = false,
+        isShadowDuplicate: Boolean = false
+    ): Boolean {
+        val normalizedType = type.trim().uppercase()
+        if (amount <= BigDecimal.ZERO && normalizedType !in setOf("RESET")) return false
+
         val now = System.currentTimeMillis()
         val previousBalance = getAuthoritativeWalletBalance()
-        val transactionAmount = when (type) {
+        val transactionAmount = when (normalizedType) {
             "ADD" -> amount
             "RETURN" -> amount.negate()
             "RESET" -> previousBalance.negate()
             else -> amount
         }
         val ut = UpiAccountTransaction(
-            amount = amount, type = type, note = note,
-            previousBalance = previousBalance, transactionAmount = transactionAmount,
+            amount = amount,
+            type = normalizedType,
+            note = note,
+            previousBalance = previousBalance,
+            transactionAmount = transactionAmount,
             newBalance = previousBalance.add(transactionAmount),
             updatedAt = now
         )
         insertUpiAccountTransactionInternal(ut)
         insertSyncEvent(SyncOutbox(entityType = "UPI_ACCOUNT_TRANSACTION", entitySyncId = ut.syncId, operation = "CREATE"))
+
+        val orderHistoryId = if (createOrderHistoryEntry && normalizedType == "ADD") {
+            upsertManualUpiOrderHistory(ut)
+        } else null
+
+        if (normalizedType in setOf("ADD", "RETURN") && amount > BigDecimal.ZERO) {
+            val existingSettlement = getSettlementsByOriginSync(ut.syncId).firstOrNull {
+                it.ledgerEntryType == if (normalizedType == "ADD") "UPI_ACCOUNT_TOPUP" else "UPI_ACCOUNT_RETURN"
+            }
+            if (existingSettlement == null) {
+                val settlement = SettlementHistory(
+                    customerName = "UPI Account",
+                    customerId = 0,
+                    balanceBefore = previousBalance,
+                    amountPaid = amount,
+                    balanceAfter = previousBalance.add(transactionAmount),
+                    timestamp = now,
+                    type = "UPI_ACCOUNT",
+                    ledgerEntryType = if (normalizedType == "ADD") "UPI_ACCOUNT_TOPUP" else "UPI_ACCOUNT_RETURN",
+                    isShadowDuplicate = isShadowDuplicate,
+                    note = note ?: if (normalizedType == "ADD") "UPI Account top-up" else "UPI Account return",
+                    transactionAmount = transactionAmount,
+                    newBalance = previousBalance.add(transactionAmount),
+                    receivedAmount = null,
+                    paymentMethod = "UPI",
+                    customerSyncId = "",
+                    originId = orderHistoryId,
+                    originSyncId = ut.syncId,
+                    updatedAt = now
+                )
+                insertSettlement(settlement)
+                insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement.syncId, operation = "CREATE"))
+            }
+        }
+        return true
     }
 
     @Query("SELECT * FROM upi_account_transactions ORDER BY timestamp ASC")
     suspend fun getAllUpiAccountTransactionsInternal(): List<UpiAccountTransaction>
-
-    @Query("SELECT * FROM `upi_account_transactions` WHERE (deletedAt IS NULL) ORDER BY timestamp DESC")
-    fun getAllUpiAccountTransactionsFlow(): Flow<List<UpiAccountTransaction>>
-
-    @Query("SELECT * FROM `upi_account_transactions` WHERE (deletedAt IS NULL)")
-    suspend fun getAllUpiAccountTransactions(): List<UpiAccountTransaction>
 
     @Query("UPDATE upi_account_transactions SET deletedAt = :deletedAt, updatedAt = :updatedAt WHERE syncId = :syncId")
     suspend fun markUpiAccountTransactionDeletedInternal(syncId: String, deletedAt: Long, updatedAt: Long): Int
@@ -997,6 +1041,7 @@ interface PrintDao {
     suspend fun deleteUpiAccountTransactionWithSettlementAtomic(transaction: UpiAccountTransaction): Int {
         val now = System.currentTimeMillis()
         val affected = markUpiAccountTransactionDeletedInternal(transaction.syncId, now, now)
+        getOrderBySyncId(transaction.syncId)?.let { deleteOrder(it) }
         val matchingSettlements = getSettlementsByOriginSync(transaction.syncId)
         for (settlement in matchingSettlements) {
             markSettlementDeletedInternal(settlement.syncId, now, now)
@@ -1032,7 +1077,7 @@ interface PrintDao {
         insertSyncEvent(SyncOutbox(entityType = "EXPENSE", entitySyncId = expense.syncId, operation = "CREATE"))
         if (expense.paymentMethod == "UPI" && expense.amount > BigDecimal.ZERO) {
             val walletNote = "Expense: ${expense.title}"
-            insertBeautyTransactionWithSettlementAtomic(expense.amount, "RETURN", walletNote)
+            insertUpiAccountTransactionAtomic(expense.amount, "RETURN", walletNote)
         }
         return id
     }
@@ -1059,10 +1104,10 @@ interface PrintDao {
         val now = System.currentTimeMillis()
         val affected = markExpenseDeletedInternal(expense.id, now, now)
         if (expense.paymentMethod == "UPI" && expense.amount > BigDecimal.ZERO) {
-            val walletMatch = getBeautyTransactionsByNoteAndType("Expense: ${expense.title}", "RETURN")
+            val walletMatch = getUpiAccountTransactionsByNoteAndType("Expense: ${expense.title}", "RETURN")
             for (wallet in walletMatch) {
-                markBeautyTransactionDeletedInternal(wallet.syncId, now, now)
-                insertSyncEvent(SyncOutbox(entityType = "BEAUTY_TRANSACTION", entitySyncId = wallet.syncId, operation = "DELETE"))
+                markUpiAccountTransactionDeletedInternal(wallet.syncId, now, now)
+                insertSyncEvent(SyncOutbox(entityType = "UPI_ACCOUNT_TRANSACTION", entitySyncId = wallet.syncId, operation = "DELETE"))
                 val settlements = getSettlementsByOriginSync(wallet.syncId)
                 for (settlement in settlements) {
                     markSettlementDeletedInternal(settlement.syncId, now, now)
@@ -1074,8 +1119,8 @@ interface PrintDao {
         return affected
     }
 
-    @Query("SELECT * FROM `beauty_transactions` WHERE note = :note AND type = :type AND (deletedAt IS NULL)")
-    suspend fun getBeautyTransactionsByNoteAndType(note: String, type: String): List<BeautyTransaction>
+    @Query("SELECT * FROM `upi_account_transactions` WHERE note = :note AND type = :type AND (deletedAt IS NULL)")
+    suspend fun getUpiAccountTransactionsByNoteAndType(note: String, type: String): List<UpiAccountTransaction>
 
     @Query("SELECT * FROM expenses WHERE id = :id AND (deletedAt IS NULL)")
     suspend fun getExpenseById(id: Int): Expense?

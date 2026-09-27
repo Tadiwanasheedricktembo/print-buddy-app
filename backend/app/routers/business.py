@@ -4,10 +4,11 @@ from typing import List, Optional
 from ..database import get_db
 from ..auth.router import get_current_user
 from ..models.base import User
-from ..models.entities import Order, Customer, SettlementHistory, BeautyTransaction
+from ..models.entities import Order, Customer, SettlementHistory, BeautyTransaction, UpiAccountTransaction
 from ..schemas.business import (
     OrderListResponse, CustomerListResponse,
-    SettlementSchema, BeautyTransactionListResponse
+    SettlementSchema, BeautyTransactionListResponse, UpiAccountTransactionSchema,
+    UpiAccountTransactionListResponse
 )
 
 router = APIRouter(prefix="/business", tags=["business"])
@@ -59,17 +60,25 @@ def get_customer_ledger(
 
     return history
 
-@router.get("/beauty-account", response_model=BeautyTransactionListResponse)
-def get_beauty_transactions(
+@router.get("/beauty-account", response_model=UpiAccountTransactionListResponse)
+@router.get("/upi-account", response_model=UpiAccountTransactionListResponse)
+def get_upi_account_transactions(
     skip: int = 0,
     limit: int = 50,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    transactions = db.query(BeautyTransaction).filter(
-        BeautyTransaction.user_id == current_user.id
-    ).order_by(BeautyTransaction.timestamp.desc()).offset(skip).limit(limit).all()
-
-    total = db.query(BeautyTransaction).filter(BeautyTransaction.user_id == current_user.id).count()
-
+    # Canonical UPI transaction ledger is the only active source for wallet activity.
+    transactions = db.query(UpiAccountTransaction).filter(UpiAccountTransaction.user_id == current_user.id).order_by(UpiAccountTransaction.timestamp.desc()).offset(skip).limit(limit).all()
+    total = db.query(UpiAccountTransaction).filter(UpiAccountTransaction.user_id == current_user.id).count()
     return {"items": transactions, "total": total}
+
+# Backward-compatibility alias. The canonical route is /upi-account.
+@router.get("/beauty-account-legacy", response_model=BeautyTransactionListResponse)
+def get_beauty_transactions_legacy(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return get_upi_account_transactions(skip=skip, limit=limit, current_user=current_user, db=db)

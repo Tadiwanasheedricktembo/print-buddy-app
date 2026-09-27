@@ -47,36 +47,7 @@ class CustomerListResponse(BaseModel):
     items: List[CustomerSchema]
     total: int
 
-class SettlementSchema(BaseModel):
-    id: int
-    customer_name: str
-    customer_sync_id: str
-    balance_before: str
-    amount_paid: str
-    balance_after: str
-    timestamp: int
-    type: str
-    note: str
-    transaction_amount: str
-    new_balance: str
-    origin_id: Optional[int]
-    origin_sync_id: Optional[str]
-    ledger_entry_type: str
-    reconciliation_status: str
-    received_amount: Optional[str]
-    sync_id: str
-
-    @field_validator("balance_before", "amount_paid", "balance_after", "transaction_amount", "new_balance", "received_amount", mode="before")
-    @classmethod
-    def convert_decimal(cls, v):
-        if isinstance(v, Decimal):
-            return str(v)
-        return v
-
-    class Config:
-        from_attributes = True
-
-class BeautyTransactionSchema(BaseModel):
+class UpiAccountTransactionSchema(BaseModel):
     id: int
     amount: str
     type: str
@@ -97,6 +68,45 @@ class BeautyTransactionSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class SettlementSchema(BaseModel):
+    id: int
+    customer_name: str
+    customer_sync_id: str
+    balance_before: str
+    amount_paid: str
+    balance_after: str
+    timestamp: int
+    type: str
+    note: str
+    transaction_amount: str
+    new_balance: str
+    origin_id: Optional[int]
+    origin_sync_id: Optional[str]
+    ledger_entry_type: str
+    is_shadow_duplicate: bool = False
+    reconciliation_status: str
+    received_amount: Optional[str]
+    sync_id: str
+
+    @field_validator("balance_before", "amount_paid", "balance_after", "transaction_amount", "new_balance", "received_amount", mode="before")
+    @classmethod
+    def convert_decimal(cls, v):
+        if isinstance(v, Decimal):
+            return str(v)
+        return v
+
+    class Config:
+        from_attributes = True
+
+# Legacy compatibility model retained only for older clients or migration support.
+# The canonical active representation is UpiAccountTransactionSchema.
+class BeautyTransactionSchema(UpiAccountTransactionSchema):
+    pass
+
 class BeautyTransactionListResponse(BaseModel):
     items: List[BeautyTransactionSchema]
+    total: int
+
+class UpiAccountTransactionListResponse(BaseModel):
+    items: List[UpiAccountTransactionSchema]
     total: int

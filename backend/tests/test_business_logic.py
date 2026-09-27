@@ -98,3 +98,92 @@ def test_cancelled_order_exclusion(client, db, test_user, auth_header):
     data = response.json()
     # Revenue should only be 10.00
     assert Decimal(data["total_revenue"]) == Decimal("10.00")
+
+
+def test_upi_account_business_receipt_counts_once_without_customer_debt(client, db, test_user, auth_header):
+    order_sync_id = "upi-order-sync"
+    order = Order(
+        user_id=test_user.id,
+        sync_id=order_sync_id,
+        order_status="ACTIVE",
+        total_amount=Decimal("1000.00"),
+        paid_amount=Decimal("1000.00"),
+        customer_name="UPI Customer",
+        date=10000,
+        updated_at=10000,
+    )
+    account_order = Order(
+        user_id=test_user.id,
+        sync_id="manual-upi-transaction-sync",
+        order_status="ACTIVE",
+        total_amount=Decimal("500.00"),
+        paid_amount=Decimal("500.00"),
+        customer_name="UPI Account",
+        customer_sync_id="",
+        payment_method="UPI",
+        previous_balance=Decimal("0.00"),
+        transaction_amount=Decimal("0.00"),
+        new_balance=Decimal("0.00"),
+        payment_status="PAID",
+        date=10000,
+        updated_at=10000,
+    )
+    order_post = SettlementHistory(
+        user_id=test_user.id,
+        sync_id="upi-order-post",
+        customer_name="UPI Customer",
+        customer_sync_id="upi-customer-sync",
+        amount_paid=Decimal("0.00"),
+        transaction_amount=Decimal("1000.00"),
+        ledger_entry_type="ORDER_POST",
+        origin_sync_id=order_sync_id,
+        timestamp=10000,
+        updated_at=10000,
+    )
+    order_payment = SettlementHistory(
+        user_id=test_user.id,
+        sync_id="upi-order-payment",
+        customer_name="UPI Customer",
+        customer_sync_id="upi-customer-sync",
+        amount_paid=Decimal("1000.00"),
+        transaction_amount=Decimal("-1000.00"),
+        ledger_entry_type="PAYMENT",
+        origin_sync_id=order_sync_id,
+        timestamp=10000,
+        updated_at=10000,
+    )
+    home_wallet_projection = SettlementHistory(
+        user_id=test_user.id,
+        sync_id="home-upi-wallet-projection",
+        customer_name="UPI Account",
+        customer_sync_id="",
+        amount_paid=Decimal("1000.00"),
+        transaction_amount=Decimal("1000.00"),
+        ledger_entry_type="UPI_ACCOUNT_TOPUP",
+        is_shadow_duplicate=True,
+        origin_sync_id="home-upi-transaction-sync",
+        timestamp=10000,
+        updated_at=10000,
+    )
+    account_receipt = SettlementHistory(
+        user_id=test_user.id,
+        sync_id="manual-upi-business-receipt",
+        customer_name="UPI Account",
+        customer_sync_id="",
+        amount_paid=Decimal("500.00"),
+        transaction_amount=Decimal("500.00"),
+        ledger_entry_type="UPI_ACCOUNT_TOPUP",
+        is_shadow_duplicate=False,
+        origin_sync_id="manual-upi-transaction-sync",
+        timestamp=10000,
+        updated_at=10000,
+    )
+    db.add_all([order, account_order, order_post, order_payment, home_wallet_projection, account_receipt])
+    db.commit()
+
+    response = client.get("/api/v1/analytics/summary", headers=auth_header)
+    data = response.json()
+
+    assert Decimal(data["total_revenue"]) == Decimal("1500.00")
+    assert data["order_count"] == 2
+    assert Decimal(data["outstanding_debt"]) == Decimal("0.00")

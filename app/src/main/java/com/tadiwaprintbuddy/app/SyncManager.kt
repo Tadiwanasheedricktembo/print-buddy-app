@@ -63,12 +63,17 @@ class SyncManager private constructor(context: Context) {
             syncDao.updateNoteSyncId(id, UUID.randomUUID().toString(), System.currentTimeMillis())
         }
 
-        // 8. Beauty Transactions
+        // 8. UPI wallet transactions (canonical ledger)
+        syncDao.getUpiAccountTransactionsNeedingSyncId().forEach { id ->
+            syncDao.updateUpiAccountTransactionSyncId(id, UUID.randomUUID().toString(), System.currentTimeMillis())
+        }
+
+        // 9. Legacy Beauty rows remain readable only; no new writes should be created for them.
         syncDao.getBeautyTransactionsNeedingSyncId().forEach { id ->
             syncDao.updateBeautyTransactionSyncId(id, UUID.randomUUID().toString(), System.currentTimeMillis())
         }
 
-        // 9. External Ledger
+        // 10. External Ledger
         syncDao.getExternalLedgerNeedingSyncId().forEach { id ->
             syncDao.updateExternalLedgerSyncId(id, UUID.randomUUID().toString(), System.currentTimeMillis())
         }

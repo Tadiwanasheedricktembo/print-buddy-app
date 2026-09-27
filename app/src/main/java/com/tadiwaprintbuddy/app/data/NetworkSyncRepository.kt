@@ -27,6 +27,14 @@ open class NetworkSyncRepository(
         .registerTypeAdapter(Long::class.java, LongAdapter())
         .create()
 
+    private fun isUpiAccountHistoryOrder(order: Order): Boolean =
+        order.customerId == 0L &&
+            order.customerName == "UPI Account" &&
+            order.customerSyncId.isBlank() &&
+            order.paymentMethod == "UPI" &&
+            order.paymentStatus == "PAID" &&
+            order.paidAmount.compareTo(order.totalAmount) == 0
+
     private val api = Retrofit.Builder()
         .baseUrl(NetworkConfig.BASE_URL)
         .addConverterFactory(GsonConverterFactory.create(gson))
@@ -65,6 +73,7 @@ open class NetworkSyncRepository(
                 is StockItem -> entityData.updatedAt
                 is Note -> entityData.updatedAt
                 is BeautyTransaction -> entityData.updatedAt
+                is UpiAccountTransaction -> entityData.updatedAt
                 is ExternalLedger -> entityData.updatedAt
                 is PrinterReference -> entityData.updatedAt
                 is OrderItem -> entityData.updatedAt
@@ -117,6 +126,7 @@ open class NetworkSyncRepository(
             "EXPENSE" -> syncDao.getExpenseBySyncId(syncId)
             "STOCK" -> syncDao.getStockItemBySyncId(syncId)
             "NOTE" -> syncDao.getNoteBySyncId(syncId)
+            "UPI_ACCOUNT_TRANSACTION" -> syncDao.getUpiAccountTransactionBySyncId(syncId)
             "BEAUTY_TRANSACTION" -> syncDao.getBeautyTransactionBySyncId(syncId)
             "EXTERNAL_LEDGER" -> syncDao.getExternalLedgerBySyncId(syncId)
             "PRINTER_REFERENCE" -> syncDao.getPrinterReferenceBySyncId(syncId)
@@ -274,11 +284,13 @@ open class NetworkSyncRepository(
                 } else {
                     if (existing == null || (event.timestamp >= existing.updatedAt && existing.deletedAt == null)) {
                         val order = mapToEntity<Order>(event.data, syncId)
-                        val customer = syncDao.getCustomerBySyncId(order.customerSyncId) 
-                            ?: throw MissingDependencyException("CUSTOMER", order.customerSyncId)
+                        val customer = if (isUpiAccountHistoryOrder(order)) null else {
+                            syncDao.getCustomerBySyncId(order.customerSyncId)
+                                ?: throw MissingDependencyException("CUSTOMER", order.customerSyncId)
+                        }
                         val toSave = order.copy(
                             id = existing?.id ?: 0,
-                            customerId = customer.id,
+                            customerId = customer?.id ?: 0,
                             syncStatus = SyncStatus.SYNCED
                         )
                         syncDao.upsertOrder(toSave)
@@ -317,15 +329,23 @@ open class NetworkSyncRepository(
                 } else {
                     if (existing == null || (event.timestamp >= existing.updatedAt && existing.deletedAt == null)) {
                         val settlement = mapToEntity<SettlementHistory>(event.data, syncId)
-                        val customer = syncDao.getCustomerBySyncId(settlement.customerSyncId)
-                            ?: throw MissingDependencyException("CUSTOMER", settlement.customerSyncId)
+                        val isWalletSettlement = settlement.customerId == 0L &&
+                            settlement.customerName == "UPI Account" &&
+                            settlement.customerSyncId.isBlank() &&
+                            settlement.ledgerEntryType in setOf("UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN")
+                        val customer = if (isWalletSettlement) null else {
+                            syncDao.getCustomerBySyncId(settlement.customerSyncId)
+                                ?: throw MissingDependencyException("CUSTOMER", settlement.customerSyncId)
+                        }
                         val order = if (settlement.originSyncId != null) {
-                            syncDao.getOrderBySyncId(settlement.originSyncId) ?: throw MissingDependencyException("ORDER", settlement.originSyncId)
+                            syncDao.getOrderBySyncId(settlement.originSyncId)
+                                ?: if (isWalletSettlement && (settlement.isShadowDuplicate || settlement.ledgerEntryType == "UPI_ACCOUNT_RETURN")) null
+                                else throw MissingDependencyException("ORDER", settlement.originSyncId)
                         } else null
                         
                         val toSave = settlement.copy(
                             id = existing?.id ?: 0,
-                            customerId = customer.id,
+                            customerId = customer?.id ?: 0,
                             originId = order?.id,
                             syncStatus = SyncStatus.SYNCED
                         )
@@ -366,6 +386,24 @@ open class NetworkSyncRepository(
                             syncStatus = SyncStatus.SYNCED
                         )
                         syncDao.upsertStockItem(toSave)
+                    }
+                }
+                null as Long?
+            }
+            "UPI_ACCOUNT_TRANSACTION" -> {
+                val existing = syncDao.getUpiAccountTransactionBySyncId(syncId)
+                if (event.operation == "DELETE") {
+                    if (existing == null || event.timestamp >= existing.updatedAt) {
+                        syncDao.markUpiAccountTransactionDeleted(syncId, event.timestamp)
+                    }
+                } else {
+                    if (existing == null || (event.timestamp >= existing.updatedAt && existing.deletedAt == null)) {
+                        val transaction = mapToEntity<UpiAccountTransaction>(event.data, syncId)
+                        val toSave = transaction.copy(
+                            id = existing?.id ?: 0,
+                            syncStatus = SyncStatus.SYNCED
+                        )
+                        syncDao.upsertUpiAccountTransaction(toSave)
                     }
                 }
                 null as Long?

@@ -16,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tadiwaprintbuddy.app.data.AppDatabase
-import com.tadiwaprintbuddy.app.data.BeautyTransaction
+import com.tadiwaprintbuddy.app.data.UpiAccountTransaction
 import com.tadiwaprintbuddy.app.data.PrintRepository
 import com.tadiwaprintbuddy.app.databinding.ActivityBeautyUpiBinding
 import java.math.BigDecimal
@@ -113,9 +113,9 @@ class BeautyUpiActivity : AppCompatActivity() {
     }
 
     private class LedgerAdapter : RecyclerView.Adapter<LedgerAdapter.ViewHolder>() {
-        private var items = listOf<BeautyTransaction>()
+        private var items = listOf<UpiAccountTransaction>()
 
-        fun submitList(newItems: List<BeautyTransaction>) {
+        fun submitList(newItems: List<UpiAccountTransaction>) {
             items = newItems
             notifyDataSetChanged()
         }

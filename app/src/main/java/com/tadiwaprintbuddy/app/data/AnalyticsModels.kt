@@ -23,5 +23,12 @@ data class PeriodMetrics(
     val previousNetProfit: BigDecimal,
     val previousOrdersCount: Int,
     val upiInflow: BigDecimal = BigDecimal.ZERO,
-    val upiOutflow: BigDecimal = BigDecimal.ZERO
+    val upiOutflow: BigDecimal = BigDecimal.ZERO,
+    val creditExtended: BigDecimal = BigDecimal.ZERO
+)
+
+data class CustomerBalanceTotals(
+    val receivables: BigDecimal,
+    val customerCredit: BigDecimal,
+    val debtorsCount: Int
 )

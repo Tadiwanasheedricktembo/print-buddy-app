@@ -18,7 +18,7 @@ data class UpiAccountPeriodSummary(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class UpiAccountViewModel(private val repository: PrintRepository) : ViewModel() {
+class BeautyAccountViewModel(private val repository: PrintRepository) : ViewModel() {
 
     val balance = repository.getUpiAccountBalanceFlow().asLiveData()
     
@@ -89,14 +89,14 @@ class UpiAccountViewModel(private val repository: PrintRepository) : ViewModel()
 
     fun addMoney(amount: BigDecimal, note: String?) {
         viewModelScope.launch {
-            repository.insertUpiAccountTransaction(amount, "ADD", note)
+            repository.insertUpiAccountTransaction(amount, "ADD", note, createOrderHistoryEntry = true)
             calculateSummary(_filterPeriod.value)
         }
     }
 
     fun returnMoney(amount: BigDecimal, note: String?) {
         viewModelScope.launch {
-            repository.insertUpiAccountTransaction(amount, "RETURN", note)
+            repository.insertUpiAccountTransaction(amount, "RETURN", note, createOrderHistoryEntry = true)
             calculateSummary(_filterPeriod.value)
         }
     }
@@ -105,7 +105,7 @@ class UpiAccountViewModel(private val repository: PrintRepository) : ViewModel()
         viewModelScope.launch {
             val currentBalance = repository.getCurrentUpiAccountBalance()
             if (currentBalance.compareTo(BigDecimal.ZERO) != 0) {
-                repository.insertUpiAccountTransaction(BigDecimal.ZERO, "RESET", "Balance reset to zero")
+                repository.insertUpiAccountTransaction(BigDecimal.ZERO, "RESET", "Balance reset to zero", createOrderHistoryEntry = false)
                 calculateSummary(_filterPeriod.value)
             }
         }
@@ -118,12 +118,15 @@ class UpiAccountViewModel(private val repository: PrintRepository) : ViewModel()
     }
 }
 
-class UpiAccountViewModelFactory(private val repository: PrintRepository) : ViewModelProvider.Factory {
+class BeautyAccountViewModelFactory(private val repository: PrintRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(UpiAccountViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(BeautyAccountViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return UpiAccountViewModel(repository) as T
+            return BeautyAccountViewModel(repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+typealias UpiAccountViewModel = BeautyAccountViewModel
+typealias UpiAccountViewModelFactory = BeautyAccountViewModelFactory

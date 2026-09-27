@@ -93,6 +93,17 @@ class BeautyTransaction(BaseSyncModel):
     transaction_amount = Column(Numeric(precision=10, scale=2), default=0.0)
     new_balance = Column(Numeric(precision=10, scale=2), default=0.0)
 
+
+class UpiAccountTransaction(BaseSyncModel):
+    __tablename__ = "upi_account_transactions"
+    amount = Column(Numeric(precision=10, scale=2))
+    type = Column(String)
+    note = Column(String, nullable=True)
+    timestamp = Column(BigInteger)
+    previous_balance = Column(Numeric(precision=10, scale=2), default=0.0)
+    transaction_amount = Column(Numeric(precision=10, scale=2), default=0.0)
+    new_balance = Column(Numeric(precision=10, scale=2), default=0.0)
+
 class ExternalLedger(BaseSyncModel):
     __tablename__ = "external_ledger"
     transaction_type = Column(String)

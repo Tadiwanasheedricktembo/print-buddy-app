@@ -31,6 +31,14 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
 
     private val mapper = BusinessEventMapper()
 
+    private fun isWalletGroup(transactions: List<SettlementHistory>): Boolean {
+        return transactions.any {
+            it.customerId == 0L &&
+                it.type == "UPI_ACCOUNT" &&
+                it.ledgerEntryType in setOf("UPI_ACCOUNT_TOPUP", "UPI_ACCOUNT_RETURN")
+        }
+    }
+
     private val _sortOrder = MutableStateFlow(TransactionSortOrder.NEWEST_FIRST)
     val sortOrder: StateFlow<TransactionSortOrder> = _sortOrder.asStateFlow()
 
@@ -69,11 +77,15 @@ class SettlementHistoryViewModel(private val repository: PrintRepository) : View
                 val customer = customerMap[id]
                 val name = customer?.displayName ?: trans.firstOrNull { it.customerName.isNotBlank() }?.customerName ?: "Unknown"
                 
-                // Authoritative balance derived from the most recent transaction (by time then ID)
+                // UPI wallet activity is wallet balance, not a customer receivable. Do not treat it as amount due.
                 val mostRecent = trans.maxWithOrNull(compareBy<SettlementHistory> { it.timestamp }.thenBy { it.id })
-                val balance = mostRecent?.let { 
-                    if (it.newBalance.compareTo(BigDecimal.ZERO) != 0 || it.transactionAmount.compareTo(BigDecimal.ZERO) != 0) it.newBalance else it.balanceAfter 
-                } ?: BigDecimal.ZERO
+                val balance = if (isWalletGroup(trans)) {
+                    BigDecimal.ZERO
+                } else {
+                    mostRecent?.let {
+                        if (it.newBalance.compareTo(BigDecimal.ZERO) != 0 || it.transactionAmount.compareTo(BigDecimal.ZERO) != 0) it.newBalance else it.balanceAfter
+                    } ?: BigDecimal.ZERO
+                }
 
                 val businessEvents = mapper.map(trans).let { events ->
                     when (order) {

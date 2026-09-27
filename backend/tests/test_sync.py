@@ -28,6 +28,107 @@ def test_push_customer(client):
     assert response.status_code == 200
     assert response.json()["results"][0]["status"] == "SUCCESS"
 
+
+def test_manual_upi_account_order_and_canonical_transaction_sync_round_trip(client):
+    headers = get_auth_header(client, "upi-account-sync", "pass1")
+    sync_id = "manual-upi-canonical-sync"
+    timestamp = int(time.time() * 1000)
+    events = [
+        {
+            "entity_type": "UPI_ACCOUNT_TRANSACTION",
+            "entity_sync_id": sync_id,
+            "operation": "CREATE",
+            "data": {
+                "id": 91,
+                "amount": "1000.00",
+                "type": "ADD",
+                "note": "Manual business receipt",
+                "timestamp": timestamp,
+                "previousBalance": "0.00",
+                "transactionAmount": "1000.00",
+                "newBalance": "1000.00",
+                "syncId": sync_id,
+                "updatedAt": timestamp,
+            },
+            "timestamp": timestamp,
+            "idempotency_key": "manual-upi-wallet-create",
+        },
+        {
+            "entity_type": "ORDER",
+            "entity_sync_id": sync_id,
+            "operation": "CREATE",
+            "data": {
+                "id": 91,
+                "totalAmount": "1000.00",
+                "date": timestamp,
+                "customerName": "UPI Account",
+                "paidAmount": "1000.00",
+                "paymentMethod": "UPI",
+                "customerId": 0,
+                "customerSyncId": "",
+                "previousBalance": "0.00",
+                "transactionAmount": "0.00",
+                "newBalance": "0.00",
+                "paymentStatus": "PAID",
+                "orderStatus": "ACTIVE",
+                "receivedAmount": None,
+                "syncId": sync_id,
+                "updatedAt": timestamp,
+            },
+            "timestamp": timestamp,
+            "idempotency_key": "manual-upi-order-create",
+        },
+        {
+            "entity_type": "SETTLEMENT",
+            "entity_sync_id": "manual-upi-settlement-sync",
+            "operation": "CREATE",
+            "data": {
+                "customerName": "UPI Account",
+                "customerSyncId": "",
+                "balanceBefore": "0.00",
+                "amountPaid": "1000.00",
+                "balanceAfter": "1000.00",
+                "timestamp": timestamp,
+                "type": "UPI_ACCOUNT",
+                "note": "Manual business receipt",
+                "transactionAmount": "1000.00",
+                "newBalance": "1000.00",
+                "originId": 91,
+                "originSyncId": sync_id,
+                "ledgerEntryType": "UPI_ACCOUNT_TOPUP",
+                "isShadowDuplicate": False,
+                "reconciliationStatus": "VERIFIED",
+                "receivedAmount": None,
+                "paymentMethod": "UPI",
+                "syncId": "manual-upi-settlement-sync",
+                "updatedAt": timestamp,
+            },
+            "timestamp": timestamp,
+            "idempotency_key": "manual-upi-settlement-create",
+        },
+    ]
+
+    pushed = client.post("/api/v1/sync/push", json={"events": events}, headers=headers)
+    assert pushed.status_code == 200
+    assert all(result["status"] == "SUCCESS" for result in pushed.json()["results"])
+
+    pulled = client.post("/api/v1/sync/pull", json={}, headers=headers)
+    assert pulled.status_code == 200
+    remote_events = pulled.json()["events"]
+    remote_order = next(event for event in remote_events if event["entity_type"] == "ORDER")
+    remote_wallet = next(event for event in remote_events if event["entity_type"] == "UPI_ACCOUNT_TRANSACTION")
+    remote_settlement = next(event for event in remote_events if event["entity_type"] == "SETTLEMENT")
+    assert remote_order["data"]["syncId"] == sync_id
+    assert remote_order["data"]["customerName"] == "UPI Account"
+    assert remote_order["data"]["paidAmount"] == "1000.00"
+    assert remote_wallet["data"]["syncId"] == sync_id
+    assert remote_settlement["data"]["isShadowDuplicate"] is False
+
+    summary = client.get("/api/v1/analytics/summary", headers=headers).json()
+    assert summary["total_revenue"] == "1000.00"
+    assert summary["order_count"] == 1
+    assert summary["outstanding_debt"] == "0.00"
+
 def test_ownership_isolation(client):
     headers1 = get_auth_header(client, "user1", "pass1")
     headers2 = get_auth_header(client, "user2", "pass2")

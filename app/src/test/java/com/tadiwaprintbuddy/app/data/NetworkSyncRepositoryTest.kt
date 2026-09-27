@@ -30,6 +30,7 @@ class NetworkSyncRepositoryTest {
     private lateinit var db: AppDatabase
     private lateinit var syncDao: SyncDao
     private lateinit var repository: NetworkSyncRepository
+    private lateinit var authRepository: AuthRepository
     private lateinit var mockWebServer: MockWebServer
     
     private val testGson = GsonBuilder()
@@ -48,20 +49,20 @@ class NetworkSyncRepositoryTest {
         
         // Mock Auth Header
         val testPrefs = context.getSharedPreferences("test_auth", Context.MODE_PRIVATE)
-        val authRepo = AuthRepository.getTestInstance(context, testPrefs)
-        authRepo.saveAuth(AuthResponse("test-token", "bearer"))
+        authRepository = AuthRepository.getTestInstance(context, testPrefs)
+        authRepository.saveAuth(AuthResponse("test-token", "bearer"))
 
-        repository = NetworkSyncRepository(context, authRepo, db)
-        
-        // Inject mock server URL via reflection
-        val field = repository.javaClass.getDeclaredField("api")
-        field.isAccessible = true
-        
+        repository = NetworkSyncRepository(context, authRepository, db)
+        installMockApi(repository)
+    }
+
+    private fun installMockApi(target: NetworkSyncRepository) {
         val retrofit = Retrofit.Builder()
             .baseUrl(mockWebServer.url("/"))
             .addConverterFactory(GsonConverterFactory.create(testGson))
             .build()
-        field.set(repository, retrofit.create(TadiwaApi::class.java))
+        val field = target.javaClass.getDeclaredField("api").apply { isAccessible = true }
+        field.set(target, retrofit.create(TadiwaApi::class.java))
     }
 
     @After
@@ -303,5 +304,61 @@ class NetworkSyncRepositoryTest {
         assertNotNull(localSet)
         assertEquals(localCustId, localSet?.customerId)
         assertEquals(localOrderId, localSet?.originId)
+    }
+
+    @Test
+    fun `customer credit settlement sync preserves analytics after pull`() = runTest {
+        val printRepository = PrintRepository(db.printDao())
+        printRepository.addOrUpdateDebtorCredit("Synced Credit Customer", BigDecimal("325.00"), "Manual credit")
+        val customer = db.printDao().getCustomerByNormalizedName("synced credit customer")!!
+        val adjustment = db.printDao().getAllSettlements().single { it.ledgerEntryType == "ADJUSTMENT" }
+
+        val pending = syncDao.getPendingUploadsOnce()
+        assertTrue(pending.any { it.entityType == "SETTLEMENT" && it.entitySyncId == adjustment.syncId })
+        mockWebServer.enqueue(MockResponse().setBody(
+            testGson.toJson(mapOf("results" to pending.map {
+                mapOf("sync_id" to it.entitySyncId, "status" to "SUCCESS", "message" to null)
+            }))
+        ).setResponseCode(200))
+
+        assertTrue(repository.pushPendingChanges().isSuccess)
+        val pushRequest = JsonParser.parseString(mockWebServer.takeRequest().body.readUtf8()).asJsonObject
+        val pushedEvents = pushRequest.getAsJsonArray("events")
+        val pushedAdjustment = pushedEvents.map { it.asJsonObject }.single {
+            it.get("entity_type").asString == "SETTLEMENT" &&
+                it.get("entity_sync_id").asString == adjustment.syncId
+        }
+        assertEquals("325.00", pushedAdjustment.getAsJsonObject("data").get("transactionAmount").asString)
+        assertTrue(syncDao.getPendingUploadsOnce().isEmpty())
+
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val restoredDb = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val pullRepository = NetworkSyncRepository(context, authRepository, restoredDb)
+            installMockApi(pullRepository)
+
+            val pulledEvents = JsonArray()
+            pushedEvents.map { it.asJsonObject }.forEach { event ->
+                pulledEvents.add(event.deepCopy())
+            }
+            mockWebServer.enqueue(MockResponse().setBody(testGson.toJson(mapOf(
+                "events" to pulledEvents,
+                "next_cursor" to "credit-sync-cursor",
+                "next_cursor_id" to 1
+            ))).setResponseCode(200))
+            assertTrue(pullRepository.pullChanges().isSuccess)
+
+            val restoredRepository = PrintRepository(restoredDb.printDao())
+            assertEquals(0, BigDecimal("325.00").compareTo(restoredRepository.getTotalReceivables()))
+            assertEquals(0, BigDecimal("325.00").compareTo(
+                restoredRepository.getCreditExtendedBetween(0L, Long.MAX_VALUE)
+            ))
+            assertEquals(customer.syncId,
+                restoredDb.printDao().getCustomerByNormalizedName("synced credit customer")?.syncId)
+        } finally {
+            restoredDb.close()
+        }
     }
 }

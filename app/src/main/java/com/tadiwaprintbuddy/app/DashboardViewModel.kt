@@ -178,26 +178,25 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
     ): List<BusinessInsight> {
         val list = mutableListOf<BusinessInsight>()
         
-        list.add(BusinessInsight("📊 Work Value", "₹${String.format(Locale.ENGLISH, "%.2f", salesVolume.toDouble())}", "Total jobs this period"))
-        list.add(BusinessInsight("💵 Cash Flow", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand.toDouble())}", "Net cash collected"))
-        
-        val upiSign = if (upiNetFlow >= BigDecimal.ZERO) "+" else "-"
-        list.add(BusinessInsight("📱 UPI Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f",
-            upiNetFlow.abs().toDouble()
-        )}", "Net digital movement"))
-
         list.add(BusinessInsight(
             "Credit Extended",
             "₹${String.format(Locale.ENGLISH, "%.2f", creditExtended.toDouble())}",
             "New customer credit this period"
         ))
-        
         list.add(BusinessInsight("⏳ Outstanding", "₹${String.format(Locale.ENGLISH, "%.2f", totalReceivables.toDouble())}", "Debt from $debtorsCount customers"))
         list.add(BusinessInsight(
             "Customer Credit",
             "₹${String.format(Locale.ENGLISH, "%.2f", totalCustomerCredit.toDouble())}",
             "Customer balance available"
         ))
+
+        list.add(BusinessInsight("📊 Work Value", "₹${String.format(Locale.ENGLISH, "%.2f", salesVolume.toDouble())}", "Total jobs this period"))
+        list.add(BusinessInsight("💵 Cash Flow", "₹${String.format(Locale.ENGLISH, "%.2f", cashInHand.toDouble())}", "Net cash collected"))
+
+        val upiSign = if (upiNetFlow >= BigDecimal.ZERO) "+" else "-"
+        list.add(BusinessInsight("📱 UPI Flow", "$upiSign₹${String.format(Locale.ENGLISH, "%.2f",
+            upiNetFlow.abs().toDouble()
+        )}", "Net digital movement"))
 
         if (ordersCount > 0) {
             val avg = salesVolume.divide(BigDecimal(ordersCount), 2, RoundingMode.HALF_UP)

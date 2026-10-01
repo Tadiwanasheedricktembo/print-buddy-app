@@ -2,6 +2,8 @@
 
 This document captures the implemented business logic in the current repository without modifying any code. It is derived from Activities, ViewModels, repository methods, DAO methods, entities, workers, adapters, and relevant UI flow.
 
+> **Agents:** For known logic bugs and fix priority (credit vs `paidAmount`, cart flow, sync, analytics), see **[LOGIC_ISSUES_LOG.md](LOGIC_ISSUES_LOG.md)** and **[CURRENT_PROJECT_STATE.md](CURRENT_PROJECT_STATE.md)**. This audit describes behavior as documented in code; it may not reflect all intended product rules.
+
 ---
 
 ## 1. Orders

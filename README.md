@@ -77,6 +77,8 @@ This is a practical personal business tool, not a side project built for aesthet
 - web/ — Next.js dashboard and browser sync layer
 - build/ — generated build output and reports
 - docs and project notes — status audits, migration files, and project planning artifacts at the repo root
+  - **[CURRENT_PROJECT_STATE.md](CURRENT_PROJECT_STATE.md)** — session resume point for humans and agents
+  - **[LOGIC_ISSUES_LOG.md](LOGIC_ISSUES_LOG.md)** — known business-logic issues (orders, credit, debt, analytics, sync)
 
 ---
 

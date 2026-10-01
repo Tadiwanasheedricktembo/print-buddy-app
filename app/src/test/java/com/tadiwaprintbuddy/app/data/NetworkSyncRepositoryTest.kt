@@ -32,7 +32,7 @@ class NetworkSyncRepositoryTest {
     private lateinit var repository: NetworkSyncRepository
     private lateinit var authRepository: AuthRepository
     private lateinit var mockWebServer: MockWebServer
-    
+
     private val testGson = GsonBuilder()
         .registerTypeAdapter(BigDecimal::class.java, NetworkSyncRepository.BigDecimalAdapter())
         .create()
@@ -46,7 +46,7 @@ class NetworkSyncRepositoryTest {
         syncDao = db.syncDao()
         mockWebServer = MockWebServer()
         mockWebServer.start()
-        
+    
         // Mock Auth Header
         val testPrefs = context.getSharedPreferences("test_auth", Context.MODE_PRIVATE)
         authRepository = AuthRepository.getTestInstance(context, testPrefs)
@@ -83,7 +83,7 @@ class NetworkSyncRepositoryTest {
             "syncId" to syncId,
             "syncStatus" to "SYNCED"
         )
-        
+    
         val json = """
             {
                 "events": [
@@ -99,12 +99,12 @@ class NetworkSyncRepositoryTest {
                 "next_cursor": "cursor-1"
             }
         """.trimIndent()
-        
+    
         mockWebServer.enqueue(MockResponse().setBody(json).setResponseCode(200))
-        
+    
         val result = repository.pullChanges()
         assertTrue(result.isSuccess)
-        
+    
         val local = syncDao.getCustomerBySyncId(syncId)
         assertNotNull(local)
         assertEquals("Server Customer", local?.displayName)
@@ -124,7 +124,7 @@ class NetworkSyncRepositoryTest {
             syncStatus = SyncStatus.SYNCED
         )
         syncDao.upsertNote(localNote)
-        
+    
         val json = """
             {
                 "events": [
@@ -140,11 +140,11 @@ class NetworkSyncRepositoryTest {
                 "next_cursor": "cursor-2"
             }
         """.trimIndent()
-        
+    
         mockWebServer.enqueue(MockResponse().setBody(json).setResponseCode(200))
-        
+    
         repository.pullChanges()
-        
+    
         val updatedLocal = syncDao.getNoteBySyncId(syncId)
         assertNotNull(updatedLocal?.deletedAt)
         assertEquals(3000L, updatedLocal?.deletedAt)
@@ -157,7 +157,7 @@ class NetworkSyncRepositoryTest {
         val customer = CustomerEntity(displayName = "Local Cust", normalizedName = "local cust", syncId = custSyncId)
         syncDao.upsertCustomer(customer)
         val localCustId = syncDao.getCustomerBySyncId(custSyncId)!!.id
-        
+    
         // 2. Pull order from server referencing that customer
         val orderSyncId = UUID.randomUUID().toString()
         val orderData = mapOf(
@@ -175,7 +175,7 @@ class NetworkSyncRepositoryTest {
             "syncId" to orderSyncId,
             "updatedAt" to 1000L
         )
-        
+    
         val json = """
             {
                 "events": [
@@ -191,11 +191,11 @@ class NetworkSyncRepositoryTest {
                 "next_cursor": "cursor-3"
             }
         """.trimIndent()
-        
+    
         mockWebServer.enqueue(MockResponse().setBody(json).setResponseCode(200))
-        
+    
         repository.pullChanges()
-        
+    
         val localOrder = syncDao.getOrderBySyncId(orderSyncId)
         assertNotNull(localOrder)
         assertEquals(localCustId, localOrder?.customerId)
@@ -209,7 +209,7 @@ class NetworkSyncRepositoryTest {
         val order = Order(totalAmount = BigDecimal("100.0"), date = 1000L, customerName = "Test", syncId = orderSyncId)
         syncDao.upsertOrder(order)
         val localOrderId = syncDao.getOrderBySyncId(orderSyncId)!!.id
-        
+    
         // 2. Pull item from server
         val itemSyncId = UUID.randomUUID().toString()
         val itemData = mapOf(
@@ -220,7 +220,7 @@ class NetworkSyncRepositoryTest {
             "orderSyncId" to orderSyncId,
             "syncId" to itemSyncId
         )
-        
+    
         val json = """
             {
                 "events": [
@@ -236,11 +236,11 @@ class NetworkSyncRepositoryTest {
                 "next_cursor": "cursor-4"
             }
         """.trimIndent()
-        
+    
         mockWebServer.enqueue(MockResponse().setBody(json).setResponseCode(200))
-        
+    
         repository.pullChanges()
-        
+    
         val localItem = syncDao.getOrderItemBySyncId(itemSyncId)
         assertNotNull(localItem)
         assertEquals(localOrderId, localItem?.orderId)
@@ -251,14 +251,14 @@ class NetworkSyncRepositoryTest {
         val custSyncId = UUID.randomUUID().toString()
         val orderSyncId = UUID.randomUUID().toString()
         val settlementSyncId = UUID.randomUUID().toString()
-        
+    
         // 1. Setup local references
         syncDao.upsertCustomer(CustomerEntity(displayName = "C1", normalizedName = "c1", syncId = custSyncId))
         syncDao.upsertOrder(Order(totalAmount = BigDecimal("50.0"), date = 1000L, customerName = "C1", syncId = orderSyncId))
-        
+
         val localCustId = syncDao.getCustomerBySyncId(custSyncId)!!.id
         val localOrderId = syncDao.getOrderBySyncId(orderSyncId)!!.id
-        
+    
         // 2. Pull settlement
         val setDate = mapOf(
             "customerName" to "C1",
@@ -279,7 +279,7 @@ class NetworkSyncRepositoryTest {
             "updatedAt" to 1000L,
             "syncStatus" to "SYNCED"
         )
-        
+    
         val json = """
             {
                 "events": [
@@ -295,11 +295,11 @@ class NetworkSyncRepositoryTest {
                 "next_cursor": "cursor-5"
             }
         """.trimIndent()
-        
+    
         mockWebServer.enqueue(MockResponse().setBody(json).setResponseCode(200))
-        
+    
         repository.pullChanges()
-        
+    
         val localSet = syncDao.getSettlementBySyncId(settlementSyncId)
         assertNotNull(localSet)
         assertEquals(localCustId, localSet?.customerId)

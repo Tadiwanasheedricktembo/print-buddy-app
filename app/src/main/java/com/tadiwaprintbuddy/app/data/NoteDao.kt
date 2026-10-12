@@ -11,8 +11,11 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE (deletedAt IS NULL) ORDER BY createdAt ASC")
     fun getAllNotesOldestFirst(): Flow<List<Note>>
 
-    @Query("SELECT * FROM notes WHERE (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') AND (deletedAt IS NULL)")
-    fun searchNotes(query: String): Flow<List<Note>>
+    @Query("SELECT * FROM notes WHERE (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') AND (deletedAt IS NULL) ORDER BY createdAt DESC")
+    fun searchNotesNewestFirst(query: String): Flow<List<Note>>
+
+    @Query("SELECT * FROM notes WHERE (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') AND (deletedAt IS NULL) ORDER BY createdAt ASC")
+    fun searchNotesOldestFirst(query: String): Flow<List<Note>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNoteInternal(note: Note): Long

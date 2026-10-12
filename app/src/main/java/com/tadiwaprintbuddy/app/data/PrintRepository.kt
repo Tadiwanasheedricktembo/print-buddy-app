@@ -41,6 +41,10 @@ class PrintRepository(private val printDao: PrintDao) {
 
     // --- Orders ---
 
+    suspend fun saveHomeOrderDraft(draft: HomeOrderDraft) = printDao.saveHomeOrderDraft(draft)
+
+    suspend fun getHomeOrderDraft(): HomeOrderDraft? = printDao.getHomeOrderDraft()
+
     fun getTotalRevenueFlow(): Flow<BigDecimal> = 
         printDao.getTotalSettledRevenueFlow()
 
@@ -63,7 +67,9 @@ class PrintRepository(private val printDao: PrintDao) {
         cartItems: List<CartItem>, 
         paymentMethod: String = "CASH",
         appliedCredit: BigDecimal = BigDecimal.ZERO,
-        receivedAmount: BigDecimal? = null
+        receivedAmount: BigDecimal? = null,
+        explicitPrintCount: Int? = null,
+        clearHomeOrderDraft: Boolean = false
     ): OrderResult {
         Log.d("PrintBuddyTransaction", "Repository confirmOrder called: customer=$customerName, itemsCount=${cartItems.size}, paymentMethod=$paymentMethod")
         if (cartItems.isEmpty()) return OrderResult.ValidationError("Add at least one item")
@@ -73,9 +79,13 @@ class PrintRepository(private val printDao: PrintDao) {
         val customer = getOrCreateCustomer(customerName)
         val currentTime = System.currentTimeMillis()
         val orderItems = cartItems.map { OrderItem(orderId = 0, serviceName = it.serviceName, price = it.price, quantity = it.quantity) }
+        val computedPrints = explicitPrintCount ?: cartItems.sumOf { it.quantity }
         
         return try {
-            val orderId = printDao.recordOrderWithWalletAtomic(customer, orderItems, total, paymentMethod, appliedCredit, currentTime, receivedAmount)
+            val orderId = printDao.recordOrderWithWalletAtomic(
+                customer, orderItems, total, paymentMethod, appliedCredit, currentTime,
+                receivedAmount, computedPrints, clearHomeOrderDraft
+            )
             Log.d("PrintBuddyTransaction", "Repository confirmOrder success: orderId=$orderId")
             OrderResult.Success(orderId)
         } catch (e: Exception) {
@@ -341,7 +351,13 @@ class PrintRepository(private val printDao: PrintDao) {
         return groups.map { it.copy(totalBalance = getCustomerBalanceById(it.customerId)) }
     }
 
-    suspend fun addOrUpdateDebtorCredit(customerName: String, amountDelta: BigDecimal, note: String? = null, receivedAmount: BigDecimal? = null) {
+    suspend fun addOrUpdateDebtorCredit(
+        customerName: String, 
+        amountDelta: BigDecimal, 
+        note: String? = null, 
+        receivedAmount: BigDecimal? = null,
+        printCount: Int = 0
+    ) {
         val customer = getOrCreateCustomer(customerName)
         val previousBalance = getCustomerBalanceById(customer.id)
         val newBalance = previousBalance.add(amountDelta)
@@ -354,10 +370,15 @@ class PrintRepository(private val printDao: PrintDao) {
                 balanceAfter = newBalance, timestamp = System.currentTimeMillis(),
                 type = if (isPayment) "PAYMENT" else "ADJUSTMENT", ledgerEntryType = if (isPayment) "PAYMENT" else "ADJUSTMENT",
                 note = note ?: (if (isPayment) "Settlement Payment" else "Adjustment"), transactionAmount = amountDelta,
-                newBalance = newBalance, receivedAmount = receivedAmount, customerSyncId = customer.syncId
+                newBalance = newBalance, receivedAmount = receivedAmount, customerSyncId = customer.syncId,
+                printCount = if (isPayment) null else printCount
             )
         )
     }
+
+    suspend fun getTotalPrintsBetween(start: Long, end: Long): Int = printDao.getTotalPrintsBetween(start, end)
+
+    suspend fun getCustomerTotalPrints(customerId: Long): Int = printDao.getCustomerTotalPrints(customerId)
 
     suspend fun deleteDebtorCredit(customerId: Long) = printDao.deleteDebtorCredit(customerId)
 

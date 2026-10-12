@@ -77,13 +77,29 @@
             android:layout_height="wrap_content"
             android:hint="Amount"
             app:prefixText="₹ "
-            app:prefixTextColor="@color/text_primary">
+            app:prefixTextColor="@color/text_primary"
+            android:layout_marginBottom="16dp">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/editAmount"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberDecimal"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.App.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Number of Prints (Optional)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editPrintCount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
                 android:textColor="@color/text_primary"
                 android:textStyle="bold" />
         </com.google.android.material.textfield.TextInputLayout>

@@ -59,9 +59,12 @@ class EditNoteActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            viewModel.saveNote(title, content, noteId)
-            Toast.makeText(this, R.string.note_saved, Toast.LENGTH_SHORT).show()
-            finish()
+            binding.btnSaveNote.isEnabled = false
+            lifecycleScope.launch {
+                viewModel.saveNote(title, content, noteId)
+                Toast.makeText(this@EditNoteActivity, R.string.note_saved, Toast.LENGTH_SHORT).show()
+                finish()
+            }
         }
     }
 

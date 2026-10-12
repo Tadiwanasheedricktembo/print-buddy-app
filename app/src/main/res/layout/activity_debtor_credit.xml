@@ -19,106 +19,141 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="CUSTOMER BALANCES"
-            app:titleTextAppearance="@style/TextAppearance.App.Title" />
+            app:navigationIcon="?attr/homeAsUpIndicator">
 
-        <!-- RESTORED I OWE / OWES ME SECTION -->
+            <LinearLayout
+                android:id="@+id/layoutHeaderToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingEnd="16dp">
+
+                <TextView
+                    android:id="@+id/textHeaderTitle"
+                    style="@style/TextAppearance.App.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CUSTOMER BALANCES" />
+
+                <ImageView
+                    android:id="@+id/imageExpandChevron"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="8dp"
+                    android:src="@drawable/ic_expand_more"
+                    app:tint="@color/text_primary" />
+
+            </LinearLayout>
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+        <!-- COLLAPSIBLE SUMMARY CONTAINER (OWES ME + I OWE CHANGE CARDS ONLY) -->
+        <LinearLayout
+            android:id="@+id/layoutSummaryCardsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp"
+            android:weightSum="2">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardOwesMe"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                app:cardBackgroundColor="@color/header_red"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+                    <TextView
+                        style="@style/TextAppearance.App.Label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="OWES ME"
+                        android:textColor="@color/white"
+                        android:textSize="11sp"
+                        android:alpha="0.8" />
+                    <TextView
+                        android:id="@+id/textTotalOwedToMe"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="₹ 0.00"
+                        android:textColor="@color/white"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardIOwe"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                app:cardBackgroundColor="@color/header_amber"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+                    <TextView
+                        style="@style/TextAppearance.App.Label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="I OWE CHANGE"
+                        android:textColor="@color/white"
+                        android:textSize="11sp"
+                        android:alpha="0.8" />
+                    <TextView
+                        android:id="@+id/textTotalIOwe"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="₹ 0.00"
+                        android:textColor="@color/white"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- ALWAYS VISIBLE CONTROLS (SORT CHIPS + SEARCH BAR) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="20dp"
-            android:paddingBottom="24dp">
+            android:paddingBottom="16dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="2">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardOwesMe"
-                    android:layout_width="0dp"
-                    android:layout_height="100dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    app:cardBackgroundColor="@color/header_red"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="0dp"
-                    android:clickable="true"
-                    android:focusable="true">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:padding="16dp"
-                        android:gravity="center_vertical">
-                        <TextView
-                            style="@style/TextAppearance.App.Label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="OWES ME"
-                            android:textColor="@color/white"
-                            android:textSize="11sp"
-                            android:alpha="0.8" />
-                        <TextView
-                            android:id="@+id/textTotalOwedToMe"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="₹ 0.00"
-                            android:textColor="@color/white"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardIOwe"
-                    android:layout_width="0dp"
-                    android:layout_height="100dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    app:cardBackgroundColor="@color/header_amber"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="0dp"
-                    android:clickable="true"
-                    android:focusable="true">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:padding="16dp"
-                        android:gravity="center_vertical">
-                        <TextView
-                            style="@style/TextAppearance.App.Label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="I OWE CHANGE"
-                            android:textColor="@color/white"
-                            android:textSize="11sp"
-                            android:alpha="0.8" />
-                        <TextView
-                            android:id="@+id/textTotalIOwe"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="₹ 0.00"
-                            android:textColor="@color/white"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </LinearLayout>
-
-            <!-- SORT CHIPS -->
+            <!-- SORT CHIPS (ALWAYS VISIBLE) -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="8dp"
                 android:scrollbars="none"
                 android:clipToPadding="false"
                 android:paddingStart="0dp"
@@ -157,11 +192,11 @@
                 </com.google.android.material.chip.ChipGroup>
             </HorizontalScrollView>
 
-            <!-- SEARCH -->
+            <!-- SEARCH (ALWAYS VISIBLE) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="16dp"
                 android:background="@drawable/bg_search_embedded"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="16dp">

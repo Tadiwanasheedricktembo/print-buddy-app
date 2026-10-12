@@ -23,7 +23,8 @@ class ManualMigrationTest {
             .name("manual-migration-test")
             .callback(object : SupportSQLiteOpenHelper.Callback(34) {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    // Create v34 schema manually for all tables touched by MIGRATION_34_35
+                    // v34 has no exported schema; REAL is used only where historical migration SQL
+                    // explicitly introduced it, and converter-backed fields remain TEXT.
                     
                     // 1. orders
                     db.execSQL("""
@@ -55,10 +56,21 @@ class ManualMigrationTest {
                             `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
                             `orderId` INTEGER NOT NULL, 
                             `serviceName` TEXT NOT NULL, 
-                            `price` REAL NOT NULL, 
+                            `price` TEXT NOT NULL,
                             `quantity` INTEGER NOT NULL, 
                             `orderSyncId` TEXT NOT NULL, 
                             `syncId` TEXT NOT NULL
+                        )
+                    """)
+
+                    db.execSQL("""
+                        CREATE TABLE `photos` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `orderId` INTEGER NOT NULL,
+                            `filePath` TEXT NOT NULL,
+                            `syncId` TEXT NOT NULL,
+                            FOREIGN KEY(`orderId`) REFERENCES `orders`(`id`)
+                                ON UPDATE NO ACTION ON DELETE CASCADE
                         )
                     """)
 
@@ -121,7 +133,7 @@ class ManualMigrationTest {
                     db.execSQL("""
                         CREATE TABLE `beauty_transactions` (
                             `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                            `amount` REAL NOT NULL, 
+                            `amount` TEXT NOT NULL,
                             `type` TEXT NOT NULL, 
                             `note` TEXT, 
                             `timestamp` INTEGER NOT NULL, 
@@ -139,7 +151,7 @@ class ManualMigrationTest {
                         CREATE TABLE `external_ledger` (
                             `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
                             `transactionType` TEXT NOT NULL, 
-                            `amount` REAL NOT NULL, 
+                            `amount` TEXT NOT NULL,
                             `timestamp` INTEGER NOT NULL, 
                             `customerName` TEXT, 
                             `customerId` INTEGER, 

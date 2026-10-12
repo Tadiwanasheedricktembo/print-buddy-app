@@ -9,6 +9,15 @@ import java.math.BigDecimal
 interface PrintDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveHomeOrderDraft(draft: HomeOrderDraft)
+
+    @Query("SELECT * FROM home_order_draft WHERE id = :id LIMIT 1")
+    suspend fun getHomeOrderDraft(id: Int = HomeOrderDraft.CURRENT_ID): HomeOrderDraft?
+
+    @Query("DELETE FROM home_order_draft WHERE id = :id")
+    suspend fun deleteHomeOrderDraft(id: Int = HomeOrderDraft.CURRENT_ID): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrder(order: Order): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -474,7 +483,8 @@ interface PrintDao {
         requestedPaymentMethod: String,
         appliedCredit: BigDecimal,
         currentTime: Long,
-        receivedAmount: BigDecimal? = null
+        receivedAmount: BigDecimal? = null,
+        printCount: Int? = null
     ): Int {
         for (item in items) {
             val affected = safeDeductStock(item.serviceName, item.quantity)
@@ -485,17 +495,34 @@ interface PrintDao {
         }
 
         val previousBalance = getAuthoritativeCustomerBalance(customer.id)
-        val availableCredit = previousBalance.abs().max(BigDecimal.ZERO)
+        val availableCredit = if (previousBalance < BigDecimal.ZERO) previousBalance.negate() else BigDecimal.ZERO
 
-        // Validate credit application against the customer's true net balance, whether they owe money or have a credit balance.
-        if (appliedCredit < BigDecimal.ZERO) throw Exception("Applied credit cannot be negative")
-        if (appliedCredit > availableCredit) throw Exception("Applied credit exceeds available balance (₹$availableCredit)")
-        if (appliedCredit > total) throw Exception("Applied credit exceeds order total (₹$total)")
+        val normalizedRequestedPaymentMethod = requestedPaymentMethod.trim().uppercase()
+        val explicitAppliedCredit = appliedCredit.max(BigDecimal.ZERO).min(total)
+        val autoAppliedCredit = if (normalizedRequestedPaymentMethod == "OWES_ME") {
+            availableCredit.min(total)
+        } else {
+            BigDecimal.ZERO
+        }
+        val effectiveAppliedCredit = if (normalizedRequestedPaymentMethod == "OWES_ME") {
+            explicitAppliedCredit.max(autoAppliedCredit).min(availableCredit.max(BigDecimal.ZERO).min(total))
+        } else {
+            explicitAppliedCredit
+        }
 
-        val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit).max(BigDecimal.ZERO)
-        val creditUsed = if (total > BigDecimal.ZERO) appliedCredit.min(total).max(BigDecimal.ZERO) else BigDecimal.ZERO
+        // Validate credit application against the customer's true net balance. Only negative balances are usable credit.
+        if (effectiveAppliedCredit < BigDecimal.ZERO) throw Exception("Applied credit cannot be negative")
+        if (effectiveAppliedCredit > availableCredit) throw Exception("Applied credit exceeds available balance (₹$availableCredit)")
+        if (effectiveAppliedCredit > total) throw Exception("Applied credit exceeds order total (₹$total)")
 
-        val finalPaidAmount = cashPaid
+        val cashPaid = if (normalizedRequestedPaymentMethod == "OWES_ME") {
+            BigDecimal.ZERO
+        } else {
+            total.subtract(effectiveAppliedCredit).max(BigDecimal.ZERO)
+        }
+        val creditUsed = if (total > BigDecimal.ZERO) effectiveAppliedCredit.min(total).max(BigDecimal.ZERO) else BigDecimal.ZERO
+
+        val finalPaidAmount = cashPaid.add(creditUsed)
         val transactionAmount = total.subtract(cashPaid)
         val newBalance = previousBalance.add(transactionAmount)
 
@@ -510,6 +537,10 @@ interface PrintDao {
             else -> "UNPAID"
         }
 
+        val effectivePrintCount = printCount?.coerceAtLeast(0)
+            ?: items.fold(0L) { total, item -> total + item.quantity.coerceAtLeast(0) }
+                .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
         val order = Order(
             totalAmount = total,
             date = currentTime,
@@ -523,13 +554,18 @@ interface PrintDao {
             paymentStatus = finalPaymentStatus,
             orderStatus = "ACTIVE",
             customerSyncId = customer.syncId,
-            updatedAt = currentTime
+            updatedAt = currentTime,
+            printCount = effectivePrintCount
         )
         
         val orderId = insertOrder(order).toInt()
-        insertOrderItems(items.map { it.copy(orderId = orderId, orderSyncId = order.syncId, updatedAt = currentTime) })
+        val savedItems = items.map { it.copy(orderId = orderId, orderSyncId = order.syncId, updatedAt = currentTime) }
+        insertOrderItems(savedItems)
 
         insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "CREATE"))
+        savedItems.forEach { item ->
+            insertSyncEvent(SyncOutbox(entityType = "ORDER_ITEM", entitySyncId = item.syncId, operation = "CREATE"))
+        }
 
         val settlement1 = SettlementHistory(
             customerName = order.customerName,
@@ -547,7 +583,8 @@ interface PrintDao {
             customerSyncId = customer.syncId,
             originSyncId = order.syncId,
             updatedAt = currentTime,
-            paymentMethod = requestedPaymentMethod // Fix 7: Structured payment method
+            paymentMethod = requestedPaymentMethod,
+            printCount = effectivePrintCount
         )
         insertSettlement(settlement1)
         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
@@ -700,11 +737,58 @@ interface PrintDao {
         return true
     }
 
+    @Query("""
+        SELECT COALESCE(SUM(printCount), 0)
+        FROM `orders`
+        WHERE customerId = :customerId
+          AND (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')
+          AND (deletedAt IS NULL)
+    """)
+    suspend fun getCustomerOrderPrints(customerId: Long): Int
+
+    @Query("""
+        SELECT COALESCE(SUM(printCount), 0)
+        FROM `settlement_history`
+        WHERE customerId = :customerId
+          AND ledgerEntryType IN ('ADJUSTMENT', 'CREDIT')
+          AND originId IS NULL
+          AND (deletedAt IS NULL)
+    """)
+    suspend fun getCustomerDirectCreditPrints(customerId: Long): Int
+
+    suspend fun getCustomerTotalPrints(customerId: Long): Int {
+        return getCustomerOrderPrints(customerId) + getCustomerDirectCreditPrints(customerId)
+    }
+
+    @Query("""
+        SELECT COALESCE(SUM(printCount), 0)
+        FROM `orders`
+        WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '')
+          AND date BETWEEN :start AND :end
+          AND (deletedAt IS NULL)
+    """)
+    suspend fun getBusinessOrderPrintsBetween(start: Long, end: Long): Int
+
+    @Query("""
+        SELECT COALESCE(SUM(printCount), 0)
+        FROM `settlement_history`
+        WHERE ledgerEntryType IN ('ADJUSTMENT', 'CREDIT')
+          AND originId IS NULL
+          AND timestamp BETWEEN :start AND :end
+          AND (deletedAt IS NULL)
+    """)
+    suspend fun getBusinessDirectCreditPrintsBetween(start: Long, end: Long): Int
+
+    suspend fun getTotalPrintsBetween(start: Long, end: Long): Int {
+        return getBusinessOrderPrintsBetween(start, end) + getBusinessDirectCreditPrintsBetween(start, end)
+    }
+
     @Transaction
     suspend fun rebuildCustomerProjection(customerId: Long): Boolean {
         val customer = getCustomerById(customerId) ?: return false
         val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
-        insertOrUpdateDebtorCredit(DebtorCredit(customerId = customer.id, customerName = customer.displayName, amount = calculatedBalance))
+        val calculatedPrints = getCustomerTotalPrints(customerId)
+        insertOrUpdateDebtorCredit(DebtorCredit(customerId = customer.id, customerName = customer.displayName, amount = calculatedBalance, printCount = calculatedPrints))
         return true
     }
 
@@ -748,16 +832,19 @@ interface PrintDao {
         requestedPaymentMethod: String,
         appliedCredit: BigDecimal,
         currentTime: Long,
-        receivedAmount: BigDecimal? = null
+        receivedAmount: BigDecimal? = null,
+        printCount: Int? = null,
+        clearHomeOrderDraft: Boolean = false
     ): Int {
         Log.d("PrintBuddyTransaction", "PrintDao recordOrderWithWalletAtomic: method=$requestedPaymentMethod, total=$total, customer=${customer.displayName}")
-        val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount)
+        val orderId = recordOrderAtomic(customer, items, total, requestedPaymentMethod, appliedCredit, currentTime, receivedAmount, printCount)
         val cashPaid = if (requestedPaymentMethod == "OWES_ME") BigDecimal.ZERO else total.subtract(appliedCredit)
         Log.d("PrintBuddyTransaction", "PrintDao recordOrderWithWalletAtomic order recorded: orderId=$orderId, cashPaid=$cashPaid")
         if (requestedPaymentMethod == "UPI" && cashPaid > BigDecimal.ZERO) {
             Log.d("PrintBuddyTransaction", "Inserting canonical UPI wallet transaction for order #$orderId: amount=$cashPaid")
             insertUpiAccountTransactionAtomic(cashPaid, "ADD", "Direct Pay - Order #$orderId", isShadowDuplicate = true)
         }
+        if (clearHomeOrderDraft) deleteHomeOrderDraft()
         return orderId
     }
 

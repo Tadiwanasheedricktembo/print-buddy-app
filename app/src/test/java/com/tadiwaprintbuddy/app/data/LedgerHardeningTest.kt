@@ -42,11 +42,14 @@ class LedgerHardeningTest {
 
     @Test
     fun testRecordOrderAtomic_CreatesLedgerEntry() = runTest {
-        repository.confirmOrder("Rahul", listOf(CartItem("General", BigDecimal("100.0"), 1)), "CASH", BigDecimal("20.0"))
+        repository.confirmOrder("Rahul", listOf(CartItem("General", BigDecimal("100.0"), 1)), "OWES_ME")
+        val customerId = dao.getCustomerByNormalizedName("rahul")!!.id
+        repository.applyPaymentToCustomerId(customerId, BigDecimal("80.0"))
 
         val order = dao.getAllOrders().first()
         assertEquals(0, BigDecimal("80.0").compareTo(order.paidAmount))
-        assertEquals(0, BigDecimal("20.0").compareTo(order.transactionAmount))
+        assertEquals(0, BigDecimal("20.0").compareTo(order.totalAmount.subtract(order.paidAmount)))
+        assertEquals(0, BigDecimal("100.0").compareTo(order.transactionAmount))
 
         // Verify Settlement History
         val settlements = dao.getAllSettlements()

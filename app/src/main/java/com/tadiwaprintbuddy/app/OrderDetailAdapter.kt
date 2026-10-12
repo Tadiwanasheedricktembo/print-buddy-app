@@ -21,7 +21,7 @@ class OrderDetailAdapter : ListAdapter<OrderItem, OrderDetailAdapter.ViewHolder>
 
     inner class ViewHolder(private val binding: ItemOrderDetailBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(orderItem: OrderItem) {
-            binding.textItemName.text = orderItem.serviceName
+            binding.textItemName.text = PrintOrderLine.displayDescription(orderItem.serviceName)
             binding.textItemQuantity.text = "Qty: ${orderItem.quantity}"
             binding.textItemPrice.text = "₹ %.2f".format(orderItem.price)
         }

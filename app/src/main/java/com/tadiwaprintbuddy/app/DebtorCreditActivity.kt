@@ -23,6 +23,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.transition.TransitionManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.DebtorCredit
 import com.tadiwaprintbuddy.app.data.PrintRepository
@@ -46,6 +47,11 @@ class DebtorCreditActivity : AppCompatActivity() {
     private var allDebtorCredits: List<DebtorCredit> = emptyList()
     private var currentFilter = FilterMode.ALL
     private var currentSort = SortMode.BALANCE_DESC
+    private var isSummaryExpanded = true
+
+    companion object {
+        private const val KEY_IS_SUMMARY_EXPANDED = "KEY_IS_SUMMARY_EXPANDED"
+    }
 
     private enum class FilterMode {
         ALL, OWES_ME, I_OWE_CHANGE
@@ -86,8 +92,17 @@ class DebtorCreditActivity : AppCompatActivity() {
         }
 
         setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         binding.toolbar.setNavigationOnClickListener { finish() }
+
+        if (savedInstanceState != null) {
+            isSummaryExpanded = savedInstanceState.getBoolean(KEY_IS_SUMMARY_EXPANDED, true)
+        }
+
+        binding.layoutHeaderToggle.setOnClickListener {
+            toggleSummaryExpansion()
+        }
 
         val database = AppDatabase.getDatabase(this)
         repository = PrintRepository(database.printDao())
@@ -96,6 +111,7 @@ class DebtorCreditActivity : AppCompatActivity() {
         setupSearch()
         setupSummaryCardFilters()
         setupSortChips()
+        updateSummaryExpansionUI(animate = false)
 
         binding.buttonAddDebtorCredit.setOnClickListener {
             showAddNewEntryDialog()
@@ -157,15 +173,6 @@ class DebtorCreditActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupSummaryCardFilters() {
-        binding.cardOwesMe.setOnClickListener {
-            toggleFilter(FilterMode.OWES_ME)
-        }
-        binding.cardIOwe.setOnClickListener {
-            toggleFilter(FilterMode.I_OWE_CHANGE)
-        }
-    }
-
     private fun setupSortChips() {
         binding.chipGroupSort.setOnCheckedStateChangeListener { _, checkedIds ->
             currentSort = when (checkedIds.firstOrNull()) {
@@ -175,6 +182,15 @@ class DebtorCreditActivity : AppCompatActivity() {
                 else -> SortMode.BALANCE_DESC
             }
             applyFilters()
+        }
+    }
+
+    private fun setupSummaryCardFilters() {
+        binding.cardOwesMe.setOnClickListener {
+            toggleFilter(FilterMode.OWES_ME)
+        }
+        binding.cardIOwe.setOnClickListener {
+            toggleFilter(FilterMode.I_OWE_CHANGE)
         }
     }
 
@@ -209,6 +225,29 @@ class DebtorCreditActivity : AppCompatActivity() {
                 binding.textFilterLabel.setTextColor(ContextCompat.getColor(this, R.color.warning))
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_IS_SUMMARY_EXPANDED, isSummaryExpanded)
+    }
+
+    private fun toggleSummaryExpansion() {
+        isSummaryExpanded = !isSummaryExpanded
+        updateSummaryExpansionUI(animate = true)
+    }
+
+    private fun updateSummaryExpansionUI(animate: Boolean = true) {
+        if (animate) {
+            TransitionManager.beginDelayedTransition(binding.appBarLayout)
+        }
+        val targetRotation = if (isSummaryExpanded) 180f else 0f
+        if (animate) {
+            binding.imageExpandChevron.animate().rotation(targetRotation).setDuration(200L).start()
+        } else {
+            binding.imageExpandChevron.rotation = targetRotation
+        }
+        binding.layoutSummaryCardsContainer.visibility = if (isSummaryExpanded) View.VISIBLE else View.GONE
     }
 
     private fun applyFilters() {
@@ -374,6 +413,7 @@ class DebtorCreditActivity : AppCompatActivity() {
         val editCustomerName = dialogView.findViewById<EditText>(R.id.editCustomerName)
         val spinnerType = dialogView.findViewById<Spinner>(R.id.spinnerType)
         val editAmount = dialogView.findViewById<EditText>(R.id.editAmount)
+        val editPrintCount = dialogView.findViewById<EditText>(R.id.editPrintCount)
 
         val types = arrayOf("Owes Me", "I Owe Change")
         val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, types)
@@ -385,12 +425,20 @@ class DebtorCreditActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
 
-                val customerName = editCustomerName.text.toString()
-                val amountStr = editAmount.text.toString()
+                val customerName = editCustomerName.text.toString().trim()
+                val amountStr = editAmount.text.toString().trim()
                 val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
+
+                val printCountStr = editPrintCount.text.toString().trim()
+                val printCount = if (printCountStr.isEmpty()) 0 else try { printCountStr.toInt() } catch (e: Exception) { -1 }
 
                 if (customerName.isBlank() || amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
                     Toast.makeText(this, "Enter valid details", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                if (printCount < 0) {
+                    Toast.makeText(this, "Enter a valid print quantity (0 or positive)", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
@@ -398,7 +446,7 @@ class DebtorCreditActivity : AppCompatActivity() {
                 val finalAmount = if (selectedType == "I Owe Change") amount.negate() else amount
 
                 lifecycleScope.launch {
-                    repository.addOrUpdateDebtorCredit(customerName, finalAmount)
+                    repository.addOrUpdateDebtorCredit(customerName, finalAmount, printCount = printCount)
                     loadDebtorCredits()
                 }
             }

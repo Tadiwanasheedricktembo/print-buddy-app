@@ -41,12 +41,29 @@ class MainActivity : AppCompatActivity() {
             val received = receivedStr?.let { try { BigDecimal(it) } catch (e: Exception) { null } }
             
             val note = data?.getStringExtra(PrintCalculatorActivity.EXTRA_NOTE) ?: ""
+            val itemNames = data?.getStringArrayListExtra(PrintCalculatorActivity.EXTRA_ITEM_NAMES).orEmpty()
+            val itemPrices = data?.getStringArrayListExtra(PrintCalculatorActivity.EXTRA_ITEM_PRICES).orEmpty()
+            val itemQuantities = data?.getIntegerArrayListExtra(PrintCalculatorActivity.EXTRA_ITEM_QUANTITIES).orEmpty()
+            val calculatorItems = if (itemNames.isNotEmpty() && itemNames.size == itemPrices.size && itemNames.size == itemQuantities.size) {
+                itemNames.indices.mapNotNull { index ->
+                    val unitPrice = try { BigDecimal(itemPrices[index]) } catch (e: Exception) { null }
+                    if (unitPrice == null || itemQuantities[index] <= 0 || PrintOrderLine.typeFromStoredServiceName(itemNames[index]) == null) {
+                        null
+                    } else {
+                        CartItem(itemNames[index], unitPrice.max(BigDecimal.ZERO), itemQuantities[index])
+                    }
+                }.takeIf { it.size == itemNames.size }.orEmpty()
+            } else emptyList()
 
             if (total.compareTo(BigDecimal.ZERO) > 0) {
                 binding.editPrice.setText(total.toPlainString())
                 binding.editQuantity.setText("1")
                 viewModel.onPriceChanged(total)
                 viewModel.onReceivedAmountChanged(received)
+                viewModel.onCalculatorOrderSelected(
+                    calculatorItems,
+                    (data?.getIntExtra(PrintCalculatorActivity.EXTRA_TOTAL_PAGES, 0) ?: 0).coerceAtLeast(0)
+                )
                 
                 if (note.isNotBlank()) {
                     Toast.makeText(this, note, Toast.LENGTH_LONG).show()
@@ -82,11 +99,15 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 R.id.action_notes -> {
-                    // Not implemented here, but can add if needed
+                    startActivity(Intent(this, NotesActivity::class.java))
                     true
                 }
                 R.id.action_settings -> {
                     startActivity(Intent(this, SettingsActivity::class.java))
+                    true
+                }
+                R.id.action_about -> {
+                    startActivity(Intent(this, AboutActivity::class.java))
                     true
                 }
                 else -> false
@@ -94,14 +115,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var isProgrammaticChange = false
+    private var hasRestoredDraft = false
+
     private fun setupInputs() {
         binding.editCustomerName.addTextChangedListener {
-            viewModel.onCustomerNameChanged(it.toString())
+            if (!isProgrammaticChange) viewModel.onCustomerNameChanged(it.toString())
         }
 
         binding.editQuantity.addTextChangedListener {
-            val q = it.toString().toIntOrNull() ?: 1
-            viewModel.onQuantityChanged(q)
+            if (!isProgrammaticChange) viewModel.onQuantityInputChanged(it.toString())
         }
 
         binding.btnQtyPlus.setOnClickListener {
@@ -117,13 +140,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.editPrice.addTextChangedListener {
-            val p = try { BigDecimal(it.toString()) } catch (e: Exception) { BigDecimal.ZERO }
-            viewModel.onPriceChanged(p)
+            if (!isProgrammaticChange) viewModel.onPriceInputChanged(it.toString())
         }
 
-        binding.btnCompleteOrder.setOnClickListener {
-            showPaymentStatusDialog()
-        }
+        binding.btnCash.setOnClickListener { onQuickOrderPaymentButtonClicked(R.id.btnCash) }
+        binding.btnUpi.setOnClickListener { onQuickOrderPaymentButtonClicked(R.id.btnUpi) }
+        binding.btnCredit.setOnClickListener { onQuickOrderPaymentButtonClicked(R.id.btnCredit) }
 
         binding.btnShowQr.setOnClickListener {
             val state = viewModel.uiState.value
@@ -151,53 +173,76 @@ class MainActivity : AppCompatActivity() {
     private fun observeViewModel() {
         lifecycleScope.launch {
             viewModel.uiState.collectLatest { state ->
-                binding.textLineTotal.text = currencyFormat.format(state.balanceToPay.toDouble())
-                
-                binding.btnCompleteOrder.isEnabled = state.isCompleteEnabled
-                binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+                runOnUiThread {
+                    if (state.isDraftLoaded && !hasRestoredDraft) {
+                        hasRestoredDraft = true
+                        isProgrammaticChange = true
+                        binding.editCustomerName.setText(state.customerName)
+                        binding.editQuantity.setText(state.quantityInput)
+                        binding.editPrice.setText(state.priceInput)
+                        binding.toggleGroupPaymentMethod.check(paymentMethodButtonId(state.paymentMethod))
+                        isProgrammaticChange = false
+                    }
+                    binding.textLineTotal.text = currencyFormat.format(state.balanceToPay.toDouble())
 
-                // Update UI based on payment method selection if needed
-                val checkedId = binding.toggleGroupPaymentMethod.checkedButtonId
-                if (checkedId == View.NO_ID) {
-                    binding.toggleGroupPaymentMethod.check(R.id.btnCash)
+                    binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+
+                    val checkedId = binding.toggleGroupPaymentMethod.checkedButtonId
+                    if (checkedId == View.NO_ID) {
+                        isProgrammaticChange = true
+                        binding.toggleGroupPaymentMethod.check(R.id.btnCash)
+                        isProgrammaticChange = false
+                    }
                 }
             }
         }
 
         lifecycleScope.launch {
             viewModel.events.collect { event ->
-                when (event) {
-                    is MainViewModel.MainEvent.OrderCompleted -> {
-                        Toast.makeText(this@MainActivity, "Order Completed", Toast.LENGTH_SHORT).show()
-                        resetInputs()
-                    }
-                    is MainViewModel.MainEvent.ShowError -> {
-                        Toast.makeText(this@MainActivity, event.message, Toast.LENGTH_LONG).show()
+                runOnUiThread {
+                    when (event) {
+                        is MainViewModel.MainEvent.OrderCompleted -> {
+                            Toast.makeText(this@MainActivity, "Order Completed", Toast.LENGTH_SHORT).show()
+                            resetInputs()
+                        }
+                        is MainViewModel.MainEvent.ShowError -> {
+                            Toast.makeText(this@MainActivity, event.message, Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
         }
     }
 
-    private fun showPaymentStatusDialog() {
-        val checkedId = binding.toggleGroupPaymentMethod.checkedButtonId
-        val method = when (checkedId) {
-            R.id.btnUpi -> "UPI"
-            R.id.btnCredit -> "Credit"
-            else -> "Cash"
-        }
+    override fun onStop() {
+        lifecycleScope.launch { viewModel.flushDraft() }
+        super.onStop()
+    }
 
-        if (method == "Credit") {
-            viewModel.completeOrder("Credit", "NONE")
-        } else {
-            viewModel.completeOrder("Paid", method)
-        }
+    private fun onQuickOrderPaymentButtonClicked(buttonId: Int) {
+        binding.toggleGroupPaymentMethod.check(buttonId)
+        viewModel.onPaymentMethodSelected(paymentMethodFor(buttonId))
+    }
+
+    private fun paymentMethodFor(buttonId: Int): String = when (buttonId) {
+        R.id.btnUpi -> "UPI"
+        R.id.btnCredit -> "Credit"
+        else -> "Cash"
+    }
+
+    private fun paymentMethodButtonId(method: String): Int = when (method.uppercase(Locale.ROOT)) {
+        "UPI" -> R.id.btnUpi
+        "CREDIT" -> R.id.btnCredit
+        else -> R.id.btnCash
     }
 
     private fun resetInputs() {
+        isProgrammaticChange = true
         binding.editCustomerName.text.clear()
         binding.editQuantity.setText("1")
         binding.editPrice.setText("0")
+        binding.toggleGroupPaymentMethod.check(R.id.btnCash)
+        isProgrammaticChange = false
         viewModel.resetForm()
     }
 }

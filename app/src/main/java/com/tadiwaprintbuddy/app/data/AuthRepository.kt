@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.tadiwaprintbuddy.app.api.AuthResponse
+import com.tadiwaprintbuddy.app.api.AuthRequest
+import com.tadiwaprintbuddy.app.api.UserResponse
 import com.tadiwaprintbuddy.app.api.NetworkConfig
 import com.tadiwaprintbuddy.app.api.TadiwaApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +39,8 @@ class AuthRepository private constructor(context: Context, private val testingPr
         .create(TadiwaApi::class.java)
 
     companion object {
+        private const val SYNC_ACCOUNT_USERNAME = "sync_account_username"
+
         @Volatile
         private var INSTANCE: AuthRepository? = null
 
@@ -51,8 +55,15 @@ class AuthRepository private constructor(context: Context, private val testingPr
         }
     }
 
-    fun saveAuth(response: AuthResponse) {
-        prefs.edit().putString("access_token", response.access_token).apply()
+    @Synchronized
+    fun saveAuth(response: AuthResponse, username: String? = null) {
+        val boundUsername = prefs.getString(SYNC_ACCOUNT_USERNAME, null)
+        if (username != null && boundUsername != null && boundUsername != username) {
+            throw IllegalStateException("This local database is already linked to another cloud account")
+        }
+        val editor = prefs.edit().putString("access_token", response.access_token)
+        if (username != null) editor.putString(SYNC_ACCOUNT_USERNAME, username)
+        editor.apply()
         _isLoggedIn.value = true
     }
 
@@ -70,12 +81,60 @@ class AuthRepository private constructor(context: Context, private val testingPr
         _isLoggedIn.value = false
     }
 
+    fun isBoundToAccount(username: String): Boolean {
+        val boundUsername = prefs.getString(SYNC_ACCOUNT_USERNAME, null)
+        return boundUsername == null || boundUsername == username
+    }
+
+    suspend fun ensureAccountBinding(): Result<Unit> {
+        val token = getToken() ?: return Result.success(Unit)
+        if (prefs.getString(SYNC_ACCOUNT_USERNAME, null) != null) return Result.success(Unit)
+        return try {
+            val response = api.getMe("Bearer $token")
+            if (response.code() == 401) {
+                logout()
+                return Result.failure(AuthenticationRequiredException("Cloud session expired; sign in again"))
+            }
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("Unable to verify the cloud account: HTTP ${response.code()}"))
+            }
+            val user: UserResponse = response.body()
+                ?: return Result.failure(Exception("Cloud account response was empty"))
+            prefs.edit().putString(SYNC_ACCOUNT_USERNAME, user.username).apply()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun register(username: String, password: String, businessName: String? = null): Result<AuthResponse> {
+        val binding = ensureAccountBinding()
+        if (binding.isFailure) return Result.failure(binding.exceptionOrNull()!!)
+        if (!isBoundToAccount(username)) {
+            return Result.failure(IllegalStateException("This local database is already linked to another cloud account"))
+        }
+        return try {
+            val registration = api.register(AuthRequest(username, password, businessName))
+            if (!registration.isSuccessful) {
+                return Result.failure(Exception("Registration failed: ${registration.code()}"))
+            }
+            login(username, password)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun login(username: String, password: String): Result<AuthResponse> {
+        val binding = ensureAccountBinding()
+        if (binding.isFailure) return Result.failure(binding.exceptionOrNull()!!)
+        if (!isBoundToAccount(username)) {
+            return Result.failure(IllegalStateException("This local database is already linked to another cloud account"))
+        }
         return try {
             val response = api.login(username, password)
             if (response.isSuccessful && response.body() != null) {
                 val auth = response.body()!!
-                saveAuth(auth)
+                saveAuth(auth, username)
                 Result.success(auth)
             } else {
                 Result.failure(Exception("Login failed: ${response.code()}"))
@@ -84,4 +143,5 @@ class AuthRepository private constructor(context: Context, private val testingPr
             Result.failure(e)
         }
     }
+
 }

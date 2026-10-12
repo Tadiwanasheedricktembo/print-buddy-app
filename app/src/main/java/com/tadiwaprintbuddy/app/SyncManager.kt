@@ -150,6 +150,7 @@ class SyncManager private constructor(context: Context) {
 
         val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
             .build()
 
         WorkManager.getInstance(appContext).enqueue(syncRequest)

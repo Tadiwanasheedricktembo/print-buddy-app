@@ -111,14 +111,29 @@
                 app:cornerRadius="8dp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/textLastUpdated"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:gravity="end"
-            android:textColor="@color/text_disabled"
-            android:textSize="10sp"
-            tools:text="Updated: 19 May, 20:31" />
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/textPrintCount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                tools:text="Prints: 100" />
+
+            <TextView
+                android:id="@+id/textLastUpdated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:textColor="@color/text_disabled"
+                android:textSize="10sp"
+                tools:text="Updated: 19 May, 20:31" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

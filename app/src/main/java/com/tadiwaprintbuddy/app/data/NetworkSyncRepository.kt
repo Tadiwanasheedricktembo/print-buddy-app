@@ -2,6 +2,7 @@ package com.tadiwaprintbuddy.app.data
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
 import com.google.gson.*
 import com.google.gson.reflect.TypeToken
 import com.tadiwaprintbuddy.app.api.*
@@ -9,9 +10,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.lang.reflect.Type
 import java.math.BigDecimal
-import kotlinx.coroutines.runBlocking as coroutinesRunBlocking
 
 class MissingDependencyException(val type: String, val syncId: String) : Exception("Missing dependency: $type/$syncId")
+open class AuthenticationRequiredException(message: String) : Exception(message)
+class SyncAuthenticationException(message: String) : AuthenticationRequiredException(message)
 
 open class NetworkSyncRepository(
     private val context: Context,
@@ -42,6 +44,20 @@ open class NetworkSyncRepository(
         .create(TadiwaApi::class.java)
 
     companion object {
+        private val SUPPORTED_SYNC_ENTITY_TYPES = setOf(
+            "CUSTOMER",
+            "ORDER",
+            "ORDER_ITEM",
+            "SETTLEMENT",
+            "EXPENSE",
+            "STOCK",
+            "NOTE",
+            "BEAUTY_TRANSACTION",
+            "UPI_ACCOUNT_TRANSACTION",
+            "EXTERNAL_LEDGER",
+            "PRINTER_REFERENCE"
+        )
+
         fun getInstance(context: Context): NetworkSyncRepository {
             return NetworkSyncRepository(
                 context.applicationContext,
@@ -52,7 +68,9 @@ open class NetworkSyncRepository(
     }
 
     suspend fun pushPendingChanges(): Result<Unit> {
-        val token = authRepository.getAuthHeader() ?: return Result.failure(Exception("Not authenticated"))
+        val binding = authRepository.ensureAccountBinding()
+        if (binding.isFailure) return Result.failure(binding.exceptionOrNull()!!)
+        val token = authRepository.getAuthHeader() ?: return Result.success(Unit)
         
         // P0 Memory Hardening: Process pending uploads in batches
         val pending = syncDao.getPendingUploadsOnce()
@@ -61,9 +79,21 @@ open class NetworkSyncRepository(
         // Process only first 100 to avoid large payload/memory issues
         val batch = pending.take(100)
 
-        val events = batch.mapNotNull { entry ->
+        val events = ArrayList<SyncEventRequest>(batch.size)
+        for (entry in batch) {
+            if (entry.entityType !in SUPPORTED_SYNC_ENTITY_TYPES) {
+                val message = "Unsupported sync entity type: ${entry.entityType}"
+                syncDao.updateOutbox(entry.copy(status = SyncStatus.FAILED, lastError = message))
+                Log.e("Sync", message)
+                return Result.failure(IllegalStateException(message))
+            }
             val entityData = fetchEntityData(entry.entityType, entry.entitySyncId)
-            if (entityData == null && entry.operation != "DELETE") return@mapNotNull null
+            if (entityData == null && entry.operation != "DELETE") {
+                val message = "Local ${entry.entityType}/${entry.entitySyncId} is missing; outbox entry was retained as failed"
+                syncDao.updateOutbox(entry.copy(status = SyncStatus.FAILED, lastError = message))
+                Log.e("Sync", message)
+                return Result.failure(IllegalStateException(message))
+            }
 
             val timestamp = when (entityData) {
                 is Order -> entityData.updatedAt
@@ -80,7 +110,7 @@ open class NetworkSyncRepository(
                 else -> entry.createdAt
             }
 
-            SyncEventRequest(
+            events += SyncEventRequest(
                 entityType = entry.entityType,
                 entitySyncId = entry.entitySyncId,
                 operation = entry.operation,
@@ -90,25 +120,61 @@ open class NetworkSyncRepository(
             )
         }
 
-        if (events.isEmpty()) {
-             // Clean up if all were missing/invalid
-             batch.forEach { syncDao.deleteOutbox(it) }
-             return Result.success(Unit)
-        }
+        if (events.isEmpty()) return Result.success(Unit)
 
         return try {
             val response = api.pushSync(token, PushRequest(events))
             if (response.isSuccessful && response.body() != null) {
                 val results = response.body()!!.results
+                var missingAcknowledgement = false
+                var rejectedEvent = false
                 batch.forEach { outbox ->
-                    val result = results.find { it.syncId == outbox.entitySyncId }
-                    if (result?.status == "SUCCESS" || result?.status == "SERVER_WINS") {
-                        syncDao.deleteOutbox(outbox)
-                    } else if (result?.status == "ERROR") {
-                        syncDao.updateOutbox(outbox.copy(status = SyncStatus.FAILED, lastError = result.message))
+                    val matchingResults = results.filter { it.idempotencyKey == outbox.idempotencyKey }
+                    if (matchingResults.size != 1) {
+                        val isExplicitlyRejectedDuplicate = matchingResults.isNotEmpty() &&
+                            matchingResults.all { it.status == "ERROR" } &&
+                            matchingResults.any { it.syncId == outbox.entitySyncId }
+                        if (isExplicitlyRejectedDuplicate) {
+                            syncDao.updateOutbox(outbox.copy(
+                                status = SyncStatus.FAILED,
+                                lastError = matchingResults.first { it.syncId == outbox.entitySyncId }.message
+                                    ?: "Server rejected duplicate idempotency key"
+                            ))
+                            rejectedEvent = true
+                        } else {
+                            missingAcknowledgement = true
+                        }
+                    } else if (matchingResults.single().syncId != outbox.entitySyncId) {
+                        missingAcknowledgement = true
+                    } else {
+                        val result = matchingResults.single()
+                        when (result.status) {
+                            "SUCCESS", "SERVER_WINS" -> syncDao.deleteOutbox(outbox)
+                            "ERROR" -> {
+                                syncDao.updateOutbox(outbox.copy(
+                                    status = SyncStatus.FAILED,
+                                    lastError = result.message ?: "Server rejected sync event"
+                                ))
+                                rejectedEvent = true
+                            }
+                            else -> missingAcknowledgement = true
+                        }
                     }
                 }
-                Result.success(Unit)
+                when {
+                    missingAcknowledgement -> Result.failure(
+                        IllegalStateException("Push response did not acknowledge every outbox event; unacknowledged entries remain pending")
+                    )
+                    rejectedEvent -> Result.failure(IllegalStateException("Server rejected one or more sync events"))
+                    else -> Result.success(Unit)
+                }
+            } else if (response.code() == 401) {
+                authRepository.logout()
+                Result.failure(SyncAuthenticationException("Cloud session expired; sign in again"))
+            } else if (response.code() in 400..499 && response.code() !in setOf(408, 429)) {
+                val message = "Push rejected: HTTP ${response.code()}"
+                batch.forEach { syncDao.updateOutbox(it.copy(status = SyncStatus.FAILED, lastError = message)) }
+                Result.failure(IllegalStateException(message))
             } else {
                 Result.failure(Exception("Push failed: ${response.code()}"))
             }
@@ -142,7 +208,9 @@ open class NetworkSyncRepository(
     }
 
     suspend fun pullChanges(): Result<Unit> {
-        val token = authRepository.getAuthHeader() ?: return Result.failure(Exception("Not authenticated"))
+        val binding = authRepository.ensureAccountBinding()
+        if (binding.isFailure) return Result.failure(binding.exceptionOrNull()!!)
+        val token = authRepository.getAuthHeader() ?: return Result.success(Unit)
         val lastCursorTs = getSyncCursorTs()
         val lastCursorId = getSyncCursorId()
         
@@ -151,7 +219,7 @@ open class NetworkSyncRepository(
             if (response.isSuccessful && response.body() != null) {
                 val data = response.body()!!
                 
-                database.runInTransaction {
+                database.withTransaction {
                     val affectedCustomerIds = mutableSetOf<Long>()
                     for (event in data.events) {
                         try {
@@ -161,18 +229,16 @@ open class NetworkSyncRepository(
                             }
                         } catch (e: MissingDependencyException) {
                             // P0 Dependency Hardening: Defer instead of stalling
-                            runBlocking {
-                                deferredSyncDao.insertDeferred(DeferredSync(
-                                    entityType = event.entityType,
-                                    entitySyncId = event.entitySyncId,
-                                    operation = event.operation,
-                                    data = gson.toJson(event.data),
-                                    timestamp = event.timestamp,
-                                    serverUpdatedAt = event.serverUpdatedAt,
-                                    serverId = event.serverId,
-                                    idempotencyKey = event.idempotencyKey
-                                ))
-                            }
+                            deferredSyncDao.insertDeferred(DeferredSync(
+                                entityType = event.entityType,
+                                entitySyncId = event.entitySyncId,
+                                operation = event.operation,
+                                data = gson.toJson(event.data),
+                                timestamp = event.timestamp,
+                                serverUpdatedAt = event.serverUpdatedAt,
+                                serverId = event.serverId,
+                                idempotencyKey = event.idempotencyKey
+                            ))
                         } catch (e: Exception) {
                             Log.e("Sync", "Fatal error applying event: ${event.entitySyncId}", e)
                             throw e 
@@ -180,7 +246,7 @@ open class NetworkSyncRepository(
                     }
                     
                     affectedCustomerIds.forEach { id ->
-                        runBlocking { printDao.rebuildCustomerProjection(id) }
+                        printDao.rebuildCustomerProjection(id)
                     }
                 }
                 
@@ -193,11 +259,17 @@ open class NetworkSyncRepository(
 
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("Pull failed: ${response.code()}"))
+                if (response.code() == 401) {
+                    authRepository.logout()
+                    Result.failure(SyncAuthenticationException("Cloud session expired; sign in again"))
+                } else {
+                    Result.failure(Exception("Pull failed: ${response.code()}"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
+
     }
 
     suspend fun processDeferredItems() {
@@ -221,9 +293,9 @@ open class NetworkSyncRepository(
                         serverId = item.serverId
                     )
                     
-                    database.runInTransaction {
+                    database.withTransaction {
                         val cid = applyRemoteEventSync(event)
-                        if (cid != null) runBlocking { printDao.rebuildCustomerProjection(cid) }
+                        if (cid != null) printDao.rebuildCustomerProjection(cid)
                     }
                     
                     deferredSyncDao.deleteDeferred(item)
@@ -239,11 +311,11 @@ open class NetworkSyncRepository(
         }
     }
 
-    internal fun applyRemoteEventSync(event: SyncEventRequest): Long? = runBlocking {
+    internal suspend fun applyRemoteEventSync(event: SyncEventRequest): Long? {
         val type = event.entityType
         val syncId = event.entitySyncId
         
-        return@runBlocking when (type) {
+        return when (type) {
             "CUSTOMER" -> {
                 val existing = syncDao.getCustomerBySyncId(syncId)
                 if (event.operation == "DELETE") {
@@ -474,10 +546,6 @@ open class NetworkSyncRepository(
             }
             else -> null as Long?
         }
-    }
-
-    private fun <T> runBlocking(block: suspend () -> T): T {
-        return coroutinesRunBlocking { block() }
     }
 
     private inline fun <reified T> mapToEntity(data: Map<String, Any?>, syncId: String): T {

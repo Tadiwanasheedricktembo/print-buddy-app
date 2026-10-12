@@ -42,10 +42,13 @@ class DatabaseIntegrityTest {
     fun customerNamesAreNormalizedToOneIdentity() = runTest {
         repository.confirmOrder(" Rahul ", listOf(CartItem("G", BigDecimal("100.0"), 1)), "OWES_ME")
         repository.confirmOrder("rahul", listOf(CartItem("G", BigDecimal("50.0"), 1)), "OWES_ME")
-        repository.confirmOrder("RAHUL", listOf(CartItem("G", BigDecimal("75.0"), 1)), "CASH", BigDecimal("50.0"))
+        repository.confirmOrder("RAHUL", listOf(CartItem("G", BigDecimal("75.0"), 1)), "OWES_ME")
+        val customerId = dao.getCustomerByNormalizedName("rahul")!!.id
+        repository.applyPaymentToCustomerId(customerId, BigDecimal("25.0"))
 
         val customers = dao.getAllCustomers()
         assertEquals(1, customers.size)
+        assertEquals(3, dao.getAllOrders().size)
         assertEquals("Rahul", customers.single().displayName)
         assertEquals(0, BigDecimal("200.0").compareTo(repository.getCustomerBalance(" rahul ")))
     }

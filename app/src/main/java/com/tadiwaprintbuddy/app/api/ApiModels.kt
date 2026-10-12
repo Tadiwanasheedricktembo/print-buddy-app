@@ -36,7 +36,8 @@ data class PushRequest(
 data class PushResult(
     @SerializedName("sync_id") val syncId: String,
     @SerializedName("status") val status: String,
-    @SerializedName("message") val message: String?
+    @SerializedName("message") val message: String?,
+    @SerializedName("idempotency_key") val idempotencyKey: String? = null
 )
 
 data class PushResponse(

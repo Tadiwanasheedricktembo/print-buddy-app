@@ -49,8 +49,9 @@ class NetworkSyncRepositoryTest {
     
         // Mock Auth Header
         val testPrefs = context.getSharedPreferences("test_auth", Context.MODE_PRIVATE)
+        testPrefs.edit().clear().commit()
         authRepository = AuthRepository.getTestInstance(context, testPrefs)
-        authRepository.saveAuth(AuthResponse("test-token", "bearer"))
+        authRepository.saveAuth(AuthResponse("test-token", "bearer"), "sync-test-user")
 
         repository = NetworkSyncRepository(context, authRepository, db)
         installMockApi(repository)
@@ -317,7 +318,12 @@ class NetworkSyncRepositoryTest {
         assertTrue(pending.any { it.entityType == "SETTLEMENT" && it.entitySyncId == adjustment.syncId })
         mockWebServer.enqueue(MockResponse().setBody(
             testGson.toJson(mapOf("results" to pending.map {
-                mapOf("sync_id" to it.entitySyncId, "status" to "SUCCESS", "message" to null)
+                mapOf(
+                    "sync_id" to it.entitySyncId,
+                    "idempotency_key" to it.idempotencyKey,
+                    "status" to "SUCCESS",
+                    "message" to null
+                )
             }))
         ).setResponseCode(200))
 
@@ -360,5 +366,185 @@ class NetworkSyncRepositoryTest {
         } finally {
             restoredDb.close()
         }
+    }
+
+    @Test
+    fun `push removes outbox only after matching idempotency acknowledgement`() = runTest {
+        val note = Note(title = "Ack note", content = "Body", createdAt = 1000L, updatedAt = 1000L)
+        syncDao.upsertNote(note)
+        val outbox = SyncOutbox(
+            entityType = "NOTE",
+            entitySyncId = note.syncId,
+            operation = "CREATE",
+            idempotencyKey = "ack-key"
+        )
+        syncDao.insertOutbox(outbox)
+        mockWebServer.enqueue(MockResponse().setBody(
+            testGson.toJson(mapOf("results" to listOf(
+                mapOf(
+                    "sync_id" to note.syncId,
+                    "idempotency_key" to "ack-key",
+                    "status" to "SUCCESS",
+                    "message" to null
+                )
+            )))
+        ).setResponseCode(200))
+
+        assertTrue(repository.pushPendingChanges().isSuccess)
+        assertTrue(syncDao.getPendingUploadsOnce().isEmpty())
+    }
+
+    @Test
+    fun `beauty transaction push preserves decimal strings and acknowledgement key`() = runTest {
+        val transaction = BeautyTransaction(
+            amount = BigDecimal("0.10"),
+            type = "ADD",
+            timestamp = 1000L,
+            previousBalance = BigDecimal.ZERO,
+            transactionAmount = BigDecimal("0.10"),
+            newBalance = BigDecimal("0.10")
+        )
+        syncDao.upsertBeautyTransaction(transaction)
+        syncDao.insertOutbox(SyncOutbox(
+            entityType = "BEAUTY_TRANSACTION",
+            entitySyncId = transaction.syncId,
+            operation = "CREATE",
+            idempotencyKey = "beauty-push-key"
+        ))
+        mockWebServer.enqueue(MockResponse().setBody(
+            testGson.toJson(mapOf("results" to listOf(
+                mapOf(
+                    "sync_id" to transaction.syncId,
+                    "idempotency_key" to "beauty-push-key",
+                    "status" to "SUCCESS",
+                    "message" to null
+                )
+            )))
+        ).setResponseCode(200))
+
+        assertTrue(repository.pushPendingChanges().isSuccess)
+        val pushedEvent = JsonParser.parseString(
+            mockWebServer.takeRequest().body.readUtf8()
+        ).asJsonObject.getAsJsonArray("events").single().asJsonObject
+        assertEquals("BEAUTY_TRANSACTION", pushedEvent.get("entity_type").asString)
+        assertEquals("beauty-push-key", pushedEvent.get("idempotency_key").asString)
+        assertEquals("0.10", pushedEvent.getAsJsonObject("data").get("amount").asString)
+    }
+
+    @Test
+    fun `push keeps pending outbox when response omits its acknowledgement`() = runTest {
+        val note = Note(title = "Unacked note", content = "Body", createdAt = 1000L, updatedAt = 1000L)
+        syncDao.upsertNote(note)
+        val outbox = SyncOutbox(
+            entityType = "NOTE",
+            entitySyncId = note.syncId,
+            operation = "CREATE",
+            idempotencyKey = "missing-ack-key"
+        )
+        syncDao.insertOutbox(outbox)
+        mockWebServer.enqueue(MockResponse().setBody(
+            testGson.toJson(mapOf("results" to emptyList<Any>()))
+        ).setResponseCode(200))
+
+        assertTrue(repository.pushPendingChanges().isFailure)
+        assertEquals(listOf("missing-ack-key"), syncDao.getPendingUploadsOnce().map { it.idempotencyKey })
+    }
+
+    @Test
+    fun `push marks duplicate-key server rejections as failed`() = runTest {
+        val note = Note(title = "Duplicate key note", content = "Body", createdAt = 1000L, updatedAt = 1000L)
+        syncDao.upsertNote(note)
+        syncDao.insertOutbox(SyncOutbox(
+            entityType = "NOTE",
+            entitySyncId = note.syncId,
+            operation = "CREATE",
+            idempotencyKey = "duplicate-key"
+        ))
+        mockWebServer.enqueue(MockResponse().setBody(
+            testGson.toJson(mapOf("results" to listOf(
+                mapOf(
+                    "sync_id" to note.syncId,
+                    "idempotency_key" to "duplicate-key",
+                    "status" to "ERROR",
+                    "message" to "Idempotency key is duplicated within this batch"
+                ),
+                mapOf(
+                    "sync_id" to UUID.randomUUID().toString(),
+                    "idempotency_key" to "duplicate-key",
+                    "status" to "ERROR",
+                    "message" to "Idempotency key is duplicated within this batch"
+                )
+            )))
+        ).setResponseCode(200))
+
+        assertTrue(repository.pushPendingChanges().isFailure)
+        assertTrue(syncDao.getPendingUploadsOnce().isEmpty())
+        val cursor = db.openHelper.readableDatabase.query(
+            "SELECT status, lastError FROM sync_outbox WHERE idempotencyKey = 'duplicate-key'"
+        )
+        cursor.use {
+            assertTrue(it.moveToFirst())
+            assertEquals(SyncStatus.FAILED.name, it.getString(0))
+            assertTrue(it.getString(1).contains("duplicated within this batch"))
+        }
+    }
+
+    @Test
+    fun `push marks unsupported photo sync as failed instead of deleting the outbox`() = runTest {
+        val outbox = SyncOutbox(
+            entityType = "PHOTO",
+            entitySyncId = UUID.randomUUID().toString(),
+            operation = "CREATE",
+            idempotencyKey = "photo-key"
+        )
+        syncDao.insertOutbox(outbox)
+
+        assertTrue(repository.pushPendingChanges().isFailure)
+        assertTrue(syncDao.getPendingUploadsOnce().isEmpty())
+        val cursor = db.openHelper.readableDatabase.query(
+            "SELECT status, lastError FROM sync_outbox WHERE idempotencyKey = 'photo-key'"
+        )
+        cursor.use {
+            assertTrue(it.moveToFirst())
+            assertEquals(SyncStatus.FAILED.name, it.getString(0))
+            assertTrue(it.getString(1).contains("Unsupported sync entity type: PHOTO"))
+        }
+    }
+
+    @Test
+    fun `expired session clears token and reports authentication requirement`() = runTest {
+        val note = Note(title = "Expired token note", content = "Body", createdAt = 1000L, updatedAt = 1000L)
+        syncDao.upsertNote(note)
+        syncDao.insertOutbox(SyncOutbox(
+            entityType = "NOTE",
+            entitySyncId = note.syncId,
+            operation = "CREATE",
+            idempotencyKey = "expired-token-key"
+        ))
+        mockWebServer.enqueue(MockResponse().setResponseCode(401))
+
+        val result = repository.pushPendingChanges()
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is SyncAuthenticationException)
+        assertNull(authRepository.getToken())
+        assertEquals(1, syncDao.getPendingUploadsOnce().size)
+    }
+
+    @Test
+    fun `local account binding prevents switching cloud users after logout`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = context.getSharedPreferences("account_binding_test", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val accountAuth = AuthRepository.getTestInstance(context, prefs)
+        accountAuth.saveAuth(AuthResponse("alice-token", "bearer"), "alice")
+        accountAuth.logout()
+
+        assertTrue(accountAuth.isBoundToAccount("alice"))
+        assertFalse(accountAuth.isBoundToAccount("bob"))
+        val result = accountAuth.login("bob", "password")
+        assertTrue(result.isFailure)
+        assertNull(accountAuth.getToken())
+        assertEquals(0, mockWebServer.requestCount)
     }
 }

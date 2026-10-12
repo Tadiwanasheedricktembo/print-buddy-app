@@ -4,8 +4,9 @@
 **/.kotlin/
 **/.next/
 **/node_modules/
-**/.venv/
-**/venv/
+**/.venv*/
+**/venv*/
+**/virtualenv*/
 backend/.venv311/
 **/__pycache__/
 *.py[cod]
@@ -26,6 +27,16 @@ backend/.venv311/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Android Keystores & Signing
+*.jks
+*.keystore
+signing.properties
+
+# Databases & Backups
+print_database*
+*.db
+*.zip
 
 # Secret and environment files
 .env

@@ -28,6 +28,7 @@ data class Order(
     val paymentStatus: String = "PAID", // PAID, UNPAID, PARTIALLY_PAID
     val orderStatus: String = "ACTIVE", // ACTIVE, CANCELLED
     val receivedAmount: BigDecimal? = null,
+    val printCount: Int = 0,
 
     // Global Identity
     val customerSyncId: String = "",

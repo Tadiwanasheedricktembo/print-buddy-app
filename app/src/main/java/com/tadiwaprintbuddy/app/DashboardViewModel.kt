@@ -99,6 +99,8 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
             val upiInflow = repository.getUpiAccountReceivedBetween(start, end)
             val upiOutflow = repository.getUpiAccountReturnedBetween(start, end)
 
+            val totalPrints = repository.getTotalPrintsBetween(start, end)
+
             val netProfit = revenue.subtract(expenses)
             val prevNetProfit = prevRevenue.subtract(prevExpenses)
             val profitMargin = if (revenue > BigDecimal.ZERO) {
@@ -117,7 +119,8 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 previousOrdersCount = prevOrdersCount,
                 upiInflow = upiInflow,
                 upiOutflow = upiOutflow,
-                creditExtended = creditExtended
+                creditExtended = creditExtended,
+                totalPrints = totalPrints
             )
 
             // Snapshot Metrics
@@ -143,6 +146,7 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
                 customerBalances.customerCredit,
                 debtorsCount,
                 cashInHand,
+                totalPrints,
                 trend
             )
 
@@ -174,10 +178,12 @@ class DashboardViewModel(private val repository: PrintRepository) : ViewModel() 
         totalCustomerCredit: BigDecimal,
         debtorsCount: Int,
         cashInHand: BigDecimal,
+        totalPrints: Int,
         trend: List<TrendPoint>
     ): List<BusinessInsight> {
         val list = mutableListOf<BusinessInsight>()
         
+        list.add(BusinessInsight("🖨️ Prints Made", "$totalPrints", "Total physical prints made"))
         list.add(BusinessInsight(
             "Credit Extended",
             "₹${String.format(Locale.ENGLISH, "%.2f", creditExtended.toDouble())}",

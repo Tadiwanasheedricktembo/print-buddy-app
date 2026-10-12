@@ -37,6 +37,7 @@ data class SettlementHistory(
     val reconciliationStatus: String = "VERIFIED",
     val receivedAmount: BigDecimal? = null,
     val paymentMethod: String? = null, // CASH, UPI, CREDIT
+    val printCount: Int? = null,
 
     // Global Identity
     val customerSyncId: String = "",

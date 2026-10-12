@@ -40,8 +40,11 @@ interface IntegrityCheckDao {
                CAST(SUM(CAST(totalAmount AS REAL) - CAST(paidAmount AS REAL)) as REAL) as order_debt,
                (SELECT remainingBalance FROM settlement_history sh 
                 WHERE sh.customerId = orders.customerId
+                  AND sh.deletedAt IS NULL
                 ORDER BY sh.timestamp DESC, sh.id DESC LIMIT 1) as settlement_balance
         FROM orders
+        WHERE (orders.orderStatus = 'ACTIVE' OR orders.orderStatus IS NULL OR orders.orderStatus = '')
+          AND orders.deletedAt IS NULL
         GROUP BY customerId
         HAVING (IFNULL(CAST(settlement_balance AS REAL), 0.0) > 0.01 AND ABS(order_debt - CAST(settlement_balance AS REAL)) > 0.01) 
            OR (IFNULL(CAST(settlement_balance AS REAL), 0.0) <= 0.01 AND order_debt > 0.01)

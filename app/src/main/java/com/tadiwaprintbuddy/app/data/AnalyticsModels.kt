@@ -24,7 +24,8 @@ data class PeriodMetrics(
     val previousOrdersCount: Int,
     val upiInflow: BigDecimal = BigDecimal.ZERO,
     val upiOutflow: BigDecimal = BigDecimal.ZERO,
-    val creditExtended: BigDecimal = BigDecimal.ZERO
+    val creditExtended: BigDecimal = BigDecimal.ZERO,
+    val totalPrints: Int = 0
 )
 
 data class CustomerBalanceTotals(

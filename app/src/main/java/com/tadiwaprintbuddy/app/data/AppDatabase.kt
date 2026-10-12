@@ -1,6 +1,7 @@
 package com.tadiwaprintbuddy.app.data
 
 import android.content.Context
+import android.database.Cursor
 import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
@@ -9,10 +10,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.TypeConverters
 import com.tadiwaprintbuddy.app.BuildConfig
+import java.math.BigDecimal
 
 @Database(
-    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, UpiAccountTransaction::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class],
-    version = 41,
+    entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, UpiAccountTransaction::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class, HomeOrderDraft::class],
+    version = 44,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -41,12 +43,46 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
                     MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
                     MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37,
-                        MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41
+                        MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41,
+                        MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44
                 )
 
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 41 to 42 (Adding printCount to orders, settlement_history, debtor_credits)")
+                database.execSQL("ALTER TABLE `orders` ADD COLUMN `printCount` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `printCount` INTEGER")
+                database.execSQL("ALTER TABLE `debtor_credits` ADD COLUMN `printCount` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_42_43 = object : Migration(42, 43) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `home_order_draft` (
+                        `id` INTEGER NOT NULL,
+                        `customerName` TEXT NOT NULL,
+                        `quantityInput` TEXT NOT NULL,
+                        `priceInput` TEXT NOT NULL,
+                        `receivedAmount` TEXT,
+                        `calculatorItemsJson` TEXT NOT NULL,
+                        `calculatorTotalPages` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRATION_43_44 = object : Migration(43, 44) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `home_order_draft` ADD COLUMN `paymentMethod` TEXT NOT NULL DEFAULT 'CASH'")
             }
         }
 
@@ -292,110 +328,197 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                Log.d("DatabaseMigration", "Starting migration 34 to 35 (Forensic Precision Hardening - REAL to TEXT)")
+                val monetaryColumns = linkedMapOf(
+                    "orders" to listOf(
+                        "totalAmount", "paidAmount", "previousBalance", "transactionAmount",
+                        "newBalance", "receivedAmount"
+                    ),
+                    "OrderItem" to listOf("price"),
+                    "photos" to emptyList(),
+                    "settlement_history" to listOf(
+                        "previousBalance", "settledAmount", "remainingBalance", "transactionAmount",
+                        "newBalance", "receivedAmount"
+                    ),
+                    "debtor_credits" to listOf("amount"),
+                    "expenses" to listOf("amount"),
+                    "beauty_transactions" to listOf(
+                        "amount", "previousBalance", "transactionAmount", "newBalance"
+                    ),
+                    "external_ledger" to listOf("amount")
+                )
+                val snapshots = monetaryColumns.mapValues { (table, columns) ->
+                    val snapshot = "_migration_34_35_$table"
+                    val normalizedColumns = columns.joinToString { column ->
+                        "NULL AS `_migration_money_$column`"
+                    }
+                    val projection = listOf("rowid AS `_migration_rowid`", "*", normalizedColumns)
+                        .filter { it.isNotEmpty() }
+                        .joinToString()
+                    database.execSQL(
+                        "CREATE TEMP TABLE `$snapshot` AS SELECT $projection FROM `$table`"
+                    )
+                    snapshot
+                }
 
-                // 1. orders
+                fun convertMonetaryValue(
+                    table: String,
+                    column: String,
+                    rowId: Long,
+                    cursor: Cursor
+                ): String? {
+                    val valueType = cursor.getType(1)
+                    return when (valueType) {
+                        Cursor.FIELD_TYPE_NULL -> {
+                            if (column != "receivedAmount") {
+                                throw IllegalStateException(
+                                    "Cannot migrate NULL monetary value in $table.$column at rowid $rowId"
+                                )
+                            }
+                            null
+                        }
+                        Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(1).toString()
+                        Cursor.FIELD_TYPE_FLOAT -> {
+                            val value = cursor.getDouble(1)
+                            if (value.isNaN() || value.isInfinite()) {
+                                throw IllegalStateException(
+                                    "Cannot migrate non-finite monetary value in $table.$column at rowid $rowId"
+                                )
+                            }
+                            BigDecimal.valueOf(value).toPlainString()
+                        }
+                        Cursor.FIELD_TYPE_STRING -> {
+                            val value = cursor.getString(1)
+                            try {
+                                BigDecimal(value)
+                            } catch (exception: NumberFormatException) {
+                                throw IllegalStateException(
+                                    "Cannot migrate invalid decimal text in $table.$column at rowid $rowId",
+                                    exception
+                                )
+                            }
+                            value
+                        }
+                        else -> throw IllegalStateException(
+                            "Cannot migrate unsupported SQLite storage type $valueType " +
+                                "for $table.$column at rowid $rowId"
+                        )
+                    }
+                }
+
+                Log.d(
+                    "DatabaseMigration",
+                    "Starting migration 34 to 35 (preserving decimal text and canonicalizing finite numeric values)"
+                )
+                for ((table, columns) in monetaryColumns) {
+                    val snapshot = snapshots.getValue(table)
+                    for (column in columns) {
+                        val cursor = database.query(
+                            "SELECT `_migration_rowid`, `$column` FROM `$snapshot`"
+                        )
+                        try {
+                            while (cursor.moveToNext()) {
+                                val rowId = cursor.getLong(0)
+                                val normalized = convertMonetaryValue(table, column, rowId, cursor)
+                                if (normalized != null) {
+                                    database.execSQL(
+                                        "UPDATE `$snapshot` SET `_migration_money_$column` = ? " +
+                                            "WHERE `_migration_rowid` = ?",
+                                        arrayOf<Any?>(normalized, rowId)
+                                    )
+                                }
+                            }
+                        } finally {
+                            cursor.close()
+                        }
+                    }
+                }
+
+                database.execSQL("DROP TABLE `OrderItem`")
+                database.execSQL("DROP TABLE `photos`")
+
                 database.execSQL("""
                     CREATE TABLE `orders_new` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `totalAmount` TEXT NOT NULL, 
-                        `date` INTEGER NOT NULL, 
-                        `customerName` TEXT NOT NULL, 
-                        `paidAmount` TEXT NOT NULL, 
-                        `paymentMethod` TEXT NOT NULL, 
-                        `customerId` INTEGER NOT NULL, 
-                        `previousBalance` TEXT NOT NULL, 
-                        `transactionAmount` TEXT NOT NULL, 
-                        `newBalance` TEXT NOT NULL, 
-                        `paymentStatus` TEXT NOT NULL, 
-                        `orderStatus` TEXT NOT NULL, 
-                        `receivedAmount` TEXT, 
-                        `customerSyncId` TEXT NOT NULL, 
-                        `syncId` TEXT NOT NULL, 
-                        `updatedAt` INTEGER NOT NULL, 
-                        `deletedAt` INTEGER, 
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `totalAmount` TEXT NOT NULL,
+                        `date` INTEGER NOT NULL, `customerName` TEXT NOT NULL, `paidAmount` TEXT NOT NULL,
+                        `paymentMethod` TEXT NOT NULL, `customerId` INTEGER NOT NULL, `previousBalance` TEXT NOT NULL,
+                        `transactionAmount` TEXT NOT NULL, `newBalance` TEXT NOT NULL, `paymentStatus` TEXT NOT NULL,
+                        `orderStatus` TEXT NOT NULL, `receivedAmount` TEXT, `customerSyncId` TEXT NOT NULL,
+                        `syncId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER,
                         `syncStatus` TEXT NOT NULL
                     )
                 """.trimIndent())
                 database.execSQL("""
                     INSERT INTO `orders_new` (
-                        id, totalAmount, date, customerName, paidAmount, paymentMethod, 
-                        customerId, previousBalance, transactionAmount, newBalance, 
-                        paymentStatus, orderStatus, receivedAmount, customerSyncId, 
-                        syncId, updatedAt, deletedAt, syncStatus
-                    ) 
-                    SELECT 
-                        id, CAST(totalAmount AS TEXT), date, customerName, CAST(paidAmount AS TEXT), paymentMethod, 
-                        customerId, CAST(previousBalance AS TEXT), CAST(transactionAmount AS TEXT), CAST(newBalance AS TEXT), 
-                        paymentStatus, orderStatus, CAST(receivedAmount AS TEXT), customerSyncId, 
-                        syncId, updatedAt, deletedAt, syncStatus 
-                    FROM `orders`
+                        id, totalAmount, date, customerName, paidAmount, paymentMethod, customerId,
+                        previousBalance, transactionAmount, newBalance, paymentStatus, orderStatus,
+                        receivedAmount, customerSyncId, syncId, updatedAt, deletedAt, syncStatus
+                    )
+                    SELECT id, `_migration_money_totalAmount`, date, customerName,
+                        `_migration_money_paidAmount`, paymentMethod, customerId,
+                        `_migration_money_previousBalance`, `_migration_money_transactionAmount`,
+                        `_migration_money_newBalance`, paymentStatus, orderStatus,
+                        `_migration_money_receivedAmount`, customerSyncId, syncId, updatedAt,
+                        deletedAt, syncStatus FROM `${snapshots.getValue("orders")}`
                 """.trimIndent())
                 database.execSQL("DROP TABLE `orders`")
                 database.execSQL("ALTER TABLE `orders_new` RENAME TO `orders`")
                 database.execSQL("CREATE INDEX `idx_orders_date` ON `orders` (`date`)")
                 database.execSQL("CREATE INDEX `idx_orders_payment_method` ON `orders` (`paymentMethod`)")
 
-                // 2. OrderItem
                 database.execSQL("""
-                    CREATE TABLE `OrderItem_new` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `orderId` INTEGER NOT NULL, 
-                        `serviceName` TEXT NOT NULL, 
-                        `price` TEXT NOT NULL, 
-                        `quantity` INTEGER NOT NULL, 
-                        `orderSyncId` TEXT NOT NULL, 
-                        `syncId` TEXT NOT NULL, 
-                        FOREIGN KEY(`orderId`) REFERENCES `orders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE 
+                    CREATE TABLE `OrderItem` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `orderId` INTEGER NOT NULL,
+                        `serviceName` TEXT NOT NULL, `price` TEXT NOT NULL, `quantity` INTEGER NOT NULL,
+                        `orderSyncId` TEXT NOT NULL, `syncId` TEXT NOT NULL,
+                        FOREIGN KEY(`orderId`) REFERENCES `orders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
                     )
                 """.trimIndent())
                 database.execSQL("""
-                    INSERT INTO `OrderItem_new` (id, orderId, serviceName, price, quantity, orderSyncId, syncId)
-                    SELECT id, orderId, serviceName, CAST(price AS TEXT), quantity, orderSyncId, syncId FROM `OrderItem`
+                    INSERT INTO `OrderItem` (id, orderId, serviceName, price, quantity, orderSyncId, syncId)
+                    SELECT id, orderId, serviceName, `_migration_money_price`, quantity, orderSyncId, syncId
+                    FROM `${snapshots.getValue("OrderItem")}`
                 """.trimIndent())
-                database.execSQL("DROP TABLE `OrderItem`")
-                database.execSQL("ALTER TABLE `OrderItem_new` RENAME TO `OrderItem`")
                 database.execSQL("CREATE INDEX `index_OrderItem_orderId` ON `OrderItem` (`orderId`)")
 
-                // 3. settlement_history
+                database.execSQL("""
+                    CREATE TABLE `photos` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `orderId` INTEGER NOT NULL,
+                        `filePath` TEXT NOT NULL, `syncId` TEXT NOT NULL,
+                        FOREIGN KEY(`orderId`) REFERENCES `orders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT INTO `photos` (id, orderId, filePath, syncId)
+                    SELECT id, orderId, filePath, syncId FROM `${snapshots.getValue("photos")}`
+                """.trimIndent())
+                database.execSQL("CREATE INDEX `index_photos_orderId` ON `photos` (`orderId`)")
+
                 database.execSQL("""
                     CREATE TABLE `settlement_history_new` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `customerName` TEXT NOT NULL, 
-                        `previousBalance` TEXT NOT NULL, 
-                        `settledAmount` TEXT NOT NULL, 
-                        `remainingBalance` TEXT NOT NULL, 
-                        `timestamp` INTEGER NOT NULL, 
-                        `type` TEXT NOT NULL, 
-                        `note` TEXT NOT NULL, 
-                        `customerId` INTEGER NOT NULL, 
-                        `transactionAmount` TEXT NOT NULL, 
-                        `newBalance` TEXT NOT NULL, 
-                        `originId` INTEGER, 
-                        `ledgerEntryType` TEXT NOT NULL, 
-                        `isShadowDuplicate` INTEGER NOT NULL, 
-                        `reconciliationStatus` TEXT NOT NULL, 
-                        `receivedAmount` TEXT, 
-                        `customerSyncId` TEXT NOT NULL, 
-                        `originSyncId` TEXT, 
-                        `syncId` TEXT NOT NULL, 
-                        `updatedAt` INTEGER NOT NULL, 
-                        `syncStatus` TEXT NOT NULL
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `customerName` TEXT NOT NULL,
+                        `previousBalance` TEXT NOT NULL, `settledAmount` TEXT NOT NULL,
+                        `remainingBalance` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `type` TEXT NOT NULL,
+                        `note` TEXT NOT NULL, `customerId` INTEGER NOT NULL, `transactionAmount` TEXT NOT NULL,
+                        `newBalance` TEXT NOT NULL, `originId` INTEGER, `ledgerEntryType` TEXT NOT NULL,
+                        `isShadowDuplicate` INTEGER NOT NULL, `reconciliationStatus` TEXT NOT NULL,
+                        `receivedAmount` TEXT, `customerSyncId` TEXT NOT NULL, `originSyncId` TEXT,
+                        `syncId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL
                     )
                 """.trimIndent())
                 database.execSQL("""
                     INSERT INTO `settlement_history_new` (
-                        id, customerName, previousBalance, settledAmount, remainingBalance, timestamp, 
-                        type, note, customerId, transactionAmount, newBalance, originId, 
-                        ledgerEntryType, isShadowDuplicate, reconciliationStatus, receivedAmount, 
-                        customerSyncId, originSyncId, syncId, updatedAt, syncStatus
+                        id, customerName, previousBalance, settledAmount, remainingBalance, timestamp, type,
+                        note, customerId, transactionAmount, newBalance, originId, ledgerEntryType,
+                        isShadowDuplicate, reconciliationStatus, receivedAmount, customerSyncId, originSyncId,
+                        syncId, updatedAt, syncStatus
                     )
-                    SELECT 
-                        id, customerName, CAST(previousBalance AS TEXT), CAST(settledAmount AS TEXT), CAST(remainingBalance AS TEXT), timestamp, 
-                        type, note, customerId, CAST(transactionAmount AS TEXT), CAST(newBalance AS TEXT), originId, 
-                        ledgerEntryType, isShadowDuplicate, reconciliationStatus, CAST(receivedAmount AS TEXT), 
-                        customerSyncId, originSyncId, syncId, updatedAt, syncStatus 
-                    FROM `settlement_history`
+                    SELECT id, customerName, `_migration_money_previousBalance`,
+                        `_migration_money_settledAmount`, `_migration_money_remainingBalance`,
+                        timestamp, type, note, customerId, `_migration_money_transactionAmount`,
+                        `_migration_money_newBalance`, originId, ledgerEntryType, isShadowDuplicate,
+                        reconciliationStatus, `_migration_money_receivedAmount`, customerSyncId,
+                        originSyncId, syncId, updatedAt, syncStatus
+                    FROM `${snapshots.getValue("settlement_history")}`
                 """.trimIndent())
                 database.execSQL("DROP TABLE `settlement_history`")
                 database.execSQL("ALTER TABLE `settlement_history_new` RENAME TO `settlement_history`")
@@ -404,110 +527,92 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX `index_settlement_history_originId_ledgerEntryType` ON `settlement_history` (`originId`, `ledgerEntryType`)")
                 database.execSQL("CREATE INDEX `idx_settlement_timestamp` ON `settlement_history` (`timestamp`)")
 
-                // 4. debtor_credits
                 database.execSQL("""
                     CREATE TABLE `debtor_credits_new` (
-                        `customerId` INTEGER PRIMARY KEY NOT NULL, 
-                        `customerName` TEXT NOT NULL, 
-                        `amount` TEXT NOT NULL, 
-                        `lastUpdated` INTEGER NOT NULL, 
-                        `phoneNumber` TEXT
+                        `customerId` INTEGER NOT NULL, `customerName` TEXT NOT NULL, `amount` TEXT NOT NULL,
+                        `lastUpdated` INTEGER NOT NULL, `phoneNumber` TEXT, PRIMARY KEY(`customerId`)
                     )
                 """.trimIndent())
                 database.execSQL("""
                     INSERT INTO `debtor_credits_new` (customerId, customerName, amount, lastUpdated, phoneNumber)
-                    SELECT customerId, customerName, CAST(amount AS TEXT), lastUpdated, phoneNumber FROM `debtor_credits`
+                    SELECT customerId, customerName, `_migration_money_amount`, lastUpdated, phoneNumber
+                    FROM `${snapshots.getValue("debtor_credits")}`
                 """.trimIndent())
                 database.execSQL("DROP TABLE `debtor_credits`")
                 database.execSQL("ALTER TABLE `debtor_credits_new` RENAME TO `debtor_credits`")
                 database.execSQL("CREATE INDEX `idx_debtor_updated` ON `debtor_credits` (`lastUpdated`)")
 
-                // 5. expenses
                 database.execSQL("""
                     CREATE TABLE `expenses_new` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `title` TEXT NOT NULL, 
-                        `category` TEXT NOT NULL, 
-                        `amount` TEXT NOT NULL, 
-                        `timestamp` INTEGER NOT NULL, 
-                        `note` TEXT, 
-                        `paymentMethod` TEXT NOT NULL, 
-                        `syncId` TEXT NOT NULL, 
-                        `updatedAt` INTEGER NOT NULL, 
-                        `deletedAt` INTEGER, 
-                        `syncStatus` TEXT NOT NULL
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL,
+                        `category` TEXT NOT NULL, `amount` TEXT NOT NULL, `timestamp` INTEGER NOT NULL,
+                        `note` TEXT, `paymentMethod` TEXT NOT NULL, `syncId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatus` TEXT NOT NULL
                     )
                 """.trimIndent())
                 database.execSQL("""
-                    INSERT INTO `expenses_new` (id, title, category, amount, timestamp, note, paymentMethod, syncId, updatedAt, deletedAt, syncStatus)
-                    SELECT id, title, category, CAST(amount AS TEXT), timestamp, note, paymentMethod, syncId, updatedAt, deletedAt, syncStatus FROM `expenses`
+                    INSERT INTO `expenses_new` (
+                        id, title, category, amount, timestamp, note, paymentMethod, syncId, updatedAt,
+                        deletedAt, syncStatus
+                    )
+                    SELECT id, title, category, `_migration_money_amount`, timestamp, note, paymentMethod,
+                        syncId, updatedAt, deletedAt, syncStatus FROM `${snapshots.getValue("expenses")}`
                 """.trimIndent())
                 database.execSQL("DROP TABLE `expenses`")
                 database.execSQL("ALTER TABLE `expenses_new` RENAME TO `expenses`")
                 database.execSQL("CREATE INDEX `idx_expenses_timestamp` ON `expenses` (`timestamp`)")
 
-                // 6. beauty_transactions
                 database.execSQL("""
                     CREATE TABLE `beauty_transactions_new` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `amount` TEXT NOT NULL, 
-                        `type` TEXT NOT NULL, 
-                        `note` TEXT, 
-                        `timestamp` INTEGER NOT NULL, 
-                        `previousBalance` TEXT NOT NULL, 
-                        `transactionAmount` TEXT NOT NULL, 
-                        `newBalance` TEXT NOT NULL, 
-                        `syncId` TEXT NOT NULL, 
-                        `updatedAt` INTEGER NOT NULL, 
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `amount` TEXT NOT NULL,
+                        `type` TEXT NOT NULL, `note` TEXT, `timestamp` INTEGER NOT NULL,
+                        `previousBalance` TEXT NOT NULL, `transactionAmount` TEXT NOT NULL,
+                        `newBalance` TEXT NOT NULL, `syncId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL,
                         `syncStatus` TEXT NOT NULL
                     )
                 """.trimIndent())
                 database.execSQL("""
                     INSERT INTO `beauty_transactions_new` (
-                        id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance, syncId, updatedAt, syncStatus
+                        id, amount, type, note, timestamp, previousBalance, transactionAmount, newBalance,
+                        syncId, updatedAt, syncStatus
                     )
-                    SELECT 
-                        id, CAST(amount AS TEXT), type, note, timestamp, CAST(previousBalance AS TEXT), CAST(transactionAmount AS TEXT), CAST(newBalance AS TEXT), syncId, updatedAt, syncStatus 
-                    FROM `beauty_transactions`
+                    SELECT id, `_migration_money_amount`, type, note, timestamp,
+                        `_migration_money_previousBalance`, `_migration_money_transactionAmount`,
+                        `_migration_money_newBalance`, syncId, updatedAt, syncStatus
+                    FROM `${snapshots.getValue("beauty_transactions")}`
                 """.trimIndent())
                 database.execSQL("DROP TABLE `beauty_transactions`")
                 database.execSQL("ALTER TABLE `beauty_transactions_new` RENAME TO `beauty_transactions`")
                 database.execSQL("CREATE INDEX `idx_beauty_timestamp` ON `beauty_transactions` (`timestamp`)")
 
-                // 7. external_ledger
                 database.execSQL("""
                     CREATE TABLE `external_ledger_new` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `transactionType` TEXT NOT NULL, 
-                        `amount` TEXT NOT NULL, 
-                        `timestamp` INTEGER NOT NULL, 
-                        `customerName` TEXT, 
-                        `customerId` INTEGER, 
-                        `orderId` INTEGER, 
-                        `note` TEXT, 
-                        `accountHolder` TEXT NOT NULL, 
-                        `upiId` TEXT NOT NULL, 
-                        `customerSyncId` TEXT, 
-                        `orderSyncId` TEXT, 
-                        `syncId` TEXT NOT NULL, 
-                        `updatedAt` INTEGER NOT NULL, 
-                        `syncStatus` TEXT NOT NULL
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `transactionType` TEXT NOT NULL,
+                        `amount` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `customerName` TEXT,
+                        `customerId` INTEGER, `orderId` INTEGER, `note` TEXT, `accountHolder` TEXT NOT NULL,
+                        `upiId` TEXT NOT NULL, `customerSyncId` TEXT, `orderSyncId` TEXT,
+                        `syncId` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL
                     )
                 """.trimIndent())
                 database.execSQL("""
                     INSERT INTO `external_ledger_new` (
-                        id, transactionType, amount, timestamp, customerName, customerId, orderId, note, 
+                        id, transactionType, amount, timestamp, customerName, customerId, orderId, note,
                         accountHolder, upiId, customerSyncId, orderSyncId, syncId, updatedAt, syncStatus
                     )
-                    SELECT 
-                        id, transactionType, CAST(amount AS TEXT), timestamp, customerName, customerId, orderId, note, 
-                        accountHolder, upiId, customerSyncId, orderSyncId, syncId, updatedAt, syncStatus 
-                    FROM `external_ledger`
+                    SELECT id, transactionType, `_migration_money_amount`, timestamp, customerName,
+                        customerId, orderId, note, accountHolder, upiId, customerSyncId, orderSyncId,
+                        syncId, updatedAt, syncStatus FROM `${snapshots.getValue("external_ledger")}`
                 """.trimIndent())
                 database.execSQL("DROP TABLE `external_ledger`")
                 database.execSQL("ALTER TABLE `external_ledger_new` RENAME TO `external_ledger`")
 
-                Log.d("DatabaseMigration", "Migration 34 to 35 completed successfully. Monetary columns are now TEXT with explicit CAST and column mapping.")
+                for (snapshot in snapshots.values) {
+                    database.execSQL("DROP TABLE `$snapshot`")
+                }
+                Log.d(
+                    "DatabaseMigration",
+                    "Migration 34 to 35 completed; decimal columns use TEXT without dropping order dependents."
+                )
             }
         }
 

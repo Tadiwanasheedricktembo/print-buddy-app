@@ -11,8 +11,12 @@ class NoteRepository(private val noteDao: NoteDao) {
         }
     }
 
-    fun searchNotes(query: String): Flow<List<Note>> {
-        return noteDao.searchNotes(query)
+    fun searchNotes(query: String, newestFirst: Boolean = true): Flow<List<Note>> {
+        return if (newestFirst) {
+            noteDao.searchNotesNewestFirst(query)
+        } else {
+            noteDao.searchNotesOldestFirst(query)
+        }
     }
 
     suspend fun insertNote(note: Note): Long {

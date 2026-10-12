@@ -49,6 +49,13 @@ class DebtorCreditAdapter(
             val sdf = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
             binding.textLastUpdated.text = "Updated: ${sdf.format(Date(debtorCredit.lastUpdated))}"
 
+            if (debtorCredit.printCount > 0) {
+                binding.textPrintCount.visibility = android.view.View.VISIBLE
+                binding.textPrintCount.text = "Prints: ${debtorCredit.printCount}"
+            } else {
+                binding.textPrintCount.visibility = android.view.View.GONE
+            }
+
             val absAmount = debtorCredit.amount.abs()
             binding.textAmount.text = format.format(absAmount.toDouble())
 

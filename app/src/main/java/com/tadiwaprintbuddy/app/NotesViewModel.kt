@@ -25,7 +25,7 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
         if (query.isBlank()) {
             repository.getAllNotes(newestFirst)
         } else {
-            repository.searchNotes(query)
+            repository.searchNotes(query, newestFirst)
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
@@ -43,16 +43,14 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
         }
     }
 
-    fun saveNote(title: String, content: String, noteId: Int? = null) {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            if (noteId == null) {
-                repository.insertNote(Note(title = title, content = content, createdAt = now, updatedAt = now))
-            } else {
-                val existing = repository.getNoteById(noteId)
-                if (existing != null) {
-                    repository.updateNote(existing.copy(title = title, content = content, updatedAt = now))
-                }
+    suspend fun saveNote(title: String, content: String, noteId: Int? = null) {
+        val now = System.currentTimeMillis()
+        if (noteId == null) {
+            repository.insertNote(Note(title = title, content = content, createdAt = now, updatedAt = now))
+        } else {
+            val existing = repository.getNoteById(noteId)
+            if (existing != null) {
+                repository.updateNote(existing.copy(title = title, content = content, updatedAt = now))
             }
         }
     }

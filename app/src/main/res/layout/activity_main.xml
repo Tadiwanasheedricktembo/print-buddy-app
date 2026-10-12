@@ -235,15 +235,6 @@
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnCompleteOrder"
-                        style="@style/Widget.App.Button.CTA"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:layout_marginTop="16dp"
-                        android:text="Complete Order"
-                        app:elevation="4dp" />
-
-                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnShowQr"
                         style="@style/Widget.App.Button.Secondary"
                         android:layout_width="match_parent"

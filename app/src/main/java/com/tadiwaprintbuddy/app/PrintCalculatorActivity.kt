@@ -7,6 +7,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -152,34 +153,30 @@ class PrintCalculatorActivity : AppCompatActivity() {
         val colorRateStr = binding.editColorRate.text.toString()
         val colorRate = try { BigDecimal(colorRateStr) } catch (e: Exception) { BigDecimal.ZERO }.max(BigDecimal.ZERO)
         
-        val otherAmountStr = binding.editOtherAmount.text.toString()
-        val otherAmount = try { BigDecimal(otherAmountStr) } catch (e: Exception) { BigDecimal.ZERO }.max(BigDecimal.ZERO)
-        
         val receivedStr = binding.editReceived.text.toString()
         val received = try { BigDecimal(receivedStr) } catch (e: Exception) { BigDecimal.ZERO }.max(BigDecimal.ZERO)
 
         val bwCurrentSubtotal = bwRate.multiply(BigDecimal(bwPages))
         val colorCurrentSubtotal = colorRate.multiply(BigDecimal(colorPages))
-
-        val bwSubtotal = bwCurrentSubtotal.add(batchList.filter { it.description == getString(R.string.bw_printing) }.fold(BigDecimal.ZERO) { acc, b -> acc.add(b.totalPrice) })
-        val colorSubtotal = colorCurrentSubtotal.add(batchList.filter { it.description == getString(R.string.colour_printing) }.fold(BigDecimal.ZERO) { acc, b -> acc.add(b.totalPrice) })
-        val otherSubtotal = otherAmount.add(batchList.filter { it.quantity == 0 }.fold(BigDecimal.ZERO) { acc, b -> acc.add(b.totalPrice) })
-        
-        val grandTotal = bwSubtotal.add(colorSubtotal).add(otherSubtotal)
-        
-        val totalPages = bwPages + colorPages + batchList.sumOf { it.quantity }
+        val summary = buildOrderSummary()
+        val bwSubtotal = summary.blackAndWhiteAmount
+        val colorSubtotal = summary.colorAmount
+        val otherSubtotal = summary.otherAmount
+        val grandTotal = summary.totalAmount
         
         val change = if (received.compareTo(grandTotal) > 0) received.subtract(grandTotal) else BigDecimal.ZERO
 
         binding.textBwSubtotal.text = getString(R.string.subtotal_label, currencyFormat.format(bwCurrentSubtotal.toDouble()))
         binding.textColorSubtotal.text = getString(R.string.subtotal_label, currencyFormat.format(colorCurrentSubtotal.toDouble()))
-        binding.textTotalPages.text = totalPages.toString()
+        binding.textTotalBwPages.text = summary.blackAndWhitePages.toString()
+        binding.textTotalColorPages.text = summary.colorPages.toString()
+        binding.textTotalPages.text = summary.totalPages.toString()
         
         binding.textTotalBw.text = currencyFormat.format(bwSubtotal.toDouble())
-        binding.layoutSummaryBw.visibility = if (bwSubtotal.compareTo(BigDecimal.ZERO) > 0) View.VISIBLE else View.GONE
+        binding.layoutSummaryBw.visibility = if (summary.blackAndWhitePages > 0 || bwSubtotal > BigDecimal.ZERO) View.VISIBLE else View.GONE
         
         binding.textTotalColor.text = currencyFormat.format(colorSubtotal.toDouble())
-        binding.layoutSummaryColor.visibility = if (colorSubtotal.compareTo(BigDecimal.ZERO) > 0) View.VISIBLE else View.GONE
+        binding.layoutSummaryColor.visibility = if (summary.colorPages > 0 || colorSubtotal > BigDecimal.ZERO) View.VISIBLE else View.GONE
         
         binding.textTotalOther.text = currencyFormat.format(otherSubtotal.toDouble())
         binding.layoutSummaryOther.visibility = if (otherSubtotal.compareTo(BigDecimal.ZERO) > 0) View.VISIBLE else View.GONE
@@ -197,20 +194,11 @@ class PrintCalculatorActivity : AppCompatActivity() {
     }
 
     private fun addToPos() {
-        val bwPages = (binding.editBwPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
-        val colorPages = (binding.editColorPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
-        val bwRateStr = binding.editBwRate.text.toString()
-        val bwRate = try { BigDecimal(bwRateStr) } catch (e: Exception) { BigDecimal.ZERO }.max(BigDecimal.ZERO)
-        val colorRateStr = binding.editColorRate.text.toString()
-        val colorRate = try { BigDecimal(colorRateStr) } catch (e: Exception) { BigDecimal.ZERO }.max(BigDecimal.ZERO)
-        val otherAmountStr = binding.editOtherAmount.text.toString()
-        val otherAmount = try { BigDecimal(otherAmountStr) } catch (e: Exception) { BigDecimal.ZERO }.max(BigDecimal.ZERO)
-        
+        val summary = buildOrderSummary()
+        val bwPages = summary.blackAndWhitePages
+        val colorPages = summary.colorPages
+        val total = summary.totalAmount
         val otherDesc = binding.editOtherDesc.text.toString().trim()
-        
-        val currentSubtotal = bwRate.multiply(BigDecimal(bwPages)).add(colorRate.multiply(BigDecimal(colorPages))).add(otherAmount)
-        val batchesTotal = batchList.fold(BigDecimal.ZERO) { acc, b -> acc.add(b.totalPrice) }
-        val total = currentSubtotal.add(batchesTotal)
         
         val receivedStr = binding.editReceived.text.toString()
         val received = if (receivedStr.isNotEmpty()) {
@@ -218,7 +206,7 @@ class PrintCalculatorActivity : AppCompatActivity() {
         } else null
 
         if (total.compareTo(BigDecimal.ZERO) <= 0) {
-            finish()
+            Toast.makeText(this, "Add at least one valid item", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -236,16 +224,22 @@ class PrintCalculatorActivity : AppCompatActivity() {
         if (bwPages > 0 || colorPages > 0) {
             noteBuilder.append(getString(R.string.current_input_label) + "$bwPages B&W, $colorPages Colour")
         }
-        if (otherAmount.compareTo(BigDecimal.ZERO) > 0) {
+        if (summary.otherAmount.compareTo(BigDecimal.ZERO) > 0) {
             val desc = if (otherDesc.isNotEmpty()) otherDesc else "Misc"
             if (noteBuilder.isNotEmpty()) noteBuilder.append(", ")
-            noteBuilder.append("$desc: ${currencyFormat.format(otherAmount.toDouble())}")
+            noteBuilder.append("$desc: ${currencyFormat.format(summary.otherAmount.toDouble())}")
         }
         
         val finalNote = noteBuilder.toString().removeSuffix(", ")
 
         val resultIntent = Intent().apply {
             putExtra(EXTRA_TOTAL_AMOUNT, total.toPlainString())
+            putExtra(EXTRA_BW_PAGES, bwPages)
+            putExtra(EXTRA_COLOR_PAGES, colorPages)
+            putExtra(EXTRA_TOTAL_PAGES, summary.totalPages)
+            putStringArrayListExtra(EXTRA_ITEM_NAMES, ArrayList(summary.lines.map { it.toStoredServiceName() }))
+            putStringArrayListExtra(EXTRA_ITEM_PRICES, ArrayList(summary.lines.map { it.safeUnitPrice.toPlainString() }))
+            putIntegerArrayListExtra(EXTRA_ITEM_QUANTITIES, ArrayList(summary.lines.map { it.safeQuantity }))
             if (received != null) {
                 putExtra(EXTRA_RECEIVED_AMOUNT, received.toPlainString())
             }
@@ -254,6 +248,34 @@ class PrintCalculatorActivity : AppCompatActivity() {
         setResult(RESULT_OK, resultIntent)
         finish()
     }
+
+    private fun buildOrderSummary(): PrintCalculatorSummary {
+        val lines = mutableListOf<PrintOrderLine>()
+        val bwPages = (binding.editBwPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
+        val bwRate = parseNonNegativeAmount(binding.editBwRate.text.toString())
+        val colorPages = (binding.editColorPages.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
+        val colorRate = parseNonNegativeAmount(binding.editColorRate.text.toString())
+        val otherAmount = parseNonNegativeAmount(binding.editOtherAmount.text.toString())
+        val otherDescription = binding.editOtherDesc.text.toString().trim().ifEmpty { "Other Expense" }
+
+        if (bwPages > 0) lines.add(PrintOrderLine(PrintLineType.BLACK_AND_WHITE, getString(R.string.bw_printing), bwPages, bwRate))
+        if (colorPages > 0) lines.add(PrintOrderLine(PrintLineType.COLOR, getString(R.string.colour_printing), colorPages, colorRate))
+        if (otherAmount > BigDecimal.ZERO) lines.add(PrintOrderLine(PrintLineType.OTHER, otherDescription, 1, otherAmount))
+
+        batchList.forEach { batch ->
+            val type = when {
+                batch.quantity <= 0 -> PrintLineType.OTHER
+                batch.description == getString(R.string.bw_printing) -> PrintLineType.BLACK_AND_WHITE
+                batch.description == getString(R.string.colour_printing) -> PrintLineType.COLOR
+                else -> PrintLineType.OTHER
+            }
+            lines.add(PrintOrderLine(type, batch.description, batch.quantity, batch.unitPrice))
+        }
+        return PrintCalculatorSummary(lines)
+    }
+
+    private fun parseNonNegativeAmount(value: String): BigDecimal =
+        try { BigDecimal(value).max(BigDecimal.ZERO) } catch (e: Exception) { BigDecimal.ZERO }
 
     inner class PrintBatchAdapter(
         private val items: List<PrintBatch>,
@@ -287,5 +309,11 @@ class PrintCalculatorActivity : AppCompatActivity() {
         const val EXTRA_TOTAL_AMOUNT = "extra_total_amount"
         const val EXTRA_RECEIVED_AMOUNT = "extra_received_amount"
         const val EXTRA_NOTE = "extra_note"
+        const val EXTRA_BW_PAGES = "extra_bw_pages"
+        const val EXTRA_COLOR_PAGES = "extra_color_pages"
+        const val EXTRA_TOTAL_PAGES = "extra_total_pages"
+        const val EXTRA_ITEM_NAMES = "extra_print_item_names"
+        const val EXTRA_ITEM_PRICES = "extra_print_item_prices"
+        const val EXTRA_ITEM_QUANTITIES = "extra_print_item_quantities"
     }
 }

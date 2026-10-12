@@ -6,11 +6,26 @@ This is a living document that tracks the architectural design and implementatio
 
 ## A. Current Project Status
 - **Android Application**: CONFIRMED. Local-first print business system with business logic, debt tracking, payment flows, and local financial integrity in place.
-- **Cloud Backend**: VERIFIED AGAINST A REAL POSTGRESQL RUNTIME. FastAPI is running under Python 3.11, the project schema is valid on PostgreSQL, and the real auth + pull + push lifecycle has been observed successfully.
-- **Web Application**: BUILD-SAFE AND LIVE-VALIDATED. The dashboard and browser sync foundation compile successfully, and the live sync path has been proven against the backend.
-- **Synchronization**: VERIFIED IN THE LIVE ENVIRONMENT. Real register/login, pull, push, and subsequent pull confirmation succeeded against PostgreSQL-backed storage.
+- **Cloud Backend**: Backend code and historical PostgreSQL smoke-test notes are present. The current local configuration points to loopback PostgreSQL; this audit did not connect to it or verify a deployed test environment.
+- **Web Application**: A historical browser-style login/pull/push smoke test is documented below; it is not evidence of Android synchronization and was not rerun in this audit.
+- **Android Synchronization**: Push, pull, worker, and authentication implementations exist. Android-to-backend synchronization has **NOT BEEN LIVE VERIFIED**. Current Phase 2 status is **PARTIAL — NOT COMPLETE**.
 
-### Runtime validation update (2026-09-16)
+### Current synchronization audit (2026-10-10)
+- Android implements sync for customers, orders, order items, settlements, expenses, stock, notes, legacy beauty transactions, UPI account transactions, external ledger entries, and printer references.
+- `PHOTO` is emitted to the Android outbox but is not a supported remote entity. Photo bytes and the device-local `filePath` have no remote storage contract; Android now fails and retains that outbox item rather than silently deleting it.
+- Android has Retrofit auth repository methods for register/login but no login/register UI integration was found in the app source.
+- Backend push is per-event partial success for invalid/unsupported events. A database failure rolls back the whole submitted batch and returns `BATCH_ERROR`; retrying the same idempotency keys is safe.
+- Push acknowledgements include the idempotency key so Android removes only precisely acknowledged outbox entries. Missing acknowledgements leave entries pending.
+- Android credentials are encrypted and the local database is bound to the first cloud username that signs in; signing in as another username is refused to avoid uploading the same local records under a different tenant. Legacy saved tokens are resolved through `/auth/me` before sync or account switching.
+- HTTP 401 clears the saved token. The worker stops that run instead of retrying an expired token. Transient transport/server failures remain eligible for WorkManager retry.
+- The backend uses SQLAlchemy with a PostgreSQL `DATABASE_URL`; no Supabase SDK/client integration was found. Supabase environment variables in the example are optional placeholders, not evidence of integration.
+- Alembic is configured to load `backend/migrations/`, which currently has no revision files. A separate untracked revision under `backend/alembic/versions/` is outside that path and contains an unresolved `down_revision`; `alembic heads` produced no revision head. Schema deployment through Alembic is therefore **NOT VERIFIED / NOT READY**.
+- No deployment manifest or Supabase credentials were found in the inspected project configuration. The configured backend database and Android debug URL are loopback/local; neither is evidence of a safe deployed test target.
+- No live Android verification was attempted because a dedicated test account/database and a safe deployed endpoint were not established.
+- Safe backend regression command: `.\.venv311\Scripts\python.exe -m pytest tests\test_sync.py tests\test_sync_hardening.py tests\test_precision.py tests\test_isolation.py -q` from `backend/` — **18 passed** on 2026-10-10. The PostgreSQL integration test that drops/recreates a local database was deliberately not run.
+- Android unit-test sources compiled with `.\gradlew.bat :app:compileDebugUnitTestKotlin`. Nine exact-name Android regression tests passed: seven selected `NetworkSyncRepositoryTest` cases and both `AuthRepositoryTest` cases. A broader class-wide run did not complete: it stalled in the existing `test pull settlement links to local customer and order` case while waiting on Room's SQLite connection pool; the test worker was stopped after 16m28s and the run is not counted as passing. Android live sync remains **NOT VERIFIED**.
+
+### Historical runtime validation notes (2026-09-16; not a current Android verification)
 - [x] PostgreSQL 17 runtime installed and the service is running.
 - [x] Project database created and reachable over localhost:5432.
 - [x] Python 3.11 backend environment restored and dependencies installed.
@@ -70,19 +85,21 @@ This is a living document that tracks the architectural design and implementatio
 
 ## D. Path to FULL WEB SYNC — Forensic Verification Results
 
-### Phase 1 — Sync Infrastructure (COMPLETE - VERIFIED)
+### Phase 1 — Sync Infrastructure (IMPLEMENTED; historical status)
 - Atomic outbox logging implemented for all 11 entities.
 - `updatedAt` field enforced for deterministic conflict resolution.
 
-### Phase 2 — Cloud Foundation (COMPLETE - VERIFIED)
-- FastAPI backend isolation proven with `tests/test_isolation.py`.
-- Idempotency verified with `tests/test_sync_hardening.py`.
+### Phase 2 — Cloud Foundation (IMPLEMENTED, NOT END-TO-END VERIFIED)
+- Backend tenant isolation and idempotency have focused automated tests.
+- Android networking/auth/sync code is implemented and has local tests.
+- Backend/browser historical tests do not prove that the Android app synchronized to a deployed environment.
+- Remaining gate: resolve photo blob synchronization or formally exclude it from cloud sync, run the relevant automated suites, and perform a safe Android sync against a dedicated deployed test environment.
 
-### Phase 3 — Basic Synchronization (COMPLETE - VERIFIED)
+### Phase 3 — Basic Synchronization (IMPLEMENTED; historical status)
 - Pull logic hardened with multi-pass dependency resolution.
 - Cursor management uses globally ordered `server_updated_at`.
 
-### Phase 4 — Financial Synchronization (COMPLETE - VERIFIED)
+### Phase 4 — Financial Synchronization (IMPLEMENTED; historical status)
 - `SettlementHistory` duplication prevented via syncId uniqueness.
 - All monetary fields use String-based transport for 100% precision.
 

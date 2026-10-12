@@ -52,7 +52,10 @@ class OrderDetailsActivity : AppCompatActivity() {
         }
 
         viewModel.orderItems.observe(this) { items ->
-            items?.let { adapter.submitList(it) }
+            items?.let {
+                adapter.submitList(it)
+                displayPrintSummary(it)
+            }
         }
 
         binding.toolbar.setNavigationOnClickListener { finish() }
@@ -76,6 +79,26 @@ class OrderDetailsActivity : AppCompatActivity() {
             binding.textPaymentStatus.visibility = View.GONE
             binding.buttonPayNow.visibility = View.GONE
         }
+    }
+
+    private fun displayPrintSummary(items: List<com.tadiwaprintbuddy.app.data.OrderItem>) {
+        val printItems = items.filter {
+            PrintOrderLine.typeFromStoredServiceName(it.serviceName) != null
+        }
+        if (printItems.isEmpty()) {
+            binding.textPrintSummary.visibility = View.GONE
+            return
+        }
+        val bwPages = printItems.filter {
+            PrintOrderLine.typeFromStoredServiceName(it.serviceName) == PrintLineType.BLACK_AND_WHITE
+        }.sumOf { it.quantity.toLong() }
+        val colorPages = printItems.filter {
+            PrintOrderLine.typeFromStoredServiceName(it.serviceName) == PrintLineType.COLOR
+        }.sumOf { it.quantity.toLong() }
+        val totalPages = (bwPages + colorPages).coerceAtMost(Int.MAX_VALUE.toLong())
+        val copies = printItems.maxOf { PrintOrderLine.copiesFromStoredServiceName(it.serviceName) }
+        binding.textPrintSummary.text = "Copies: $copies   B&W pages: $bwPages   Color pages: $colorPages   Total pages: $totalPages"
+        binding.textPrintSummary.visibility = View.VISIBLE
     }
 
     private fun showPaymentMethodDialog(amount: BigDecimal, order: Order) {

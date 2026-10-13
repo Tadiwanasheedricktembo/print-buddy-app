@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_, and_
 from typing import List, Dict, Any, Optional
+from collections import Counter
 from datetime import datetime
 from ..database import get_db
 from ..auth.router import get_current_user
 from ..models.base import User, IdempotencyLog
 from ..models.entities import (
     Customer, Order, OrderItem, SettlementHistory,
-    Expense, StockItem, Note, UpiAccountTransaction,
+    Expense, StockItem, Note, BeautyTransaction, UpiAccountTransaction,
     ExternalLedger, PrinterReference
 )
 from ..schemas.sync import PushRequest, PushResponse, PullRequest, PullResponse, SyncEvent
@@ -23,6 +25,7 @@ MODEL_MAP = {
     "EXPENSE": Expense,
     "STOCK": StockItem,
     "NOTE": Note,
+    "BEAUTY_TRANSACTION": BeautyTransaction,
     "UPI_ACCOUNT_TRANSACTION": UpiAccountTransaction,
     "EXTERNAL_LEDGER": ExternalLedger,
     "PRINTER_REFERENCE": PrinterReference
@@ -49,20 +52,60 @@ def push_sync(
     db: Session = Depends(get_db)
 ):
     results = []
+    idempotency_key_counts = Counter(
+        event.idempotency_key for event in request.events if event.idempotency_key
+    )
     try:
         for event in request.events:
+            if not event.idempotency_key:
+                results.append({
+                    "sync_id": event.entity_sync_id,
+                    "idempotency_key": None,
+                    "status": "ERROR",
+                    "message": "Idempotency key is required for push events"
+                })
+                continue
+
+            if idempotency_key_counts[event.idempotency_key] > 1:
+                results.append({
+                    "sync_id": event.entity_sync_id,
+                    "idempotency_key": event.idempotency_key,
+                    "status": "ERROR",
+                    "message": "Idempotency key is duplicated within this batch"
+                })
+                continue
+
+            if event.operation not in {"CREATE", "UPDATE", "DELETE"}:
+                results.append({
+                    "sync_id": event.entity_sync_id,
+                    "idempotency_key": event.idempotency_key,
+                    "status": "ERROR",
+                    "message": f"Unsupported operation: {event.operation}"
+                })
+                continue
+
             is_processed = db.query(IdempotencyLog).filter(
                 IdempotencyLog.user_id == current_user.id,
                 IdempotencyLog.idempotency_key == event.idempotency_key
             ).first()
 
             if is_processed:
-                results.append({"sync_id": event.entity_sync_id, "status": "SUCCESS", "message": "Already processed"})
+                results.append({
+                    "sync_id": event.entity_sync_id,
+                    "idempotency_key": event.idempotency_key,
+                    "status": "SUCCESS",
+                    "message": "Already processed"
+                })
                 continue
 
             model_class = MODEL_MAP.get(event.entity_type)
             if not model_class:
-                results.append({"sync_id": event.entity_sync_id, "status": "ERROR", "message": f"Unknown entity type: {event.entity_type}"})
+                results.append({
+                    "sync_id": event.entity_sync_id,
+                    "idempotency_key": event.idempotency_key,
+                    "status": "ERROR",
+                    "message": f"Unknown entity type: {event.entity_type}"
+                })
                 continue
 
             existing = db.query(model_class).filter(
@@ -71,7 +114,11 @@ def push_sync(
             ).first()
 
             if existing and existing.updated_at > event.timestamp:
-                results.append({"sync_id": event.entity_sync_id, "status": "SERVER_WINS"})
+                results.append({
+                    "sync_id": event.entity_sync_id,
+                    "idempotency_key": event.idempotency_key,
+                    "status": "SERVER_WINS"
+                })
                 db.add(IdempotencyLog(user_id=current_user.id, idempotency_key=event.idempotency_key))
                 continue
 
@@ -98,12 +145,24 @@ def push_sync(
                     db.add(new_entity)
 
             db.add(IdempotencyLog(user_id=current_user.id, idempotency_key=event.idempotency_key))
-            results.append({"sync_id": event.entity_sync_id, "status": "SUCCESS"})
+            results.append({
+                "sync_id": event.entity_sync_id,
+                "idempotency_key": event.idempotency_key,
+                "status": "SUCCESS"
+            })
 
         db.commit()
-    except Exception as e:
+    except SQLAlchemyError:
         db.rollback()
-        return {"results": [{"sync_id": "BATCH", "status": "ERROR", "message": str(e)}]}
+        return {"results": [{
+            "sync_id": "BATCH",
+            "idempotency_key": None,
+            "status": "BATCH_ERROR",
+            "message": "Batch was rolled back after a database error"
+        }]}
+    except Exception:
+        db.rollback()
+        raise
 
     return {"results": results}
 

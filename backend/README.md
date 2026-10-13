@@ -73,7 +73,13 @@ Run the backend validation suite with:
 python -m pytest -q
 ```
 
-Current verified result: 23 passed.
+Historical result: 23 passed in a prior run. On 2026-10-10, the safe sync-focused SQLite regression set passed 18 tests:
+
+```bash
+.\.venv311\Scripts\python.exe -m pytest tests\test_sync.py tests\test_sync_hardening.py tests\test_precision.py tests\test_isolation.py -q
+```
+
+The complete suite was not run because `test_postgres_tenant_isolation.py` drops and recreates a local PostgreSQL database. Android-to-backend live synchronization is not verified; see the root [WEB_SYNC_STATUS.md](../WEB_SYNC_STATUS.md).
 
 ## API docs
 
@@ -85,4 +91,6 @@ Once the server is running, the OpenAPI docs are available at:
 
 - DATABASE_URL is expected to point to the project’s PostgreSQL environment.
 - The SQLite config used in tests is for local validation only and is not the production sync runtime.
-- The live web sync gate has been proven: login + pull + push against the real backend succeeded end-to-end on the PostgreSQL-backed runtime.
+- A historical browser login + pull + push smoke test is documented in [WEB_SYNC_STATUS.md](../WEB_SYNC_STATUS.md). It is not evidence of Android synchronization and was not rerun in the current audit.
+- This repository currently configures Alembic to use `migrations/`, which has no `versions/` directory. Do not treat the separate `alembic/versions/` file as an applicable migration; it is outside the configured migration path and has an unresolved parent revision.
+- No Supabase client integration or safe deployed Android test environment was identified in the current configuration.

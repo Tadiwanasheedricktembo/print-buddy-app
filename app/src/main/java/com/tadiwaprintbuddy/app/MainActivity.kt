@@ -165,8 +165,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, DashboardActivity::class.java))
         }
         binding.navRefs.setOnClickListener {
-            // Refers to Account/Settings
-            startActivity(Intent(this, SettingsActivity::class.java))
+            startActivity(Intent(this, PrinterReferenceActivity::class.java))
         }
     }
 

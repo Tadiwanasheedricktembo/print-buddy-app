@@ -49,9 +49,10 @@ class DebtorCreditAdapter(
             val sdf = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
             binding.textLastUpdated.text = "Updated: ${sdf.format(Date(debtorCredit.lastUpdated))}"
 
-            if (debtorCredit.printCount > 0) {
+            if (debtorCredit.printCount > 0 || debtorCredit.bwPages > 0 || debtorCredit.colorPages > 0) {
                 binding.textPrintCount.visibility = android.view.View.VISIBLE
-                binding.textPrintCount.text = "Prints: ${debtorCredit.printCount}"
+                val totalCreditPages = debtorCredit.bwPages + debtorCredit.colorPages
+                binding.textPrintCount.text = "Prints: ${debtorCredit.printCount} | B&W: ${debtorCredit.bwPages} | Color: ${debtorCredit.colorPages} | Total Credit Pages: $totalCreditPages"
             } else {
                 binding.textPrintCount.visibility = android.view.View.GONE
             }

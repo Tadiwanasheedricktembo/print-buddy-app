@@ -25,6 +25,8 @@ sealed class BusinessEvent {
         val cashPaid: BigDecimal,
         val outstanding: BigDecimal,
         val receivedAmount: BigDecimal? = null,
+        val bwPages: Int? = null,
+        val colorPages: Int? = null,
         override val timestamp: Long,
         override val balanceAfter: BigDecimal,
         override val details: List<SettlementHistory>

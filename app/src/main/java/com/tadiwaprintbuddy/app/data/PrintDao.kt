@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 import java.math.BigDecimal
+import com.tadiwaprintbuddy.app.PrintOrderLine
+import com.tadiwaprintbuddy.app.PrintLineType
 
 @Dao
 interface PrintDao {
@@ -31,6 +33,9 @@ interface PrintDao {
 
     @Query("SELECT * FROM `OrderItem` WHERE orderId = :orderId AND (deletedAt IS NULL)")
     suspend fun getItemsForOrder(orderId: Int): List<OrderItem>
+
+    @Query("SELECT * FROM OrderItem WHERE orderId IN (:orderIds) AND (deletedAt IS NULL)")
+    suspend fun getItemsForOrderIds(orderIds: List<Int>): List<OrderItem>
 
     // Pull raw data for high-precision Kotlin summation
     @Query("SELECT paidAmount FROM `orders` WHERE (orderStatus = 'ACTIVE' OR orderStatus IS NULL OR orderStatus = '') AND (deletedAt IS NULL)")
@@ -541,6 +546,18 @@ interface PrintDao {
             ?: items.fold(0L) { total, item -> total + item.quantity.coerceAtLeast(0) }
                 .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
+        val effectiveBwPages = items.fold(0L) { acc, item ->
+            if (PrintOrderLine.typeFromStoredServiceName(item.serviceName) == PrintLineType.BLACK_AND_WHITE) {
+                acc + item.quantity.coerceAtLeast(0)
+            } else acc
+        }.coerceAtMost(Int.MAX_VALUE.toLong()).toInt().takeIf { it > 0 }
+
+        val effectiveColorPages = items.fold(0L) { acc, item ->
+            if (PrintOrderLine.typeFromStoredServiceName(item.serviceName) == PrintLineType.COLOR) {
+                acc + item.quantity.coerceAtLeast(0)
+            } else acc
+        }.coerceAtMost(Int.MAX_VALUE.toLong()).toInt().takeIf { it > 0 }
+
         val order = Order(
             totalAmount = total,
             date = currentTime,
@@ -555,7 +572,9 @@ interface PrintDao {
             orderStatus = "ACTIVE",
             customerSyncId = customer.syncId,
             updatedAt = currentTime,
-            printCount = effectivePrintCount
+            printCount = effectivePrintCount,
+            bwPages = effectiveBwPages,
+            colorPages = effectiveColorPages
         )
         
         val orderId = insertOrder(order).toInt()
@@ -584,7 +603,9 @@ interface PrintDao {
             originSyncId = order.syncId,
             updatedAt = currentTime,
             paymentMethod = requestedPaymentMethod,
-            printCount = effectivePrintCount
+            printCount = effectivePrintCount,
+            bwPages = effectiveBwPages,
+            colorPages = effectiveColorPages
         )
         insertSettlement(settlement1)
         insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = settlement1.syncId, operation = "CREATE"))
@@ -788,7 +809,30 @@ interface PrintDao {
         val customer = getCustomerById(customerId) ?: return false
         val calculatedBalance = getAuthoritativeCustomerBalance(customerId)
         val calculatedPrints = getCustomerTotalPrints(customerId)
-        insertOrUpdateDebtorCredit(DebtorCredit(customerId = customer.id, customerName = customer.displayName, amount = calculatedBalance, printCount = calculatedPrints))
+
+        val orders = getOrdersForCustomerInternal(customerId)
+        val orderIds = orders.map { it.id }
+        var bw = 0
+        var color = 0
+        if (orderIds.isNotEmpty()) {
+            val items = getItemsForOrderIds(orderIds)
+            for (item in items) {
+                when (PrintOrderLine.typeFromStoredServiceName(item.serviceName)) {
+                    PrintLineType.BLACK_AND_WHITE -> bw += item.quantity
+                    PrintLineType.COLOR -> color += item.quantity
+                    else -> {}
+                }
+            }
+        }
+
+        insertOrUpdateDebtorCredit(DebtorCredit(
+            customerId = customer.id, 
+            customerName = customer.displayName, 
+            amount = calculatedBalance, 
+            printCount = calculatedPrints,
+            bwPages = bw,
+            colorPages = color
+        ))
         return true
     }
 

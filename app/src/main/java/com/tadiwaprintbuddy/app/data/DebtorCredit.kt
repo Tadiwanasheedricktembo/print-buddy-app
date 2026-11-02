@@ -16,5 +16,7 @@ data class DebtorCredit(
     val amount: BigDecimal,
     val lastUpdated: Long = System.currentTimeMillis(),
     val phoneNumber: String? = null,
-    val printCount: Int = 0
+    val printCount: Int = 0,
+    val bwPages: Int = 0,
+    val colorPages: Int = 0
 )

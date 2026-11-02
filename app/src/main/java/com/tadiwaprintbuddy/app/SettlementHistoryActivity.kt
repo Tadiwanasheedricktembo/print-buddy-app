@@ -378,10 +378,17 @@ class GroupedSettlementAdapter(
         val outstandingDebt = if (isWalletGroup) BigDecimal.ZERO else if (balance.compareTo(BigDecimal.ZERO) > 0) balance else BigDecimal.ZERO
         val customerCredit = if (isWalletGroup) BigDecimal.ZERO else if (balance.compareTo(BigDecimal.ZERO) < 0) balance.negate() else BigDecimal.ZERO
 
+        val totalBwPages = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.fold(0) { acc, t -> acc + (t.bwPages ?: 0) }
+        val totalColorPages = group.rawTransactions.filter { it.ledgerEntryType == "ORDER_POST" }.fold(0) { acc, t -> acc + (t.colorPages ?: 0) }
+        val totalPages = totalBwPages + totalColorPages
+
         holder.binding.textOrdersTotal.text = format.format(ordersTotal.toDouble())
         holder.binding.textCashReceived.text = format.format(cashReceived.toDouble())
         holder.binding.textOutstandingDebt.text = format.format(outstandingDebt.toDouble())
         holder.binding.textCustomerCredit.text = format.format(customerCredit.toDouble())
+        holder.binding.textBwPages.text = totalBwPages.toString()
+        holder.binding.textColorPages.text = totalColorPages.toString()
+        holder.binding.textTotalPages.text = totalPages.toString()
 
         holder.binding.recyclerTransactions.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
         holder.binding.layoutSummary.visibility = if (group.isExpanded) View.VISIBLE else View.GONE
@@ -510,6 +517,17 @@ class BusinessEventAdapter(private val events: List<BusinessEvent>) :
                 binding.textEventBreakdown.text = buildString {
                     if (event.creditUsed.compareTo(BigDecimal.ZERO) > 0) append("• Used Credit ............ ${format.format(event.creditUsed.toDouble())}\n")
                     if (event.cashPaid.compareTo(BigDecimal.ZERO) > 0) append("• Cash Paid .............. ${format.format(event.cashPaid.toDouble())}\n")
+
+                    if (event.bwPages != null || event.colorPages != null) {
+                        val bw = event.bwPages ?: 0
+                        val color = event.colorPages ?: 0
+                        val totalP = bw + color
+                        if (bw > 0 || color > 0) {
+                            append("• B&W Pages .............. $bw\n")
+                            append("• Color Pages ............ $color\n")
+                            append("• Total Pages ............ $totalP\n")
+                        }
+                    }
 
                     // Show Physical Tender for initial sale
                     event.receivedAmount?.let { received ->

@@ -28,6 +28,8 @@ class BusinessEventMapper {
                     cashPaid = cashPaid,
                     outstanding = total.subtract(cashPaid).subtract(creditUsed).max(BigDecimal.ZERO),
                     receivedAmount = orderPost.receivedAmount ?: payments.firstOrNull()?.receivedAmount,
+                    bwPages = orderPost.bwPages,
+                    colorPages = orderPost.colorPages,
                     timestamp = timestamp,
                     balanceAfter = balanceAfter,
                     details = sortedEvents

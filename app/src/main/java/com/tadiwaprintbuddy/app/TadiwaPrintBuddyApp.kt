@@ -18,8 +18,10 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.DebugTags
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
 class TadiwaPrintBuddyApp : Application(), Application.ActivityLifecycleCallbacks, DefaultLifecycleObserver {
@@ -29,7 +31,18 @@ class TadiwaPrintBuddyApp : Application(), Application.ActivityLifecycleCallback
     override fun onCreate() {
         super<Application>.onCreate()
         ThemeManager(this).applyTheme()
-        SecurityManager.getInstance(this).lockApp() // Guaranteed cold-start lock
+        
+        // Fully initialize SecurityManager and Room Database synchronously on Dispatchers.IO during Application.onCreate
+        // before any Activity window or input dispatching starts, eliminating any runtime main-thread blocking or lock contention.
+        runBlocking(Dispatchers.IO) {
+            try {
+                SecurityManager.getInstance(this@TadiwaPrintBuddyApp).lockApp()
+                AppDatabase.getDatabase(this@TadiwaPrintBuddyApp)
+            } catch (e: Exception) {
+                Log.e("TadiwaPrintBuddyApp", "Failed to initialize security or database", e)
+            }
+        }
+
         scheduleBackup()
         SyncManager.getInstance(this).scheduleSync()
         

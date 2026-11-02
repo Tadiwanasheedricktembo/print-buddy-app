@@ -26,7 +26,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.transition.TransitionManager
 import com.tadiwaprintbuddy.app.data.AppDatabase
 import com.tadiwaprintbuddy.app.data.DebtorCredit
+import com.tadiwaprintbuddy.app.data.OrderResult
 import com.tadiwaprintbuddy.app.data.PrintRepository
+import com.tadiwaprintbuddy.app.CartItem
+import com.tadiwaprintbuddy.app.PrintRateManager
+import com.tadiwaprintbuddy.app.PrintOrderLine
+import com.tadiwaprintbuddy.app.PrintLineType
 import com.tadiwaprintbuddy.app.databinding.ActivityDebtorCreditBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -411,43 +416,82 @@ class DebtorCreditActivity : AppCompatActivity() {
     private fun showAddNewEntryDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_update_debtor_credit, null)
         val editCustomerName = dialogView.findViewById<EditText>(R.id.editCustomerName)
-        val spinnerType = dialogView.findViewById<Spinner>(R.id.spinnerType)
+        val editBwPages = dialogView.findViewById<EditText>(R.id.editBwPages)
+        val editColorPages = dialogView.findViewById<EditText>(R.id.editColorPages)
+        val textCalculatedAmount = dialogView.findViewById<TextView>(R.id.textCalculatedAmount)
         val editAmount = dialogView.findViewById<EditText>(R.id.editAmount)
-        val editPrintCount = dialogView.findViewById<EditText>(R.id.editPrintCount)
 
-        val types = arrayOf("Owes Me", "I Owe Change")
-        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, types)
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerType.adapter = spinnerAdapter
+        val rateManager = PrintRateManager(this)
+        val bwRate = BigDecimal.valueOf(rateManager.bwRate)
+        val colorRate = BigDecimal.valueOf(rateManager.colorRate)
+
+        val updateCalculation = {
+            val bw = editBwPages.text.toString().toIntOrNull() ?: 0
+            val color = editColorPages.text.toString().toIntOrNull() ?: 0
+            val calcTotal = bwRate.multiply(BigDecimal(bw)).add(colorRate.multiply(BigDecimal(color)))
+            textCalculatedAmount.text = "Calculated Amount: ₹ ${calcTotal.toPlainString()}"
+        }
+
+        editBwPages.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updateCalculation() }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        editColorPages.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updateCalculation() }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        updateCalculation()
 
         AlertDialog.Builder(this)
-            .setTitle("Add New Entry")
+            .setTitle("New Credit Print Order")
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
-
                 val customerName = editCustomerName.text.toString().trim()
-                val amountStr = editAmount.text.toString().trim()
-                val amount = try { BigDecimal(amountStr) } catch (e: Exception) { null }
+                val bw = editBwPages.text.toString().toIntOrNull() ?: 0
+                val color = editColorPages.text.toString().toIntOrNull() ?: 0
+                val customAmount = try { BigDecimal(editAmount.text.toString().trim()) } catch (e: Exception) { null }
 
-                val printCountStr = editPrintCount.text.toString().trim()
-                val printCount = if (printCountStr.isEmpty()) 0 else try { printCountStr.toInt() } catch (e: Exception) { -1 }
-
-                if (customerName.isBlank() || amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-                    Toast.makeText(this, "Enter valid details", Toast.LENGTH_SHORT).show()
+                if (customerName.isBlank()) {
+                    Toast.makeText(this, "Enter customer name", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
-                if (printCount < 0) {
-                    Toast.makeText(this, "Enter a valid print quantity (0 or positive)", Toast.LENGTH_SHORT).show()
+                if (bw <= 0 && color <= 0 && (customAmount == null || customAmount.compareTo(BigDecimal.ZERO) <= 0)) {
+                    Toast.makeText(this, "Enter pages or amount", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-
-                val selectedType = spinnerType.selectedItem.toString()
-                val finalAmount = if (selectedType == "I Owe Change") amount.negate() else amount
 
                 lifecycleScope.launch {
-                    repository.addOrUpdateDebtorCredit(customerName, finalAmount, printCount = printCount)
-                    loadDebtorCredits()
+                    val cartItems = mutableListOf<CartItem>()
+                    if (bw > 0) {
+                        val line = PrintOrderLine(PrintLineType.BLACK_AND_WHITE, "B&W Print", bw, bwRate)
+                        cartItems.add(CartItem(line.toStoredServiceName(), bwRate, bw))
+                    }
+                    if (color > 0) {
+                        val line = PrintOrderLine(PrintLineType.COLOR, "Color Print", color, colorRate)
+                        cartItems.add(CartItem(line.toStoredServiceName(), colorRate, color))
+                    }
+                    if (cartItems.isEmpty() && customAmount != null && customAmount > BigDecimal.ZERO) {
+                        cartItems.add(CartItem("Custom Credit Order", customAmount, 1))
+                    }
+
+                    if (cartItems.isNotEmpty()) {
+                        val result = repository.confirmOrder(customerName, cartItems, "OWES_ME")
+                        withContext(Dispatchers.Main) {
+                            when (result) {
+                                is OrderResult.Success -> {
+                                    Toast.makeText(this@DebtorCreditActivity, "Credit print order saved", Toast.LENGTH_SHORT).show()
+                                    loadDebtorCredits()
+                                }
+                                else -> {
+                                    Toast.makeText(this@DebtorCreditActivity, "Failed to save credit order", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)

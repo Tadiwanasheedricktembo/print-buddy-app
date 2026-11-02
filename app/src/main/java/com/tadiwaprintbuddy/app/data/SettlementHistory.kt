@@ -38,6 +38,8 @@ data class SettlementHistory(
     val receivedAmount: BigDecimal? = null,
     val paymentMethod: String? = null, // CASH, UPI, CREDIT
     val printCount: Int? = null,
+    val bwPages: Int? = null,
+    val colorPages: Int? = null,
 
     // Global Identity
     val customerSyncId: String = "",

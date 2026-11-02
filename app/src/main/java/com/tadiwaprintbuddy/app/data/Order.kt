@@ -29,6 +29,8 @@ data class Order(
     val orderStatus: String = "ACTIVE", // ACTIVE, CANCELLED
     val receivedAmount: BigDecimal? = null,
     val printCount: Int = 0,
+    val bwPages: Int? = null,
+    val colorPages: Int? = null,
 
     // Global Identity
     val customerSyncId: String = "",

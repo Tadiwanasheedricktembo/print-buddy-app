@@ -14,7 +14,7 @@ import java.math.BigDecimal
 
 @Database(
     entities = [Order::class, OrderItem::class, Photo::class, DebtorCredit::class, PrinterReference::class, SettlementHistory::class, ExternalLedger::class, UpiAccountTransaction::class, BeautyTransaction::class, CustomerEntity::class, Expense::class, StockItem::class, Note::class, SyncOutbox::class, DeferredSync::class, HomeOrderDraft::class],
-    version = 44,
+    version = 46,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -44,12 +44,23 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33,
                     MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37,
                         MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41,
-                        MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44
+                        MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45,
+                        MIGRATION_45_46
                 )
 
                 val instance = builder.build()
                 INSTANCE = instance
                 instance
+            }
+        }
+
+        val MIGRATION_45_46 = object : Migration(45, 46) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                Log.d("DatabaseMigration", "Starting migration 45 to 46 (Adding bwPages and colorPages to orders and settlement_history)")
+                database.execSQL("ALTER TABLE `orders` ADD COLUMN `bwPages` INTEGER")
+                database.execSQL("ALTER TABLE `orders` ADD COLUMN `colorPages` INTEGER")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `bwPages` INTEGER")
+                database.execSQL("ALTER TABLE `settlement_history` ADD COLUMN `colorPages` INTEGER")
             }
         }
 
@@ -83,6 +94,13 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_43_44 = object : Migration(43, 44) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE `home_order_draft` ADD COLUMN `paymentMethod` TEXT NOT NULL DEFAULT 'CASH'")
+            }
+        }
+
+        val MIGRATION_44_45 = object : Migration(44, 45) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `debtor_credits` ADD COLUMN `bwPages` INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE `debtor_credits` ADD COLUMN `colorPages` INTEGER NOT NULL DEFAULT 0")
             }
         }
 

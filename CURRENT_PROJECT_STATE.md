@@ -22,6 +22,7 @@
 | 3 | [MIGRATION_INVENTORY.md](MIGRATION_INVENTORY.md) / [MIGRATION_CHANGELOG.md](MIGRATION_CHANGELOG.md) | Schema / migration work |
 | 4 | [RECOVERY_RUNBOOK.md](RECOVERY_RUNBOOK.md) | Data recovery |
 | 5 | [WEB_SYNC_STATUS.md](WEB_SYNC_STATUS.md) | Cloud sync / web layer |
+| 6 | [PERFORMANCE_AUDIT_NOKIA_C21.md](PERFORMANCE_AUDIT_NOKIA_C21.md) | Low-end device performance tuning (Nokia C21 Plus / eMMC / RAM / migrations) |
 
 **Do not assume** “financial logic is fully verified” from older notes below without reading **LOGIC_ISSUES_LOG.md** (open issues L-001–L-021 as of 2026-09-28).
 

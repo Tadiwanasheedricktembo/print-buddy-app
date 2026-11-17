@@ -87,7 +87,9 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
                     Toast.makeText(this@CartActivity, R.string.order_saved_successfully, Toast.LENGTH_SHORT).show()
                     
                     val paymentDialog = PaymentDialogFragment.newInstance(total, orderId)
+                    var paymentConfirmed = false
                     paymentDialog.setOnPaymentConfirmedListener {
+                        paymentConfirmed = true
                         lifecycleScope.launch {
                             // Mark as paid via UPI since this is the QR dialog
                             repository.updatePayment(orderId, total, "UPI")
@@ -101,6 +103,11 @@ class CartActivity : AppCompatActivity(), CartAdapter.OnCartChangedListener {
                     supportFragmentManager.registerFragmentLifecycleCallbacks(object : FragmentManager.FragmentLifecycleCallbacks() {
                         override fun onFragmentDestroyed(fm: FragmentManager, f: Fragment) {
                             if (f is PaymentDialogFragment) {
+                                if (!paymentConfirmed) {
+                                    lifecycleScope.launch {
+                                        repository.cancelOrder(orderId)
+                                    }
+                                }
                                 finish()
                                 supportFragmentManager.unregisterFragmentLifecycleCallbacks(this)
                             }

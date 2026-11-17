@@ -937,6 +937,45 @@ interface PrintDao {
     }
 
     @Transaction
+    suspend fun recordPaymentAndOverpaymentAtomic(
+        orderId: Int,
+        newPaidAmount: BigDecimal,
+        status: String,
+        method: String,
+        orderSettlement: SettlementHistory,
+        extraSettlement: SettlementHistory?,
+        walletDelta: BigDecimal,
+        deltaPaymentMethod: String,
+        customerId: Long
+    ): Boolean {
+        val now = System.currentTimeMillis()
+        updateOrderPaymentStatusInternal(orderId, newPaidAmount, status, method, now)
+        val order = getOrderById(orderId)
+        val customer = getCustomerById(customerId)
+        
+        val enrichedOrderSettlement = orderSettlement.copy(customerSyncId = customer?.syncId ?: "", originSyncId = order?.syncId, updatedAt = now)
+        insertSettlement(enrichedOrderSettlement)
+        insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enrichedOrderSettlement.syncId, operation = "CREATE"))
+
+        if (extraSettlement != null) {
+            val enrichedExtraSettlement = extraSettlement.copy(customerSyncId = customer?.syncId ?: "", originSyncId = order?.syncId, updatedAt = now)
+            insertSettlement(enrichedExtraSettlement)
+            insertSyncEvent(SyncOutbox(entityType = "SETTLEMENT", entitySyncId = enrichedExtraSettlement.syncId, operation = "CREATE"))
+        }
+
+        if (deltaPaymentMethod == "UPI" && walletDelta > BigDecimal.ZERO) {
+            insertUpiAccountTransactionAtomic(walletDelta, "ADD", "Payment/Overpayment Order #$orderId", isShadowDuplicate = true)
+        }
+
+        if (order != null) {
+            insertSyncEvent(SyncOutbox(entityType = "ORDER", entitySyncId = order.syncId, operation = "UPDATE"))
+        }
+
+        rebuildCustomerProjection(customerId)
+        return true
+    }
+
+    @Transaction
     suspend fun cancelOrderWithWalletAtomic(
         orderId: Int, 
         status: String, 

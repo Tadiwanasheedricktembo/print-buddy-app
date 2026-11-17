@@ -119,20 +119,25 @@ class PrintRepository(private val printDao: PrintDao) {
         val amountAppliedToOrder = totalDelta.min(remainingOrderBalance)
         val extraBeyondOrder = totalDelta.subtract(amountAppliedToOrder)
 
+        val customerId = order.customerId
+        val currentBalance = getCustomerBalanceById(customerId)
+
+        var orderSettlement: SettlementHistory? = null
+        var cappedPaid = order.paidAmount
+        var status = order.paymentStatus
+        var method = order.paymentMethod
+
         if (amountAppliedToOrder > BigDecimal.ZERO) {
-            val cappedPaid = order.paidAmount.add(amountAppliedToOrder)
-            val status = when {
+            cappedPaid = order.paidAmount.add(amountAppliedToOrder)
+            status = when {
                 cappedPaid >= orderTotal -> "PAID"
                 cappedPaid > BigDecimal.ZERO -> "PARTIALLY_PAID"
                 else -> "UNPAID"
             }
-
-            val method = if (order.paymentMethod == "NONE" || order.paymentMethod == "" || order.paymentMethod == paymentMethod) normalizedMethod else "MIXED"
-            val customerId = order.customerId
-            val currentBalance = getCustomerBalanceById(customerId)
+            method = if (order.paymentMethod == "NONE" || order.paymentMethod == "" || order.paymentMethod == paymentMethod) normalizedMethod else "MIXED"
             val newBalance = currentBalance.subtract(amountAppliedToOrder)
 
-            val settlement = SettlementHistory(
+            orderSettlement = SettlementHistory(
                 customerName = order.customerName, customerId = customerId,
                 balanceBefore = currentBalance, amountPaid = amountAppliedToOrder, balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "PAYMENT",
@@ -141,34 +146,37 @@ class PrintRepository(private val printDao: PrintDao) {
                 newBalance = newBalance, originId = orderId, receivedAmount = if (extraBeyondOrder <= BigDecimal.ZERO) receivedAmount else null,
                 paymentMethod = normalizedMethod
             )
-
-            printDao.recordPaymentWithWalletAtomic(orderId, cappedPaid, status, method, settlement, amountAppliedToOrder, normalizedMethod)
         }
 
+        var extraSettlement: SettlementHistory? = null
         if (extraBeyondOrder > BigDecimal.ZERO) {
-            val customerId = order.customerId
-            val currentBalance = getCustomerBalanceById(customerId)
-            val newBalance = currentBalance.subtract(extraBeyondOrder)
+            val intermediateBalance = if (amountAppliedToOrder > BigDecimal.ZERO) currentBalance.subtract(amountAppliedToOrder) else currentBalance
+            val newBalance = intermediateBalance.subtract(extraBeyondOrder)
             
-            val extraSettlement = SettlementHistory(
+            extraSettlement = SettlementHistory(
                 customerName = order.customerName, customerId = customerId,
-                balanceBefore = currentBalance, amountPaid = extraBeyondOrder, balanceAfter = newBalance,
+                balanceBefore = intermediateBalance, amountPaid = extraBeyondOrder, balanceAfter = newBalance,
                 timestamp = System.currentTimeMillis(), type = "PAYMENT", ledgerEntryType = "CREDIT",
                 note = "Overpayment for Order #${order.id} via $normalizedMethod",
                 transactionAmount = extraBeyondOrder.negate(),
                 newBalance = newBalance, originId = orderId, receivedAmount = receivedAmount,
                 paymentMethod = normalizedMethod
             )
-            printDao.insertSettlement(extraSettlement)
-            if (normalizedMethod == "UPI") {
-                printDao.insertUpiAccountTransactionAtomic(
-                    extraBeyondOrder,
-                    "ADD",
-                    "Overpayment Order #$orderId",
-                    isShadowDuplicate = true
-                )
-            }
-            rebuildCustomerProjection(customerId)
+        }
+
+        if (orderSettlement != null || extraSettlement != null) {
+            val primarySettlement = orderSettlement ?: extraSettlement!!
+            printDao.recordPaymentAndOverpaymentAtomic(
+                orderId = orderId,
+                newPaidAmount = cappedPaid,
+                status = status,
+                method = method,
+                orderSettlement = primarySettlement,
+                extraSettlement = if (orderSettlement != null) extraSettlement else null,
+                walletDelta = requestedTotalPaid.subtract(order.paidAmount),
+                deltaPaymentMethod = normalizedMethod,
+                customerId = customerId
+            )
         }
     }
 

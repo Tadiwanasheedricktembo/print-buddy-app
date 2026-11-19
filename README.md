@@ -100,4 +100,24 @@ The project aims to be a complete business system for a real print operation wit
 
 **Project purpose:** real-world operations for a print business, with local-first stability and a controlled move toward cloud sync.
 
+PROJECT SCREENSHOTS
+1.Main screen
+<img width="421" height="678" alt="image" src="https://github.com/user-attachments/assets/95f915d1-391d-452b-95d2-ce81db103c8b" />
+
+2. History screen
+   <img width="442" height="673" alt="image" src="https://github.com/user-attachments/assets/3cc9b61e-3e39-4943-af35-0843ce2cd6ba" />
+
+3. Customer balances
+   <img width="415" height="671" alt="image" src="https://github.com/user-attachments/assets/02d56dce-46db-40f6-b975-9cb3e5b3d528" />
+4. Business analytics section
+   <img width="414" height="656" alt="image" src="https://github.com/user-attachments/assets/0aef651b-4e49-4183-8226-d1c10c10f06d" />
+5. Print calculator
+<img width="446" height="670" alt="image" src="https://github.com/user-attachments/assets/786ccee7-ee45-4a97-a0a3-8e051ee526f2" />
+
+6. About section
+   <img width="420" height="674" alt="image" src="https://github.com/user-attachments/assets/d5dbab26-d0a9-4633-bc25-e46a44216332" />
+7. Settings screen
+   <img width="391" height="675" alt="image" src="https://github.com/user-attachments/assets/501ea8bf-25be-4fab-abcb-beb27afac803" />
+
+
 **Last updated:** September 2026

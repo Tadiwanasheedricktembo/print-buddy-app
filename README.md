@@ -1,230 +1,250 @@
-🖨️ Tadiwa Print Buddy
+Tadiwa Print Buddy
 
 An Offline-First Print Business Operating System
 
-Tadiwa Print Buddy is an offline-first print business operating system built around the real workflow of a small print shop: order intake, quotations, payment collection, debt tracking, stock movement, customer history, financial reporting, and operational notes.
+Tadiwa Print Buddy is an offline-first business management system designed around the everyday operations of a small print shop. It brings together order management, quotations, payment collection, customer balances, stock tracking, financial reporting, and operational notes in one application.
 
-This repository contains the Android app, a FastAPI backend, and a web dashboard layer.
+This repository contains three main components:
 
-The underlying goal is not just to build an app, but to create a practical business operating system that can run without internet, maintain trusted records locally, and synchronize reliably with a cloud layer.
+Android Application: The primary business operations interface.
+Backend API: A FastAPI service providing authentication and synchronization.
+Web Dashboard: A Next.js application for browser-based access and synchronization management.
 
-📑 Table of Contents
+The project's core principle is simple: business operations should remain reliable even without an internet connection.
+
+Table of Contents
 Project Overview
-What the Project Contains
-Android Application
-Backend API
-Web Dashboard and Sync Layer
+System Architecture
+Core Features
 Project Screenshots
 Current Project Status
 Project Goals
 Repository Structure
-Development Setup and Commands
-Project Purpose
-🚀 Project Overview
+Development Setup
+Documentation
+Project Overview
 
-Tadiwa Print Buddy is designed to simplify and digitize the everyday operations of a small printing business.
+Tadiwa Print Buddy is designed to simplify and digitize the daily operations of a small printing business.
 
-It focuses on:
+The application focuses on:
 
 Offline-first business operations.
-Reliable financial and transaction records.
-Customer balance and debt management.
+Accurate financial and transaction records.
+Customer debt and balance management.
 Order processing and payment collection.
 Independent print-count tracking.
 Stock and expense management.
 Business analytics and reporting.
-Backup, restoration, and future cloud synchronization.
+Local backup and restoration.
+Future cloud synchronization.
 
-The system prioritizes local data integrity while providing a foundation for future cloud-connected functionality.
+The system prioritizes local data integrity, financial accuracy, and operational reliability while providing a foundation for cloud-connected functionality.
 
-🧩 What the Project Contains
-📱 Android Application
+System Architecture
 
-Technology: Kotlin, Jetpack, Room Database, MVVM
+The project consists of three interconnected components.
 
-The Android application is the primary business operations interface.
+1. Android Application
 
-Key features:
+Technology Stack: Kotlin, Jetpack, Room Database, MVVM
 
-Kotlin-based Android application using MVVM and repository architecture.
-Local-first transaction ledger for customers, orders, settlements, stock, expenses, and notes.
-Total Number of Prints Made Tracking: First-class, independent printCount tracking per transaction, decoupled from monetary calculations.
-Collapsible Customer Balances: Independent summary cards (OWES ME and I OWE CHANGE) with sorting, filtering, and customer management.
-Automatic Order Saving: Quick Order on the Home Screen automatically saves valid orders upon selecting Cash, UPI, or Credit payment methods.
-Notes Feature: Integrated notes management with sorting, search, and backup/restore coverage.
-Offline data integrity checks and reconciliation logic.
-Local backup and export support using print_database .zip archives.
-Data preservation across backup and restore operations.
+The Android application is the primary interface for managing print business operations.
 
-Source location: app/
+Key capabilities:
 
-⚙️ Backend API
+Local-first transaction ledger covering customers, orders, settlements, stock, expenses, and notes.
+Independent printCount tracking for every transaction, separate from monetary calculations.
+Collapsible customer balance summaries:
+OWES ME
+I OWE CHANGE
+Automatic order saving when selecting Cash, UPI, or Credit payment methods.
+Integrated notes management with sorting and search.
+Offline data integrity checks and reconciliation.
+Local backup and export using print_database ZIP archives.
+Backup restoration designed to preserve business data.
 
-Technology: Python, FastAPI, SQLAlchemy, PostgreSQL
+Source directory: app/
 
-The backend provides the foundation for authenticated cloud synchronization and server-side business data management.
+2. Backend API
 
-Key features:
+Technology Stack: Python, FastAPI, SQLAlchemy, PostgreSQL
 
-FastAPI application with JWT authentication.
+The backend provides authentication, synchronization, and server-side business data management.
+
+Key capabilities:
+
+JWT-based authentication.
 Synchronization endpoints.
-PostgreSQL-compatible data layer.
-SQLAlchemy models and Alembic migration support.
+PostgreSQL-compatible database layer.
+SQLAlchemy models.
+Alembic database migrations.
 User-scoped synchronization isolation.
 Server-side idempotency.
 API routers for authentication, synchronization, analytics, and business data.
 
-Source location: backend/
+Source directory: backend/
 
-🌐 Web Dashboard and Sync Layer
+3. Web Dashboard and Synchronization Layer
 
-Technology: Next.js
+Technology Stack: Next.js
 
-The web application provides the dashboard and browser-side synchronization layer.
+The web application provides browser-based dashboard functionality and synchronization infrastructure.
 
-Key features:
+Key capabilities:
 
-Next.js web application.
-Dashboard integration.
+Next.js dashboard application.
 Authenticated API wrappers.
 Local storage token handling.
-Pull and push synchronization primitives.
+Pull and push synchronization.
 Outbox queue management.
 Data merge logic.
 Synchronization diagnostics.
 Dashboard monitoring and smoke tests.
 
-Source location: web/
+Source directory: web/
 
-📸 Project Screenshots
+Core Features
+Business and Order Management
+Quick order creation.
+Automatic order saving.
+Cash, UPI, and Credit payment methods.
+Transaction history.
+Customer management.
+Financial Management
+Customer debt tracking.
+Outstanding balance summaries.
+Settlement history.
+Expense tracking.
+Financial analytics.
+Precise decimal handling.
+Print Tracking
+Independent printCount tracking.
+Print quantities stored separately from transaction amounts.
+Print-count reporting and analytics.
+Backup and restoration support.
+Notes Management
+Create and manage operational notes.
+Search and sorting functionality.
+Navigation menu integration.
+Backup and restoration coverage.
+Data Reliability
+Offline-first database operations.
+Data integrity checks.
+Transaction reconciliation.
+Local ZIP backup and export.
+Data restoration support.
+Foundation for cloud synchronization.
+Project Screenshots
 
-The following screenshots showcase the Android application's interface and its core business management functionality.
+The following screenshots showcase the Android application's interface and its main business management features.
 
 <table align="center">
 <tr>
 <td align="center" width="33%">
-<strong>1. Main Screen</strong><br/>
+<strong>Main Screen</strong><br/>
 <sub>Business overview and quick order access</sub><br/><br/>
-<img src="https://github.com/user-attachments/assets/95f915d1-391d-452b-95d2-ce81db103c8b" width="230" alt="Tadiwa Print Buddy main screen"/>
+<img src="https://github.com/user-attachments/assets/95f915d1-391d-452b-95d2-ce81db103c8b" width="230" alt="Main screen"/>
 </td>
 <td align="center" width="33%">
-<strong>2. History Screen</strong><br/>
+<strong>History Screen</strong><br/>
 <sub>Transaction and order history</sub><br/><br/>
-<img src="https://github.com/user-attachments/assets/3cc9b61e-3e39-4943-af35-0843ce2cd6ba" width="230" alt="Transaction history screen"/>
+<img src="https://github.com/user-attachments/assets/3cc9b61e-3e39-4943-af35-0843ce2cd6ba" width="230" alt="History screen"/>
 </td>
 <td align="center" width="33%">
-<strong>3. Customer Balances</strong><br/>
+<strong>Customer Balances</strong><br/>
 <sub>Customer debts and outstanding balances</sub><br/><br/>
-<img src="https://github.com/user-attachments/assets/02d56dce-46db-40f6-b975-9cb3e5b3d528" width="230" alt="Customer balances screen"/>
+<img src="https://github.com/user-attachments/assets/02d56dce-46db-40f6-b975-9cb3e5b3d528" width="230" alt="Customer balances"/>
 </td>
 </tr>
 <tr>
 <td align="center" width="33%">
-<strong>4. Business Analytics</strong><br/>
-<sub>Business performance and financial insights</sub><br/><br/>
-<img src="https://github.com/user-attachments/assets/0aef651b-4e49-4183-8226-d1c10c10f06d" width="230" alt="Business analytics screen"/>
+<strong>Business Analytics</strong><br/>
+<sub>Financial insights and business performance</sub><br/><br/>
+<img src="https://github.com/user-attachments/assets/0aef651b-4e49-4183-8226-d1c10c10f06d" width="230" alt="Business analytics"/>
 </td>
 <td align="center" width="33%">
-<strong>5. Print Calculator</strong><br/>
+<strong>Print Calculator</strong><br/>
 <sub>Printing calculations and pricing assistance</sub><br/><br/>
-<img src="https://github.com/user-attachments/assets/786ccee7-ee45-4a97-a0a3-8e051ee526f2" width="230" alt="Print calculator screen"/>
+<img src="https://github.com/user-attachments/assets/786ccee7-ee45-4a97-a0a3-8e051ee526f2" width="230" alt="Print calculator"/>
 </td>
 <td align="center" width="33%">
-<strong>6. About Section</strong><br/>
+<strong>About Section</strong><br/>
 <sub>Application information</sub><br/><br/>
-<img src="https://github.com/user-attachments/assets/d5dbab26-d0a9-4633-bc25-e46a44216332" width="230" alt="About section screen"/>
+<img src="https://github.com/user-attachments/assets/d5dbab26-d0a9-4633-bc25-e46a44216332" width="230" alt="About section"/>
 </td>
 </tr>
 <tr>
 <td align="center" colspan="3">
-<strong>7. Settings Screen</strong><br/>
+<strong>Settings Screen</strong><br/>
 <sub>Application configuration and preferences</sub><br/><br/>
 <img src="https://github.com/user-attachments/assets/501ea8bf-25be-4fab-abcb-beb27afac803" width="230" alt="Settings screen"/>
 </td>
 </tr>
 </table>
 
-📊 Current Project Status
-✅ Verified and Working
+Current Project Status
+Verified and Working
 
 The Android business logic, local data integrity, and analytics have been verified.
 
-Newly Implemented Features
-Independent Print Count Tracking
-Persisted printCount tracking system.
-Independent of monetary calculations.
-Reflected in analytics and customer summaries.
-Included in backup and restoration.
-Collapsible Customer Balance Cards
-OWES ME summary.
-I OWE CHANGE summary.
-Sorting, filtering, and customer management.
-Automatic Order Saving
-Quick Order automatically saves valid orders.
-Payment method selection triggers saving.
-Supports Cash, UPI, and Credit.
-Fully Integrated Notes Feature
-Navigation menu access.
-Notes management and search.
-Sorting functionality.
-Backup and restoration integration.
-Comprehensive Automated Testing
+Recently Implemented
+Feature	Description
+Print Count Tracking	Independent printCount persistence, analytics, and backup support
+Customer Balances	Collapsible OWES ME and I OWE CHANGE summary cards
+Automatic Order Saving	Automatic saving after Cash, UPI, or Credit selection
+Notes Management	Integrated notes, search, sorting, and backup support
+Automated Testing	Unit and integration test coverage for core business logic
+Automated Tests
+
+The following test suites have been implemented:
+
 OrderValidationTest
 NotesFeatureTest
 PrintCountIntegrityTest
 FinancialIntegrityTest
-🎯 Project Goals
+Project Goals
 
-The long-term goal is to build a complete and dependable business management system for a real-world print operation.
+The long-term objective is to build a complete and dependable management system for a real-world print business.
 
-The main objectives are:
+The main goals are:
 
-Keep daily business operations fast, automated, and reliable offline.
-Preserve accurate financial records with precise decimal handling and independent print-count metrics.
-Support customer debt, order processing, settlement history, and operational notes without confusion.
-Introduce cloud synchronization and web access without compromising the local-first trust model.
-Make the application useful as a practical everyday business management tool.
-📂 Repository Structure
+Operational Efficiency: Keep daily business operations fast, automated, and reliable offline.
+Financial Accuracy: Preserve accurate financial records using precise decimal handling.
+Customer Management: Support customer debt, order processing, and settlement history.
+Business Intelligence: Provide useful print-count metrics and financial analytics.
+Cloud Integration: Introduce synchronization and web access without compromising local-first reliability.
+Practical Usability: Maintain a system that is genuinely useful in everyday business operations.
+Repository Structure
 text
 Tadiwa-Print-Buddy/
 │
-├── app/
-│   └── Android application source
+├── app/                         # Android application
 │
-├── backend/
-│   ├── FastAPI application
-│   ├── API routers
-│   ├── Database models
-│   ├── Alembic migrations
-│   └── Backend tests
+├── backend/                     # FastAPI backend
+│   ├── app/                     # API application
+│   ├── migrations/              # Database migrations
+│   └── tests/                   # Backend tests
 │
-├── web/
-│   ├── Next.js application
-│   ├── Dashboard
-│   └── Synchronization layer
+├── web/                         # Next.js dashboard
 │
-├── docs/
-│   └── Project documentation
+├── docs/                        # Project documentation
 │
-├── CURRENT_PROJECT_STATE.md
-├── LOGIC_ISSUES_LOG.md
+├── CURRENT_PROJECT_STATE.md     # Development resume point
+├── LOGIC_ISSUES_LOG.md          # Business logic issues and design logs
 └── README.md
 
-Important Project Documentation
-CURRENT_PROJECT_STATE.md — Session resume point for developers and AI coding agents.
-LOGIC_ISSUES_LOG.md — Known business logic issues, design decisions, and development logs.
-🛠️ Development Setup and Commands
-📱 Android Development
+Development Setup
+Android Development
 
-From Windows PowerShell:
+Run the following commands from Windows PowerShell.
 
-Compile Android application Kotlin:
+Compile application Kotlin:
 
 powershell
 .\gradlew.bat :app:compileDebugKotlin
 
 
-Compile unit-test Kotlin sources:
+Compile unit-test Kotlin:
 
 powershell
 .\gradlew.bat :app:compileDebugUnitTestKotlin
@@ -236,16 +256,14 @@ powershell
 .\gradlew.bat :app:testDebugUnitTest --tests "fully.qualified.TestClass.test method name"
 
 
-Run the complete Android unit-test suite:
+Run the complete unit-test suite:
 
 powershell
 .\gradlew.bat :app:testDebugUnitTest
 
-⚙️ Backend Development
+Backend Development
 
 Navigate to the backend/ directory.
-
-Set up Python 3.11 environment.
 
 Install dependencies:
 
@@ -253,7 +271,7 @@ bash
 pip install -r requirements.txt
 
 
-Run the FastAPI server:
+Start the API server:
 
 bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
@@ -264,7 +282,7 @@ Run backend tests:
 bash
 python -m pytest -q
 
-🌐 Web Dashboard Development
+Web Dashboard Development
 
 Navigate to the web/ directory.
 
@@ -274,29 +292,35 @@ bash
 npm install
 
 
-Start the development server:
+Start development server:
 
 bash
 npm run dev
 
 
-Build the production application:
+Build production application:
 
 bash
 npm run build
 
-💡 Project Purpose
+Documentation
 
-Tadiwa Print Buddy is built around a simple idea:
+Additional project documentation is available in the repository:
 
-A small print business deserves a reliable business management system without depending on a constant internet connection.
+CURRENT_PROJECT_STATE.md — Current project status and development resume point.
+LOGIC_ISSUES_LOG.md — Known business logic issues, design decisions, and development notes.
+Project Purpose
 
-The project combines local-first Android operations, dependable financial records, customer management, business analytics, and a controlled transition toward cloud synchronization.
+Tadiwa Print Buddy is built around one central principle:
 
-The ultimate objective is to make everyday print business operations more organized, transparent, and efficient.
+A small print business deserves a reliable management system that does not depend on a constant internet connection.
 
-Last updated: September 2026
+By combining offline-first Android operations, accurate financial records, customer management, business analytics, and a controlled transition toward cloud synchronization, the project aims to make everyday print business operations more organized, transparent, and efficient.
 
 Project: Tadiwa Print Buddy
 
-Focus: Offline-first print business management and controlled cloud synchronization.
+Architecture: Android + FastAPI + Next.js
+
+Development Focus: Offline-first business management and reliable cloud synchronization.
+
+Last Updated: September 2026
